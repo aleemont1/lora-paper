@@ -1,8 +1,6 @@
 *
 !*.tex
 !*.pdf
-!*.html
-!*.css
 !.gitignore
 !*.bib
 !img/
