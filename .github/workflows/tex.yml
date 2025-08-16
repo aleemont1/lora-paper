@@ -48,8 +48,8 @@ jobs:
           mkdir site
           cp paper.html site/index.html
           cp paper.css site/paper.css
-          cp paper.bib site/paper.bib
-          cp -r img/ site/
+          cp paper.bib site/paper.bib   
+          [ -d img ] && cp -r img/ site/
           echo "img {max-width: 100%; height: auto;}" >> site/paper.css
           echo "table { display: block; overflow-x: auto; overflow-y: hidden; white-space: nowrap; max-width: 100%; box-sizing: border-box; }" >> site/paper.css
       - name: Generate build artifact (HTML)
