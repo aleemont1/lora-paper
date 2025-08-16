@@ -112,12 +112,13 @@
 % *** GRAPHICS RELATED PACKAGES ***
 %
 \ifCLASSINFOpdf
-  % \usepackage[pdftex]{graphicx}
+\usepackage[pdftex]{graphicx}
+\usepackage{tabularx}
   % declare the path(s) where your graphic files are
   % \graphicspath{{../pdf/}{../jpeg/}}
   % and their extensions so you won't have to specify these with
   % every instance of \includegraphics
-  % \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+\DeclareGraphicsExtensions{.pdf,.jpeg,.png}
 \else
   % or other class option (dvipsone, dvipdf, if not using dvips). graphicx
   % will default to the driver specified in the system graphics.cfg if no
@@ -358,11 +359,11 @@
 \acrodef{I2C}[I\textsuperscript{2}C]{Inter-Integrated Circuit}
 \acrodef{SPI}{Serial Peripheral Interface}
 \acrodef{ISM}{Industrial, Scientific and Medical}
-\acrodef{RSSI}{\emph{Received Signal Strength Indicator}}
-\acrodef{EKF}{\emph{Extended Kalman Filter}}
-\acrodef{CRC}{Controllo di Ridondanza Ciclica}
-\acrodef{LoS}{\emph{Line of Sight}}
-\acrodef{ADR}{\emph{Air Data Rate}}
+\acrodef{RSSI}{Received Signal Strength Indicator}
+\acrodef{EKF}{Extended Kalman Filter}
+\acrodef{CRC}{Cyclic Redundancy Check}
+\acrodef{LoS}{Line of Sight}
+\acrodef{ADR}{Air Data Rate}
 \acrodef{UAV}{Unmanned Aerial Vehicle}
 
 \begin{document}
@@ -482,31 +483,31 @@
 % 
 % Here we have the typical use of a "T" for an initial drop letter
 % and "HIS" in caps to complete the first word.
-\IEEEPARstart{L}{ow-power}, low-cost and long-range wireless communication technologies 
-are becoming increasingly important in the context of the \ac{IoT}. Applications 
-such as environmental monitoring, precision agriculture or \acp{UAV}, require 
-reliable data transmission over extended distances with strict power and hardware 
+\IEEEPARstart{L}{ow-power}, low-cost and long-range wireless communication technologies
+are becoming increasingly important in the context of the \ac{IoT}. Applications
+such as environmental monitoring, precision agriculture or \acp{UAV}, require
+reliable data transmission over extended distances with strict power and hardware
 constraints.\\
 
-A range of different communication standards, including ZigBee, Sigfox and \ac{LoRa} 
-have been adopted to address these needs, and \ac{LoRa}, in particular, has 
-emerged as the leading choice for low-power and long-range deployments thanks to 
-its robust modulation technique and open network architecture. 
-However, conventional solutions based on \ac{LoRa} (particularly those following 
+A range of different communication standards, including ZigBee, Sigfox and \ac{LoRa}
+have been adopted to address these needs, and \ac{LoRa}, in particular, has
+emerged as the leading choice for low-power and long-range deployments thanks to
+its robust modulation technique and open network architecture.
+However, conventional solutions based on \ac{LoRa} (particularly those following
 the \ac{LoRaWAN} specifications) are optimized for small, non-frequent payloads.\\
 
 % Explain what kind of limitations this poses to IoT applications that 
 % require high-volume continuous transmission with long-range and low-power telemetry
 
-This paper presents the design and implementation of a custom communication protocol 
-for \ac{LoRa}, engineered to enable the transmission of segmented large data payloads 
+This paper presents the design and implementation of a custom communication protocol
+for \ac{LoRa}, engineered to enable the transmission of segmented large data payloads
 over long distances.
-The proposed system has been deployed on a sounding rocket built by the Aurora 
-Rocketry team in the University of Bologna, demonstrating its applicability to 
-highly dynamic systems, that require continuous transmission of large amount of telemetry 
-data with high reliability and low power consumption in a point-to-point configuration. 
-This approach is generalizable to a wide range of \ac{IoT} applications requiring 
-extended data capacity over extended distances and high power efficiency, and possibly 
+The proposed system has been deployed on a sounding rocket built by the Aurora
+Rocketry team in the University of Bologna, demonstrating its applicability to
+highly dynamic systems, that require continuous transmission of large amount of telemetry
+data with high reliability and low power consumption in a point-to-point configuration.
+This approach is generalizable to a wide range of \ac{IoT} applications requiring
+extended data capacity over extended distances and high power efficiency, and possibly
 to multi-agent systems that require the transmission of structured data between the agents.
 
 
@@ -514,7 +515,89 @@ to multi-agent systems that require the transmission of structured data between 
 
 \section{State of The Art}
 \section{Proposed System}
+The proposed system uses a point-to-point, unidirectional architecture, with a
+transmitter mounted on the rocket's flight computer and a receiver mounted inside
+the ground station.
 
+The LoRa modules used in this implementation had a packet size limit of 200 Bytes.
+
+The base \ac{LoRa} packet generated by the adopted modules is structured as follows:
+\begin{itemize}
+  \item \textbf{Physical Header (3 Bytes)}:
+        \begin{itemize}
+          \item High Address (1 Byte)
+          \item Low Address (1 Byte)
+          \item Communication Channel ID (1 Byte)
+        \end{itemize}
+  \item \textbf{Payload (up to 194 Bytes)}
+  \item \textbf{Footer (2--3 Bytes)}:
+        \begin{itemize}
+          \item \ac{CRC} (2 Bytes)
+          \item \ac{RSSI} (1 Byte, optional, automatically added by the \ac{LoRa}
+                module and enabled in this implementation for link quality monitoring)
+        \end{itemize}
+\end{itemize}
+
+In addition to the 3-byte physical header defined by the LoRa module, a custom
+11-byte logical header is prepended to each payload to manage segmentation.
+The extension enables transmission of larger data structures by segmenting
+them into smaller chunks. The custom header is structured as follows:
+\begin{itemize}
+  \item \textbf{Packet Number (2 Bytes)}: Unique identifier of the segmented payload sequence.
+  \item \textbf{Total Chunks (1 Byte)}: Total number of chunks the payload has been divided into.
+  \item \textbf{Chunk Index (1 Byte)}: Progressive index identifying the current chunk within the sequence.
+  \item \textbf{Chunk Size (2 Bytes)}: Effective size (Bytes) of the current chunk.
+  \item \textbf{Payload Size (2 Bytes)}: Size (Bytes) of the original payload before segmentation.
+  \item \textbf{Timestamp (4 Bytes)}: Time reference associated with the packet, useful for performance analysis and synchronization.
+  \item \textbf{Protocol Version (1 Byte)}: Reserved field for future protocol revisions, ensuring backward compatibility.
+\end{itemize}
+
+The final produced packet is represented in
+Fig.~\ref{fig:protocol-packet}.
+
+\begin{figure}[!ht]
+  \centering
+  \includegraphics[width=0.5\textwidth]{img/protocol-packet.png}
+  \caption{Transmitted packet schematic representation.}
+  \label{fig:protocol-packet}
+\end{figure}
+
+
+\renewcommand\tabularxcolumn[1]{m{#1}} % all X columns now vertically centered
+\newcolumntype{L}{>{\centering\arraybackslash}m{2cm}} % first column width 2cm, vertically centered
+\newcolumntype{C}{>{\centering\arraybackslash}m{1.5cm}} % second column width 1.5cm, vertically centered
+
+\begin{table}[!ht]
+  \centering
+  \caption{Custom protocol packet structure}
+  \label{tab:protocol-structure}
+  \renewcommand{\arraystretch}{1.2} % 1.0 = default, 1.2 = slightly taller rows
+  \begin{tabularx}{\columnwidth}{|L|C|X|}
+    \hline
+    \textbf{Field}   & \textbf{Size (Bytes)} & \textbf{Description}                                          \\ \hline
+    \multicolumn{3}{|c|}{\textbf{Physical Header}}                                                           \\ \hline
+    ADDL             & 1                     & Low address (LoRa module physical address)                    \\ \hline
+    ADDH             & 1                     & High address (LoRa module physical address)                   \\ \hline
+    CHAN             & 1                     & Channel ID selected on the LoRa module                        \\ \hline
+    \multicolumn{3}{|c|}{\textbf{Custom Logical Header}}                                                     \\ \hline
+    Packet Number    & 2                     & Unique identifier of the segmented payload sequence           \\ \hline
+    Total Chunks     & 1                     & Number of chunks in the segmented payload                     \\ \hline
+    Chunk Index      & 1                     & Index of the current chunk in the sequence                    \\ \hline
+    Chunk Size       & 2                     & Actual size (Bytes) of the transmitted chunk                  \\ \hline
+    Payload Size     & 2                     & Size (Bytes) of the original payload before segmentation      \\ \hline
+    Timestamp        & 4                     & Time reference (ms since transmission start)                  \\ \hline
+    Protocol Version & 1                     & Reserved byte for protocol retro-compatibility                \\ \hline
+    \multicolumn{3}{|c|}{\textbf{Payload}}                                                                   \\ \hline
+    Payload          & 183                   & Telemetry data content                                        \\ \hline
+    \multicolumn{3}{|c|}{\textbf{Footer}}                                                                    \\ \hline
+    RSSI (optional)  & 1                     & Received Signal Strength Indicator (added by the LoRa module) \\ \hline
+    CRC              & 2                     & Cyclic Redundancy Check for error detection                   \\ \hline
+  \end{tabularx}
+\end{table}
+
+This protocol enables robust packet segmentation and allows a flexible implementation 
+to send any kind of data structure through \ac{LoRa}. The packet sequence reconstruction 
+is also customizable.
 \section{Implementation}
 \section{Testing}
 
