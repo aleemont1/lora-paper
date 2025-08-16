@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Compile thesis PDF
+      - name: Compile paper PDF
         uses: xu-cheng/latex-action@3.2.0
         with:
           root_file: paper.tex
@@ -37,7 +37,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Compile thesis HTML
+      - name: Compile paper HTML
         uses: xu-cheng/texlive-action@v2
         with:
           scheme: full
@@ -48,7 +48,7 @@ jobs:
           mkdir site
           cp paper.html site/index.html
           cp paper.css site/paper.css
-          cp refs.bib site/refs.bib
+          cp paper.bib site/paper.bib
           cp -r img/ site/
           echo "img {max-width: 100%; height: auto;}" >> site/paper.css
           echo "table { display: block; overflow-x: auto; overflow-y: hidden; white-space: nowrap; max-width: 100%; box-sizing: border-box; }" >> site/paper.css
