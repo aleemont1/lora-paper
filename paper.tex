@@ -443,10 +443,15 @@
 % make the title area
 \maketitle
 
-% As a general rule, do not put math, special symbols or citations
-% in the abstract or keywords.
 \begin{abstract}
-  The abstract goes here...
+  This paper presents a lightweight, hardware-agnostic protocol for segmenting and reliably
+  transmitting large data payloads over \ac{LoRa} physical links. The protocol is designed to
+  maximize throughput over long-range, point-to-point LoRa links, enabling fast transfer of
+  large structured payloads (for example, images or telemetry logs). Packets carry a compact
+  binary header and per-packet CRC.
+  We describe the packet layout, reassembly rules, and a proof-of-concept 
+  implementation using Semtech SX126x-class transceivers.
+  Experimental results demonstrate ... [PLACEHOLDER]
 \end{abstract}
 
 % Note that keywords are not normally used for peerreview papers.
@@ -490,7 +495,7 @@
 are becoming increasingly important in the context of the \ac{IoT}. Applications
 such as environmental monitoring, precision agriculture or \acp{UAV}, require
 reliable data transmission over extended distances with strict power and hardware
-constraints.\\
+constraints~\cite{10807074}.\\
 
 A range of different communication standards, including ZigBee, Sigfox and \ac{LoRa}
 have been adopted to address these needs, and \ac{LoRa}, in particular, has
@@ -502,9 +507,12 @@ the \ac{LoRaWAN} specifications) are optimized for small, non-frequent payloads.
 % Explain what kind of limitations this poses to IoT applications that 
 % require high-volume continuous transmission with long-range and low-power telemetry
 
-This paper presents the design and implementation of a custom communication protocol
-for \ac{LoRa}, engineered to enable the transmission of segmented large data payloads
-over long distances.
+This paper presents the design and implementation of a custom, hardware-agnostic
+communication protocol for \ac{LoRa}, engineered to enable the transmission of
+segmented large data payloads over long distances without relying on higher-layer
+middleware (e.g., \ac{LoRaWAN}). The protocol focuses on compact headers, per-packet
+integrity checks, and a small set of reliability primitives designed to maximize
+throughput in point-to-point LoRa links while keeping airtime overhead minimal.
 The proposed system has been deployed on a sounding rocket built by the Aurora
 Rocketry team in the University of Bologna, demonstrating its applicability to
 highly dynamic systems, that require continuous transmission of large amount of telemetry
@@ -513,91 +521,102 @@ This approach is generalizable to a wide range of \ac{IoT} applications requirin
 extended data capacity over extended distances and high power efficiency, and possibly
 to multi-agent systems that require the transmission of structured data between the agents.
 
+The aim of this work is to produce a general-purpose lightweight framework for the
+transmission of large data payload over \ac{LoRa}
 
-\cite{10807074}.
 
 \section{State of The Art}
 \section{Proposed System}
-The proposed system uses a point-to-point, unidirectional architecture, with a
-transmitter mounted on the rocket's flight computer and a receiver mounted inside
-the ground station.
 
-The \ac{LoRa} modules used in this implementation had a packet size limit of 200 Bytes.
+%%% IMPORTANTE: Ristrutturare con la logica a 2 header, e sistema di ACK almeno per il 
+%%%             primo chunk. Si potrebbe anche usare un ACK ogni 4 o 8 pacchetti con 
+%%%             una word binaria che indica quali pacchetti vanno ritrasmessi. Ad esempio:
+%%%             
+%%%             TX                              RX
+%%%             PACKET 1 ---------------------> OK
+%%%             PACKET 2 ---------------------> OK
+%%%             PACKET 3 ---------------------> LOST
+%%%             PACKET 4 ---------------------> OK
+%%%                                           
+%%%                         .-- ACK Window --. 
+%%%                      <--------------------- ACK: 1011 (missing packet 3)
+%%%                                           
+%%%             PACKET 3 ---------------------> LOST (retransmission)
+%%%             PACKET 5 ---------------------> OK
+%%%             PACKET 6 ---------------------> LOST
+%%%             PACKET 7 ---------------------> OK
+%%%                                           
+%%%                         .-- ACK Window --. 
+%%%                      <--------------------- ACK: 0101 (missing packet 3 and 6)
+%%%             PACKET 3 ---------------------> OK (retransmission)
+%%%             PACKET 8 ---------------------> OK
+%%%             PACKET 6 ---------------------> OK (retransmission)
+%%%             FINAL    ---------------------> COMPLETE
+%%%                      <--------------------- SEQ_COMPLETE (if full sequence reconstructed)
+%%%                                OR           
+%%%                                             ACK: .... (if some packets are still missing)
+%%%             PACKET x ---------------------> OK (if needed)
+%%%             ...
+%%%
+%%% ACK Format: Binary mask indicating received packets (1=OK, 0=RETRANSMIT)
+%%% Acknowledgment sent every N packets or at sequence end.
+%%% Cite this paper for the idea: https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8875321
 
-The base \ac{LoRa} packet generated by the adopted modules is structured as follows:
+The protocol uses a compact, fixed-layout binary header designed to minimize airtime
+while still providing the information necessary for reassembly and selective
+retransmission. The implementation described in this paper uses the following
+header fields (all multi-byte fields are encoded little-endian):
 \begin{itemize}
-  \item \textbf{Physical Header (3 Bytes)}:
-        \begin{itemize}
-          \item High Address (1 Byte)
-          \item Low Address (1 Byte)
-          \item Communication Channel ID (1 Byte)
-        \end{itemize}
-  \item \textbf{Payload (up to 194 Bytes)}
-  \item \textbf{Footer (2--3 Bytes)}:
-        \begin{itemize}
-          \item \ac{CRC} (2 Bytes)
-          \item \ac{RSSI} (1 Byte, optional, automatically added by the \ac{LoRa}
-                module and enabled in this implementation for link quality monitoring)
-        \end{itemize}
+  \item \textbf{protocolVersion (1 byte)}: Format version for forward/backward compatibility.
+  \item \textbf{flags (1 byte)}: Bitfield where bit0=Start-Of-Message (SOM), bit1=End-Of-Message (EOM), bits2--7 reserved for future use (e.g., ACK required, etc.).
+  \item \textbf{messageId (2 bytes)}: Short identifier that groups fragments belonging to the same logical message.
+  \item \textbf{totalChunks (1 byte)}: Number of fragments composing the message.
+  \item \textbf{chunkIndex (1 byte)}: Zero-based index of this fragment within the message (0..totalChunks-1).
+  \item \textbf{payloadSize (1 byte)}: Number of valid payload bytes carried by this packet (0..255). Use uint16 if larger per-chunk MTU is required.
 \end{itemize}
 
-In addition to the 3-byte physical header defined by the \ac{LoRa} module, a custom
-11-byte logical header is prepended to each payload to manage segmentation.
-The extension enables transmission of larger data structures by segmenting
-them into smaller chunks. The custom header is structured as follows:
-\begin{itemize}
-  \item \textbf{Packet Number (2 Bytes)}: Unique identifier of the segmented payload sequence.
-  \item \textbf{Total Chunks (1 Byte)}: Total number of chunks the payload has been divided into.
-  \item \textbf{Chunk Index (1 Byte)}: Progressive index identifying the current chunk within the sequence.
-  \item \textbf{Chunk Size (2 Bytes)}: Effective size (Bytes) of the current chunk.
-  \item \textbf{Payload Size (2 Bytes)}: Size (Bytes) of the original payload before segmentation.
-  \item \textbf{Timestamp (4 Bytes)}: Time reference associated with the packet, useful for performance analysis and synchronization.
-  \item \textbf{Protocol Version (1 Byte)}: Reserved field for future protocol revisions, ensuring backward compatibility.
-\end{itemize}
+After the payload, a 16-bit CRC (CRC-16, recommended CRC-16-CCITT) is appended and
+covers the header and payload; the CRC field itself is excluded from the CRC
+calculation.
 
-The final produced packet is represented in
-Fig.~\ref{fig:protocol-packet}.
+This layout yields an 8-byte header (excluding the trailing CRC). The design is
+deliberately small: for typical \ac{LoRa} MTUs the per-packet overhead is low while the
+messageId and flags provide the primitives needed for grouping and duplicate
+detection.%, and simple sender-driven ACK strategies. 
+% To maximize channel utilization the
+% protocol supports continuous sender-side transmission using an ACK window and a
+% sliding-window sending policy: senders stream fragments without per-fragment
+% handshakes and only pause for occasional cumulative ACKs that request missing
+% fragments for selective retransmission.
 
-\begin{figure}[!ht]
-  \centering
-  \includegraphics[width=0.45\textwidth]{img/protocol-packet.png}
-  \caption{Transmitted packet schematic representation.}
-  \label{fig:protocol-packet}
-\end{figure}
+\section{Preliminary Proof of Concept}
+An initial prototype used commercial Ebyte E220-series modules and validated the
+segmentation concept by splitting large telemetry payloads into fixed-size chunks.
+That prototype demonstrated feasibility during flight tests but highlighted three
+important limitations: (1) the modules exposed a proprietary network layer and did
+not allow full control of the physical/link layer parameters, (2) repeating the
+full header in every chunk created measurable airtime overhead, and (3) there was
+no lightweight acknowledgment or retransmission mechanism.
 
-\begin{table}[!ht]
-  \centering
-  \caption{Custom protocol packet structure}
-  \label{tab:protocol-structure}
-  \renewcommand{\arraystretch}{1.2}
-  \begin{tabularx}{\columnwidth}{|L|C|X|}
-    \hline
-    \textbf{Field}   & \textbf{Size (Bytes)} & \textbf{Description}                                               \\ \hline
-    \multicolumn{3}{|c|}{\textbf{Physical Header}}                                                                \\ \hline
-    ADDL             & 1                     & Low address (\ac{LoRa} module physical address)                    \\ \hline
-    ADDH             & 1                     & High address (\ac{LoRa} module physical address)                   \\ \hline
-    CHAN             & 1                     & Channel ID selected on the \ac{LoRa} module                        \\ \hline
-    \multicolumn{3}{|c|}{\textbf{Custom Logical Header}}                                                          \\ \hline
-    Packet Number    & 2                     & Unique identifier of the segmented payload sequence                \\ \hline
-    Total Chunks     & 1                     & Number of chunks in the segmented payload                          \\ \hline
-    Chunk Index      & 1                     & Index of the current chunk in the sequence                         \\ \hline
-    Chunk Size       & 2                     & Actual size (Bytes) of the transmitted chunk                       \\ \hline
-    Payload Size     & 2                     & Size (Bytes) of the original payload before segmentation           \\ \hline
-    Timestamp        & 4                     & Time reference (ms since transmission start)                       \\ \hline
-    Protocol Version & 1                     & Reserved byte for protocol retro-compatibility                     \\ \hline
-    \multicolumn{3}{|c|}{\textbf{Payload}}                                                                        \\ \hline
-    Payload          & 183                   & Telemetry data content                                             \\ \hline
-    \multicolumn{3}{|c|}{\textbf{Footer}}                                                                         \\ \hline
-    RSSI (optional)  & 1                     & Received Signal Strength Indicator (added by the \ac{LoRa} module) \\ \hline
-    CRC              & 2                     & Cyclic Redundancy Check for error detection                        \\ \hline
-  \end{tabularx}
-\end{table}
-This protocol enables robust packet segmentation and allows a flexible implementation
-to send any kind of data structure through \ac{LoRa}. The packet sequence reconstruction
-is also customizable.
-\section{Implementation}
-\section{Testing}
+To address these shortcomings we implemented a hardware-agnostic proof-of-concept
+on Semtech SX126x-class transceivers (demonstrated on a Heltec WiFi LoRa 32 V3
+development board). The new PoC keeps the protocol independent of vendor-specific
+APIs and focuses on the primitives described above: an 8-byte header (protocol
+version, flags, messageId, totalChunks, chunkIndex, payloadSize), a per-packet
+CRC-16 covering header+payload, and a small set of reliability helpers. Receivers
+reassemble messages by matching the messageId and collecting fragments indexed
+0..totalChunks-1. Duplicate fragments are ignored by a per-message received-bitmap.
 
+% For reliability we use a cumulative ACK strategy: receivers optionally send an ACK
+% containing the messageId and a compact bitmap (or range list) of received fragments
+% after an ACK window or on completion. For messages with \(\leq 64\) fragments the
+% bitmap fits in 64 bits and is very compact; for larger messages the receiver can
+% send a list of missing ranges. This approach avoids per-fragment ACKs (expensive
+% in LoRa airtime) while enabling selective retransmission of only the missing
+% fragments.
+\section{Hardware Level Implementation}
+\subsection{Implementation}
+\subsection{Testing}
 \section{Conclusion}
 The conclusion goes here.
 % An example of a floating figure using the graphicx package.
@@ -712,7 +731,6 @@ The conclusion goes here.
 % \subsection or using \label (\appendices by itself
 % starts a section numbered zero.)
 %
-
 
 \appendices
 \section{Title of Appendix One}
