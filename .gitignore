@@ -4,4 +4,5 @@
 !.gitignore
 !*.bib
 !img/
+!img/**
 !.github/
