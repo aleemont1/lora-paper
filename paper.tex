@@ -377,7 +377,7 @@
 % not capitalized unless they are the first or last word of the title.
 % Linebreaks \\ can be used within to get better formatting as desired.
 % Do not put math or special symbols in the title.
-\title{[PLACEHOLDER] Developement of a Segmented Communication Protocol for Sensor Data Transmission Using LoRa\textsuperscript{\textcopyright} Technology}
+\title{Development of a Segmented, Reliable Communication Protocol for Data Transmission over Long-Range (LoRa) Links}
 %
 %
 % author names and IEEE memberships
@@ -413,8 +413,7 @@
 
 % The paper headers
 \markboth{Journal of Telecommunications}%
-{Monticelli \MakeLowercase{\textit{et al.}}: Development of a Low-Cost Telemetry System
-  for Sensor Data Transmission Using LoRa\textsuperscript{\textcopyright} Technology}
+{Monticelli \MakeLowercase{\textit{et al.}}: Development of a Segmented, Reliable Communication Protocol for Data Transmission over Long-Range (LoRa) Links}
 % The only time the second header will appear is for the odd numbered pages
 % after the title page when using the twoside option.
 % 
@@ -444,14 +443,12 @@
 \maketitle
 
 \begin{abstract}
-  This paper presents a lightweight, hardware-agnostic protocol for segmenting and reliably
+  This paper presents a lightweight, hardware-agnostic transport protocol for segmenting and reliably
   transmitting large data payloads over \ac{LoRa} physical links. The protocol is designed to
   maximize throughput over long-range, point-to-point LoRa links, enabling fast transfer of
   large structured payloads (for example, images or telemetry logs). Packets carry a compact
-  binary header and per-packet CRC.
-  We describe the packet layout, reassembly rules, and a proof-of-concept 
-  implementation using Semtech SX126x-class transceivers.
-  Experimental results demonstrate ... [PLACEHOLDER]
+  7-byte binary header, variable-length payload, and a 16-bit CRC.
+  We describe a testing methodology to validate the protocol over variable physical distances (from 1 to 5000~meters) and large payload sequences (from 1 to 100 chunks). Preliminary considerations suggest that SACK-based cumulative feedback minimizes airtime overhead and prevents chunk reassembly failure compared to unreliable streaming.
 \end{abstract}
 
 % Note that keywords are not normally used for peerreview papers.
@@ -500,125 +497,230 @@ constraints~\cite{10807074}.\\
 A range of different communication standards, including ZigBee, Sigfox and \ac{LoRa}
 have been adopted to address these needs, and \ac{LoRa}, in particular, has
 emerged as the leading choice for low-power and long-range deployments thanks to
-its robust modulation technique and open network architecture.
+its robust modulation technique and open network architecture~\cite{8424846}.
 However, conventional solutions based on \ac{LoRa} (particularly those following
-the \ac{LoRaWAN} specifications) are optimized for small, non-frequent payloads.\\
+the \ac{LoRaWAN} specifications) are optimized for small, non-frequent payloads~\cite{8016141}.\\
 
-% Explain what kind of limitations this poses to IoT applications that 
-% require high-volume continuous transmission with long-range and low-power telemetry
+This layout limitation poses severe restrictions on modern IoT applications, such as drone telemetry, environmental log collections, or remote imaging, which demand the continuous transfer of large data blocks~\cite{multimedia-lora-survey, dare-lorawan}. Standard LoRaWAN links require substantial transmission overhead, restrictive duty-cycle limitations, and lack optimized mechanisms for handling large, multi-packet payloads in point-to-point configurations.
 
-This paper presents the design and implementation of a custom, hardware-agnostic
-communication protocol for \ac{LoRa}, engineered to enable the transmission of
-segmented large data payloads over long distances without relying on higher-layer
-middleware (e.g., \ac{LoRaWAN}). The protocol focuses on compact headers, per-packet
-integrity checks, and a small set of reliability primitives designed to maximize
-throughput in point-to-point LoRa links while keeping airtime overhead minimal.
-The proposed system has been deployed on a sounding rocket built by the Aurora
-Rocketry team in the University of Bologna, demonstrating its applicability to
-highly dynamic systems, that require continuous transmission of large amount of telemetry
-data with high reliability and low power consumption in a point-to-point configuration.
-This approach is generalizable to a wide range of \ac{IoT} applications requiring
-extended data capacity over extended distances and high power efficiency, and possibly
-to multi-agent systems that require the transmission of structured data between the agents.
+This paper presents the design and implementation of a custom, hardware-agnostic communication protocol for \ac{LoRa}, engineered to enable the transmission of segmented large data payloads (up to approximately 62.7~KB) over long distances without relying on higher-layer middleware (e.g., \ac{LoRaWAN}). 
 
-The aim of this work is to produce a general-purpose lightweight framework for the
-transmission of large data payload over \ac{LoRa}
-
-
-\section{State of The Art}
-\section{Proposed System}
-
-%%% IMPORTANTE: Ristrutturare con la logica a 2 header, e sistema di ACK almeno per il 
-%%%             primo chunk. Si potrebbe anche usare un ACK ogni 4 o 8 pacchetti con 
-%%%             una word binaria che indica quali pacchetti vanno ritrasmessi. Ad esempio:
-%%%             
-%%%             TX                              RX
-%%%             PACKET 1 ---------------------> OK
-%%%             PACKET 2 ---------------------> OK
-%%%             PACKET 3 ---------------------> LOST
-%%%             PACKET 4 ---------------------> OK
-%%%                                           
-%%%                         .-- ACK Window --. 
-%%%                      <--------------------- ACK: 1011 (missing packet 3)
-%%%                                           
-%%%             PACKET 3 ---------------------> LOST (retransmission)
-%%%             PACKET 5 ---------------------> OK
-%%%             PACKET 6 ---------------------> LOST
-%%%             PACKET 7 ---------------------> OK
-%%%                                           
-%%%                         .-- ACK Window --. 
-%%%                      <--------------------- ACK: 0101 (missing packet 3 and 6)
-%%%             PACKET 3 ---------------------> OK (retransmission)
-%%%             PACKET 8 ---------------------> OK
-%%%             PACKET 6 ---------------------> OK (retransmission)
-%%%             FINAL    ---------------------> COMPLETE
-%%%                      <--------------------- SEQ_COMPLETE (if full sequence reconstructed)
-%%%                                OR           
-%%%                                             ACK: .... (if some packets are still missing)
-%%%             PACKET x ---------------------> OK (if needed)
-%%%             ...
-%%%
-%%% ACK Format: Binary mask indicating received packets (1=OK, 0=RETRANSMIT)
-%%% Acknowledgment sent every N packets or at sequence end.
-%%% Cite this paper for the idea: https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8875321
-
-The protocol uses a compact, fixed-layout binary header designed to minimize airtime
-while still providing the information necessary for reassembly and selective
-retransmission. The implementation described in this paper uses the following
-header fields (all multi-byte fields are encoded little-endian):
+The key contributions of this work are three-fold:
 \begin{itemize}
-  \item \textbf{protocolVersion (1 byte)}: Format version for forward/backward compatibility.
-  \item \textbf{flags (1 byte)}: Bitfield where bit0=Start-Of-Message (SOM), bit1=End-Of-Message (EOM), bits2--7 reserved for future use (e.g., ACK required, etc.).
-  \item \textbf{messageId (2 bytes)}: Short identifier that groups fragments belonging to the same logical message.
-  \item \textbf{totalChunks (1 byte)}: Number of fragments composing the message.
-  \item \textbf{chunkIndex (1 byte)}: Zero-based index of this fragment within the message (0..totalChunks-1).
-  \item \textbf{payloadSize (1 byte)}: Number of valid payload bytes carried by this packet (0..255). Use uint16 if larger per-chunk MTU is required.
+  \item \textbf{High-Efficiency SACK Protocol}: Unlike existing LPWAN multimedia transmission protocols in literature that rely on Stop-and-Wait (S\&W) ARQ, which requires an acknowledgment for every single packet and introduces severe latency and duty-cycle exhaustion, the proposed protocol implements a Selective Acknowledgment (SACK) scheme. By utilizing a compact, cumulative binary bitmap inside a single feedback packet, the receiver reports the status of up to 255 chunks in a single round-trip, minimizing over-the-air overhead and transceivers' duty-cycle footprint.
+  \item \textbf{Lightweight Packet Segmentation and Abstraction}: The protocol introduces a 7-byte logical header and a custom CRC-16 integrity check on partial payloads, allowing robust reassembly of out-of-order chunks on resource-constrained microcontrollers.
+  \item \textbf{Modular C++17 Implementation and TDD Validation}: The core state machine is completely decoupled from the physical radio driver through a Hardware Abstraction Layer (HAL). This design enables both native host-based unit testing (using the Unity framework) and physical deployment on Semtech SX126x transceivers, bridging the gap between simulation and real-world embedded systems.
 \end{itemize}
 
-After the payload, a 16-bit CRC (CRC-16, recommended CRC-16-CCITT) is appended and
-covers the header and payload; the CRC field itself is excluded from the CRC
-calculation.
+This approach is generalizable to a wide range of \ac{IoT} applications requiring extended data capacity over extended distances and high power efficiency, such as drone telemetry, marine biologging, or multi-agent coordinated communications.
 
-This layout yields an 8-byte header (excluding the trailing CRC). The design is
-deliberately small: for typical \ac{LoRa} MTUs the per-packet overhead is low while the
-messageId and flags provide the primitives needed for grouping and duplicate
-detection.%, and simple sender-driven ACK strategies. 
-% To maximize channel utilization the
-% protocol supports continuous sender-side transmission using an ACK window and a
-% sliding-window sending policy: senders stream fragments without per-fragment
-% handshakes and only pause for occasional cumulative ACKs that request missing
-% fragments for selective retransmission.
+\section{State of The Art}
+Reliable packet transmission and fragmentation over Low-Power Wide-Area Networks (LPWANs) have been actively studied to support data-intensive IoT applications. 
+
+A prominent industrial standard is Static Context Header Compression (SCHC)~\cite{dare-lorawan}, which introduces a framework for fragmenting IPv6 packets over resource-constrained networks. To guarantee reliability, SCHC ACK frames carry a bitmap representing the status of individual tiles within a window (ACK-on-Error). However, SCHC is designed as a generic adaptation layer for IP-based architectures, requiring pre-shared context rules and gateway-centric networks. Similarly, the LoRa Alliance standardized the Fragmented Data Block Transport specification to support Firmware Update Over The Air (FUOTA) using Forward Error Correction (FEC) codes to reconstruct blocks without feedback. However, FEC-based recovery introduces a constant over-the-air encoding overhead and high computational requirements for low-cost embedded systems.
+
+For custom peer-to-peer LoRa networks, several proprietary and academic fragmentation protocols have been proposed. In~\cite{multimedia-lora-survey}, surveys on multimedia LoRa networks show that existing implementations primarily rely on Stop-and-Wait (S\&W) ARQ schemes to recover lost packets (e.g., transmitting resized images in sequential segments). In Stop-and-Wait configurations, the transmitter blocks and waits for a dedicated acknowledgment frame for every single transmitted chunk. In high Time-on-Air (ToA) LoRa settings, S\&W ARQ introduces severe idle latencies, keeps the half-duplex transceivers active for extended periods (draining battery), and quickly violates regulatory duty-cycle limitations. 
+
+In contrast, this paper proposes a transport-layer protocol that bridges these limits. By utilizing a Selective Acknowledgment (SACK) mechanism with a cumulative binary bitmap, the protocol enables bulk transmission of up to 255 chunks in a single window, requiring feedback only at the end of the sequence. This design combines the low overhead of P2P communications with the robustness of bit-vector acknowledgments.
+
+\section{Proposed System}
+The proposed protocol, \texttt{LoRaMultiPacket}, operates as a custom transport-layer protocol running directly over \ac{LoRa} physical layers. It aims to segment arbitrarily large payloads at the transmitter and reliably reconstruct them at the receiver, while keeping Logical Header and over-the-air (OTA) overhead minimal.
+
+\subsection{OTA Packet Structure}
+Each individual packet transmitted over the air is structured sequentially as a fixed 7-byte Logical Header, a variable-length Application Payload (up to 246~bytes), and a 2-byte CRC footer. Unused bytes at the end of the payload are omitted from over-the-air transmission to minimize airtime.
+
+The exact byte alignment and offsets of the packet structure are presented in Table~\ref{tab:packet_offsets}.
+
+\begin{table}[h]
+\centering
+\caption{LoRaMultiPacket OTA Packet Layout and Offsets}
+\label{tab:packet_offsets}
+\renewcommand{\arraystretch}{1.2}
+\footnotesize
+\begin{tabular}{|c|c|l|c|}
+\hline
+\textbf{Offset (Bytes)} & \textbf{Field Name} & \textbf{Data Type} & \textbf{Size (Bytes)} \\ \hline
+0--1 & \texttt{messageId} & uint16\_t & 2 \\ \hline
+2 & \texttt{totalChunks} & uint8\_t & 1 \\ \hline
+3 & \texttt{chunkIndex} & uint8\_t & 1 \\ \hline
+4 & \texttt{payloadSize} & uint8\_t & 1 \\ \hline
+5 & \texttt{flags} & uint8\_t & 1 \\ \hline
+6 & \texttt{protocolVersion} & uint8\_t & 1 \\ \hline
+7 & \texttt{payload} & uint8\_t[] & $N$ (up to 246) \\ \hline
+$7 + N$ & \texttt{crc} & uint16\_t & 2 \\ \hline
+\end{tabular}
+\end{table}
+
+\begin{figure*}[t]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\footnotesize
+\begin{tabular}{|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{2}{|c|}{\textbf{Byte 0 -- 1}} & \textbf{Byte 2} & \textbf{Byte 3} & \textbf{Byte 4} & \textbf{Byte 5} & \textbf{Byte 6} \\ \hline
+\multicolumn{2}{|c|}{\texttt{messageId}} & \texttt{totalChunks} & \texttt{chunkIndex} & \texttt{payloadSize} & \texttt{flags} & \texttt{protocolVersion} \\ \hline
+\end{tabular}
+\caption{Byte layout of the 7-byte Logical Header.}
+\label{fig:header_layout}
+\end{figure*}
+
+The fields in the Logical Header are defined as follows:
+\begin{itemize}
+  \item \textbf{\texttt{messageId} (2 bytes)}: Unique message sequence identifier. All fragments composing the same segmented message share this ID.
+  \item \textbf{\texttt{totalChunks} (1 byte)}: The total count of chunks into which the original large payload is divided.
+  \item \textbf{\texttt{chunkIndex} (1 byte)}: The 0-based index of this specific fragment (0 to \texttt{totalChunks} - 1).
+  \item \textbf{\texttt{payloadSize} (1 byte)}: The count of valid data bytes contained in the payload section.
+  \item \textbf{\texttt{flags} (1 byte)}: A control bitfield used to manage transmission state. Bit definitions are:
+  \begin{itemize}
+    \item \texttt{PACKET\_FLAG\_SOM} (\texttt{0x01}): Start of Message (first chunk).
+    \item \texttt{PACKET\_FLAG\_EOM} (\texttt{0x02}): End of Message (last chunk).
+    \item \texttt{PACKET\_FLAG\_ACK\_REQ} (\texttt{0x04}): Acknowledgment requested.
+    \item \texttt{PACKET\_FLAG\_ACK} (\texttt{0x08}): Acknowledgment feedback packet.
+  \end{itemize}
+  \item \textbf{\texttt{protocolVersion} (1 byte)}: Identifies the version of the protocol to ensure backward compatibility.
+\end{itemize}
+
+After the payload, a 16-bit CRC-16 (Modbus CRC-16, polynomial \texttt{0xA001}, initialized to \texttt{0xFFFF}) is appended. The checksum covers the entire 7-byte header and only the valid \texttt{payloadSize} payload bytes, preventing transmission corruptions.
+
+\subsection{Selective Acknowledgment (SACK) Retransmission}
+To provide reliable delivery under lossy radio conditions while maintaining minimal airtime overhead, the protocol implements a Selective Acknowledgment (SACK) mechanism~\cite{lora-arq-sar}.
+
+\subsubsection{Retransmission Handshake}
+When a transmission is executed in reliable mode:
+\begin{enumerate}
+  \item The transmitter segments the payload, serializes the chunks, and streams them sequentially. The final chunk index ($Index = \texttt{totalChunks} - 1$) is marked with the \texttt{PACKET\_FLAG\_ACK\_REQ} flag.
+  \item Upon receipt of the chunk requesting acknowledgment, the receiver evaluates its reassembly session. It identifies which fragments are still missing by checking its internal bitmask of received chunks.
+  \item The receiver responds by transmitting a SACK packet (indicated by the \texttt{PACKET\_FLAG\_ACK} flag). The SACK's payload contains a binary bitmap where each bit represents the receipt status of a chunk (1 for received, 0 for missing).
+  \item The transmitter parses the received SACK bitmap. If some chunks are missing, it selectively retransmits only those lost chunks. The last retransmitted chunk has the \texttt{ACK\_REQ} flag set again to query the receiver.
+  \item This selective retry loop continues until the full message is reconstructed at the receiver, or the transmitter reaches the maximum retry count.
+\end{enumerate}
+
+\subsubsection{Half-Duplex Hardware Switching Guard}
+Because LoRa transceivers are half-duplex, a hardware transition period is required for the transmitter to switch from transmit (TX) mode to receive (RX) mode after sending a packet. If the receiver replies instantly, the transmitter will miss the SACK preamble. To guarantee correct reception, the receiver introduces a hardware guard delay of exactly 25~ms before transmitting the SACK packet.
+
+\subsubsection{Timeout and Fallback Recovery}
+If the transmitter does not receive a SACK packet within a timeout threshold of 1000~ms, it assumes that either the query or the response was lost. The transmitter falls back to retransmitting the final chunk of the sequence marked with \texttt{ACK\_REQ} to trigger a new status report. Up to 5 consecutive timeouts are allowed before the transmission is aborted as failed.
 
 \section{Preliminary Proof of Concept}
-An initial prototype used commercial Ebyte E220-series modules and validated the
-segmentation concept by splitting large telemetry payloads into fixed-size chunks.
-That prototype demonstrated feasibility during flight tests but highlighted three
-important limitations: (1) the modules exposed a proprietary network layer and did
-not allow full control of the physical/link layer parameters, (2) repeating the
-full header in every chunk created measurable airtime overhead, and (3) there was
-no lightweight acknowledgment or retransmission mechanism.
+An initial prototype used commercial Ebyte E220-series modules and validated the segmentation concept. That prototype demonstrated feasibility during flight tests but highlighted three important limitations: (1) the modules exposed a proprietary network layer and did not allow full control of the physical/link layer parameters, (2) repeating the full header in every chunk created measurable airtime overhead, and (3) there was no lightweight acknowledgment or retransmission mechanism.
 
-To address these shortcomings we implemented a hardware-agnostic proof-of-concept
-on Semtech SX126x-class transceivers (demonstrated on a Heltec WiFi LoRa 32 V3
-development board). The new PoC keeps the protocol independent of vendor-specific
-APIs and focuses on the primitives described above: an 8-byte header (protocol
-version, flags, messageId, totalChunks, chunkIndex, payloadSize), a per-packet
-CRC-16 covering header+payload, and a small set of reliability helpers. Receivers
-reassemble messages by matching the messageId and collecting fragments indexed
-0..totalChunks-1. Duplicate fragments are ignored by a per-message received-bitmap.
-
-% For reliability we use a cumulative ACK strategy: receivers optionally send an ACK
-% containing the messageId and a compact bitmap (or range list) of received fragments
-% after an ACK window or on completion. For messages with \(\leq 64\) fragments the
-% bitmap fits in 64 bits and is very compact; for larger messages the receiver can
-% send a list of missing ranges. This approach avoids per-fragment ACKs (expensive
-% in LoRa airtime) while enabling selective retransmission of only the missing
-% fragments.
+To address these shortcomings, we designed the \texttt{LoRaMultiPacket} library on Semtech SX126x-class transceivers (demonstrated on a Heltec WiFi LoRa 32 V3 development board). The new implementation keeps the protocol independent of vendor-specific APIs and focuses on the primitives described above: a 7-byte header, a per-packet CRC-16 covering header and payload, and SACK-based reliable delivery. Receivers reassemble messages by matching the \texttt{messageId} and collecting fragments indexed from 0 to \texttt{totalChunks} - 1. Duplicate fragments are ignored by checking the received bitmap in the session.
 \section{Hardware Level Implementation}
-\subsection{Implementation}
-\subsection{Testing}
-\section{Conclusion}
-The conclusion goes here.
+To validate the proposed protocol, a complete implementation of the \texttt{LoRaMultiPacket} library was developed in C++17. The design is modular, separating the transport state machine from physical hardware dependencies.
+
+\subsection{Hardware Abstraction Layer (HAL)}
+To keep the protocol core hardware-agnostic, a clean Hardware Abstraction Layer interface (\texttt{RadioLibHal}) was implemented. On the physical nodes, the concrete class \texttt{EspHal} wraps the ESP32-S3 hardware resources:
+\begin{itemize}
+  \item \textbf{SPI Communication}: Manages registers configuration and FIFO buffers transfer for the Semtech SX1262 transceiver.
+  \item \textbf{GPIO Interrupts}: Maps physical pins, including Chip Select (NSS), Reset (RST), Busy status indicator (BUSY), and the hardware interrupt pin (DIO1) used to trigger RX/TX completion interrupts.
+  \item \textbf{Timing Primitives}: Implements millisecond counters (\texttt{millis()}) and microsecond/millisecond delays (\texttt{delay()}).
+\end{itemize}
+
+\subsection{Host-Based Unit Testing}
+Following a Test-Driven Development (TDD) methodology, the protocol core (e.g., packet parsing, reassembler sessions, and CRC checksums) was validated in isolation on a desktop host (Linux/macOS). The tests compile and run natively using the \textbf{Unity} testing framework integrated into PlatformIO:
+\begin{itemize}
+  \item \textbf{Integrity Tests}: Confirmed the Modbus CRC-16 computation on headers and partial/padded payloads.
+  \item \textbf{Reassembly State Machine}: Validated reassembly handling of out-of-order and duplicate chunks.
+  \item \textbf{Stale Session Pruning}: Confirmed that incomplete reassembly buffers are correctly pruned after exceeding the timeout threshold.
+\end{itemize}
+
+\subsection{Physical Benchmarking Setup}
+Physical tests were conducted using two Heltec WiFi LoRa~32~V3 development boards. The transmitter node was connected to a console runner to sweep payload sizes, while the receiver node operated as a standalone listener. The transceivers were configured with the following parameters:
+\begin{itemize}
+  \item \textbf{Carrier Frequency}: 868.0~MHz
+  \item \textbf{Spreading Factor (SF)}: 7
+  \item \textbf{Bandwidth (BW)}: 500.0~kHz
+  \item \textbf{Coding Rate (CR)}: 4/5
+  \item \textbf{Output Power}: 10~dBm
+  \item \textbf{Preamble Length}: 8 symbols
+\end{itemize}
+
+\section{Proposed Experimental Methodology}
+To validate the reliability, latency, and throughput of the \texttt{LoRaMultiPacket} protocol, we outline a series of physical field experiments to be conducted under representative operational scenarios.
+
+\subsection{Experimental Parameters}
+The validation will sweep the following parameters:
+\begin{itemize}
+  \item \textbf{Transmission Distance and Spatial Geometry}: Tests will be carried out at physical distances of 1, 10, 100, 250, 500, 1000, 2500, and 5000~meters. To account for spatial fading, antenna polarization discrepancies, and localized multi-path fading, testing in the short range (from 0 to 100~meters) will utilize a circular spatial sampling strategy, gathering data points at multiple angular offsets around the transmitting antenna. For long-range setups (greater than 100~meters) where circular navigation is impractical, data collection will follow a linear path.
+  \item \textbf{Propagation Conditions}: All distance steps will be benchmarked under both Line-of-Sight (LoS) and Non-Line-of-Sight (NLoS) environments to test protocol performance under varying noise and packet corruption conditions.
+  \item \textbf{Payload Sequence Size}: Payloads will scale from 1 chunk (representing the boundary condition) up to 100 chunks (approximately 24.6~KB total data size).
+  \item \textbf{Radio Configuration}: Nodes will maintain standard settings (SF7, BW 500~kHz, CR 4/5, 10~dBm TX power) using the integrated Semtech transceivers.
+\end{itemize}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{img/experimental-map.jpg}
+\caption{Satellite view of the experimental testbed showing the transmitter node location, the circular spatial sampling points ($\le 100$~meters), and the linear range checkpoints ($> 100$~meters) under Line-of-Sight (LoS) and Non-Line-of-Sight (NLoS) profiles.}
+\label{fig:experimental_map}
+\end{figure}
+
+\subsection{Evaluation Metrics}
+For each combination of distance, environment, and payload size, 15 independent iterations will be performed. The following metrics will be collected and analyzed:
+\begin{enumerate}
+  \item \textbf{Packet Delivery Ratio (PDR)}: The percentage of successfully reconstructed payloads at the receiver.
+  \item \textbf{End-to-End Latency}: The total duration elapsed from the initiation of split-packet serialization at the transmitter to the final payload reassembly callback at the receiver.
+  \item \textbf{Throughput (Goodput)}: The effective rate of application-level payload data delivered, calculated as $\mathrm{PayloadSize\ (bits)} / \mathrm{Latency\ (seconds)}$.
+  \item \textbf{Retransmission Overhead}: The count of extra chunks transmitted in reliable mode compared to the baseline case, representing the cost of SACK-driven error correction.
+\end{enumerate}
+
+These benchmarks will allow us to evaluate the efficiency of the SACK retransmission handshake compared to best-effort unreliable streaming in lossy physical channels. The empty template for recording these empirical results is structured in Table~\ref{tab:empty_benchmark}.
+
+\begin{table*}[t]
+\centering
+\caption{LoRaMultiPacket Planned Experimental Benchmarking Results Template}
+\label{tab:empty_benchmark}
+\renewcommand{\arraystretch}{1.2}
+\footnotesize
+\begin{tabular}{|r|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Distance} & \textbf{Path} & \textbf{Payload} & \multicolumn{2}{c|}{\textbf{PDR (\%)}} & \multicolumn{2}{c|}{\textbf{Avg Latency (ms)}} & \multicolumn{2}{c|}{\textbf{Avg Goodput (Kbps)}} & \multicolumn{2}{c|}{\textbf{Retransmission Overhead}} \\ \cline{4-11} 
+\textbf{(m)} & \textbf{Type} & \textbf{Chunks} & \textbf{Case A} & \textbf{Case B} & \textbf{Case A} & \textbf{Case B} & \textbf{Case A} & \textbf{Case B} & \textbf{Chunks Sent} & \textbf{Retries} \\ \hline
+1 & LoS & 1--100 & & & & & & & & \\ \cline{2-11} 
+ & NLoS & 1--100 & & & & & & & & \\ \hline
+10 & LoS & 1--100 & & & & & & & & \\ \cline{2-11} 
+ & NLoS & 1--100 & & & & & & & & \\ \hline
+100 & LoS & 1--100 & & & & & & & & \\ \cline{2-11} 
+ & NLoS & 1--100 & & & & & & & & \\ \hline
+250 & LoS & 1--100 & & & & & & & & \\ \cline{2-11} 
+ & NLoS & 1--100 & & & & & & & & \\ \hline
+500 & LoS & 1--100 & & & & & & & & \\ \cline{2-11} 
+ & NLoS & 1--100 & & & & & & & & \\ \hline
+1000 & LoS & 1--100 & & & & & & & & \\ \cline{2-11} 
+ & NLoS & 1--100 & & & & & & & & \\ \hline
+2500 & LoS & 1--100 & & & & & & & & \\ \cline{2-11} 
+ & NLoS & 1--100 & & & & & & & & \\ \hline
+5000 & LoS & 1--100 & & & & & & & & \\ \cline{2-11} 
+ & NLoS & 1--100 & & & & & & & & \\ \hline
+\end{tabular}
+\end{table*}
+
+% \subsection{Multi-Agent and Multi-Hop Network Integration}
+% The transport-layer design of \texttt{LoRaMultiPacket} makes it highly suitable for integration into broader network architectures, particularly decentralized cyber-physical systems (CPS) such as drone swarms or cooperative sensor networks. 
+% 
+% In multi-hop topologies, the protocol can support two distinct reliability paradigms:
+% \begin{itemize}
+%   \item \textbf{Hop-by-Hop Reliability}: Intermediate routing nodes run the full reassembly and SACK loop. This isolates link losses to individual hops, preventing retransmission packets from traversing the entire path and exhausting overall network capacity.
+%   \item \textbf{End-to-End Reliability}: Intermediate nodes act as simple packet forwarders, and the SACK handshake is executed directly between the source and destination agents.
+% \end{itemize}
+% 
+% Furthermore, in multi-agent systems requiring cooperative mapping, distributed state estimation, or SLAM keyframe sharing, individual payloads (such as occupancy grid maps or covariance matrices) often exceed standard LoRa MTU limits. By providing a lightweight, robust segmentation pipe, \texttt{LoRaMultiPacket} ensures that critical multi-packet state updates are delivered without filter divergence, while less critical high-frequency telemetry can still utilize the best-effort (unreliable) mode.
+
+% \subsection{Connection-Oriented Handshake Mode}
+% To prevent the transmitter from blasting large segmented payloads into the void when the receiver is offline, asleep, or lacks sufficient memory buffers, a lightweight connection-oriented handshake can be introduced.
+% Before transmitting any data chunks, the sender transmits a connection request packet (\texttt{CONN\_REQ}) containing the unique Message ID and the total chunk count. 
+% The receiver, upon receiving this request, checks its active reassembly sessions and memory constraints. If resources are available, it replies with a connection acknowledgment (\texttt{CONN\_ACK}), thereby temporarily disabling its own local application-level transmissions to prevent half-duplex collision during the incoming data stream.
+% Once the sender receives the \texttt{CONN\_ACK}, it starts streaming the data chunks. This handshake synchronizes the transceivers' half-duplex states and prevents wasteful Time-on-Air and battery consumption.
+
+\section{Conclusion and Future Work}
+This paper presented the design and implementation of \texttt{LoRaMultiPacket}, a lightweight and reliable transport-layer protocol optimized for transmitting segmented large payloads over point-to-point LoRa links. By replacing traditional Stop-and-Wait per-packet acknowledgments with selective retransmissions requested via cumulative binary bitmaps, the protocol is expected to achieve high reliability under lossy conditions with minimal airtime overhead and duty-cycle footprint. The proposed testing methodology across varying physical distances and payload sizes will provide a comprehensive validation of the protocol's robustness for low-power, large-payload IoT communication scenarios.
+
+For future work, several research directions will be explored to address open challenges in LPWAN communications:
+\begin{itemize}
+  \item \textbf{Adaptive Spreading Factor Control}: Integrating an adaptive data rate (ADR) loop within the SACK handshake. By monitoring the retransmission count or packet loss rate from the binary bitmap feedback, the transmitter can dynamically adjust its Spreading Factor (SF) and Coding Rate (CR) to optimize transmission speed under clean channel conditions or improve resilience under deep fading.
+  \item \textbf{Network Coexistence via CAD Backoff}: Stream-transmitting large packet sequences (up to 255 packets) consecutively can block shared channels. Future versions will introduce a Channel Activity Detection (CAD) check and a randomized backoff delay between subsequent chunks, enhancing network fairness and reducing collision probabilities in multi-node environments.
+  \item \textbf{Hybrid FEC-ARQ Scheme}: Combining application-layer Forward Error Correction (e.g., erasure coding) with the SACK mechanism. The receiver will attempt to reconstruct lost packets using parity packets first, triggering the SACK feedback only when the number of lost packets exceeds the recovery threshold of the codes, further minimizing downlink acknowledgment traffic.
+  \item \textbf{Windowed Selective Acknowledgment}: For very large payloads (exceeding 32 chunks), dividing the transmission into smaller sub-windows (e.g., 16 chunks per window) will allow the transmitter to query the receiver's state mid-transmission. This avoids wasting airtime and energy on transmitting subsequent chunks when a link drop occurs early in the sequence, while keeping the reassembly buffer size constrained.
+\end{itemize}
 % An example of a floating figure using the graphicx package.
 % Note that \label must occur AFTER (or within) \caption.
 % For figures, \caption should occur after the \includegraphics.
