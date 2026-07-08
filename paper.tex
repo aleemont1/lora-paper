@@ -597,7 +597,7 @@ The fields in the Logical Header are defined as follows:
   \item \textbf{\texttt{protocolVersion} (1 byte)}: Identifies the version of the protocol to ensure backward compatibility.
 \end{itemize}
 
-After the payload, a 16-bit CRC-16 (Modbus CRC-16, polynomial \texttt{0xA001}, initialized to \texttt{0xFFFF}) is appended. The checksum covers the entire 7-byte header and only the valid \texttt{payloadSize} payload bytes, preventing transmission corruptions.
+After the payload, a 16-bit CRC-16 (Modbus CRC-16, polynomial \texttt{0xA001}, initialized to \texttt{0xFFFF}) is appended. The checksum covers the entire 7-byte header and only the valid \texttt{payloadSize} payload bytes, reliably detecting transmission corruptions.
 
 \subsection{Selective Acknowledgment (SACK) Retransmission}
 To provide reliable delivery under lossy radio conditions while maintaining minimal airtime overhead, the protocol implements a Selective Acknowledgment (SACK) mechanism~\cite{lora-arq-sar}.
@@ -613,7 +613,7 @@ When a transmission is executed in reliable mode:
 \end{enumerate}
 
 \subsubsection{Half-Duplex Hardware Switching Guard}
-Because LoRa transceivers are half-duplex, a hardware transition period is required for the transmitter to switch from transmit (TX) mode to receive (RX) mode after sending a packet. If the receiver replies instantly, the transmitter will miss the SACK preamble. To guarantee correct reception, the receiver introduces a hardware guard delay of exactly 25~ms before transmitting the SACK packet.
+Because LoRa transceivers are half-duplex, a hardware transition period is required for the transmitter to switch from transmit (TX) mode to receive (RX) mode after sending a packet. If the receiver replies instantly, the transmitter will miss the SACK preamble. To guarantee correct reception, the receiver introduces a configurable hardware guard delay (e.g., 25~ms) before transmitting the SACK packet.
 
 \subsubsection{Timeout and Fallback Recovery}
 If the transmitter does not receive a SACK packet within a timeout threshold of 1000~ms, it assumes that either the query or the response was lost. The transmitter falls back to retransmitting the final chunk of the sequence marked with \texttt{ACK\_REQ} to trigger a new status report. Up to 5 consecutive timeouts are allowed before the transmission is aborted as failed.
@@ -644,7 +644,7 @@ If the transmitter does not receive a SACK packet within a timeout threshold of 
 \end{figure}
 
 \section{Preliminary Proof of Concept}
-An initial prototype used commercial Ebyte E220-series modules and validated the segmentation concept. That prototype demonstrated feasibility during flight tests but highlighted three important limitations: (1) the modules exposed a proprietary network layer and did not allow full control of the physical/link layer parameters, (2) repeating the full header in every chunk created measurable airtime overhead, and (3) there was no lightweight acknowledgment or retransmission mechanism.
+An initial prototype used commercial Ebyte E220-series modules and validated the segmentation concept. That prototype demonstrated feasibility during preliminary field trials but highlighted three important limitations: (1) the modules exposed a proprietary network layer and did not allow full control of the physical/link layer parameters, (2) repeating the full header in every chunk created measurable airtime overhead, and (3) there was no lightweight acknowledgment or retransmission mechanism.
 
 To address these shortcomings, we designed the \texttt{LoRaMultiPacket} library on Semtech SX126x-class transceivers (demonstrated on a Heltec WiFi LoRa 32 V3 development board). The new implementation keeps the protocol independent of vendor-specific APIs and focuses on the primitives described above: a 7-byte header, a per-packet CRC-16 covering header and payload, and SACK-based reliable delivery. Receivers reassemble messages by matching the \texttt{messageId} and collecting fragments indexed from 0 to \texttt{totalChunks} - 1. Duplicate fragments are ignored by checking the received bitmap in the session.
 \section{Hardware Level Implementation}
