@@ -113,6 +113,8 @@
 %
 \usepackage{graphicx}
 \usepackage{tabularx}
+\usepackage{tikz}
+\usetikzlibrary{automata, positioning, arrows.meta}
 \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
 \renewcommand\tabularxcolumn[1]{m{#1}} % all X columns now vertically centered
 \newcolumntype{L}{>{\centering\arraybackslash}m{2cm}} % first column width 2cm, vertically centered
@@ -443,12 +445,7 @@
 \maketitle
 
 \begin{abstract}
-  This paper presents a lightweight, hardware-agnostic transport protocol for segmenting and reliably
-  transmitting large data payloads over \ac{LoRa} physical links. The protocol is designed to
-  maximize throughput over long-range, point-to-point LoRa links, enabling fast transfer of
-  large structured payloads (for example, images or telemetry logs). Packets carry a compact
-  7-byte binary header, variable-length payload, and a 16-bit CRC.
-  We describe a testing methodology to validate the protocol over variable physical distances (from 1 to 5000~meters) and large payload sequences (from 1 to 100 chunks). Preliminary considerations suggest that SACK-based cumulative feedback minimizes airtime overhead and prevents chunk reassembly failure compared to unreliable streaming.
+  This paper presents a lightweight, hardware-agnostic transport protocol designed for point-to-point \ac{LoRa} networks. By integrating a Selective Acknowledgment (SACK) mechanism, a dedicated Hardware Abstraction Layer (HAL), and a reliable operational mode, the proposed architecture provides a fully-fledged transport layer optimized for resource-constrained transceivers. The protocol supports the segmentation and transmission of large data payloads (up to approximately 62.7~KB, such as images or telemetry logs) by bundling up to 255 chunks within a single transmission window. Packets carry a compact 7-byte binary header, a variable-length payload, and a 16-bit CRC. We describe a testing methodology to validate the protocol over variable physical distances (from 1 to 5000~meters) and large payload sequences (from 1 to 100 chunks). Preliminary results indicate that SACK-based cumulative feedback reduces the number of required acknowledgment frames and prevents chunk reassembly failures compared to traditional unacknowledged streaming or Stop-and-Wait ARQ.
 \end{abstract}
 
 % Note that keywords are not normally used for peerreview papers.
@@ -503,7 +500,7 @@ the \ac{LoRaWAN} specifications) are optimized for small, non-frequent payloads~
 
 This layout limitation poses severe restrictions on modern IoT applications, such as drone telemetry, environmental log collections, or remote imaging, which demand the continuous transfer of large data blocks~\cite{multimedia-lora-survey, dare-lorawan}. Standard LoRaWAN links require substantial transmission overhead, restrictive duty-cycle limitations, and lack optimized mechanisms for handling large, multi-packet payloads in point-to-point configurations.
 
-This paper presents the design and implementation of a custom, hardware-agnostic communication protocol for \ac{LoRa}, engineered to enable the transmission of segmented large data payloads (up to approximately 62.7~KB) over long distances without relying on higher-layer middleware (e.g., \ac{LoRaWAN}). 
+This paper presents the design and implementation of a lightweight transport protocol for point-to-point \ac{LoRa} networks. Featuring a Selective Acknowledgment (SACK) scheme, a Hardware Abstraction Layer (HAL), and a dedicated reliable transmission mode, the proposed architecture efficiently supports the segmentation and reconstruction of large data payloads (up to approximately 62.7~KB). It enables robust data transfer over long distances with minimal radio duty-cycle footprint, operating entirely independently of higher-layer middleware (e.g., \ac{LoRaWAN}). 
 
 The key contributions of this work are three-fold:
 \begin{itemize}
@@ -522,6 +519,25 @@ A prominent industrial standard is Static Context Header Compression (SCHC)~\cit
 For custom peer-to-peer LoRa networks, several proprietary and academic fragmentation protocols have been proposed. In~\cite{multimedia-lora-survey}, surveys on multimedia LoRa networks show that existing implementations primarily rely on Stop-and-Wait (S\&W) ARQ schemes to recover lost packets (e.g., transmitting resized images in sequential segments). In Stop-and-Wait configurations, the transmitter blocks and waits for a dedicated acknowledgment frame for every single transmitted chunk. In high Time-on-Air (ToA) LoRa settings, S\&W ARQ introduces severe idle latencies, keeps the half-duplex transceivers active for extended periods (draining battery), and quickly violates regulatory duty-cycle limitations. 
 
 In contrast, this paper proposes a transport-layer protocol that bridges these limits. By utilizing a Selective Acknowledgment (SACK) mechanism with a cumulative binary bitmap, the protocol enables bulk transmission of up to 255 chunks in a single window, requiring feedback only at the end of the sequence. This design combines the low overhead of P2P communications with the robustness of bit-vector acknowledgments.
+
+To clearly position the proposed protocol within the current technological landscape, Table~\ref{tab:arch_comparison} provides an architectural comparison with other prominent fragmentation and transport solutions over LoRa.
+
+\begin{table*}[htpb]
+\centering
+\caption{Architectural Comparison of LoRa Transport Solutions}
+\label{tab:arch_comparison}
+\renewcommand{\arraystretch}{1.3}
+\footnotesize
+\begin{tabularx}{0.8\textwidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
+\hline
+\textbf{Feature} & \textbf{S\&W} & \textbf{SCHC} & \textbf{LoRaWAN Frag.} & \textbf{Proposed} \\ \hline
+\textbf{ACK Type} & Per-packet & Bitmap & None (FEC) & Cumulative SACK \\ \hline
+\textbf{Overhead} & Very High & Medium & High (FEC) & Very Low \\ \hline
+\textbf{Complexity} & Low & High & High & Medium \\ \hline
+\textbf{Large Payloads} & Poor & Good & Good & Excellent \\ \hline
+\textbf{Reliability} & High & High & Statistical & High \\ \hline
+\end{tabularx}
+\end{table*}
 
 \section{Proposed System}
 The proposed protocol, \texttt{LoRaMultiPacket}, operates as a custom transport-layer protocol running directly over \ac{LoRa} physical layers. It aims to segment arbitrarily large payloads at the transmitter and reliably reconstruct them at the receiver, while keeping Logical Header and over-the-air (OTA) overhead minimal.
@@ -600,6 +616,30 @@ Because LoRa transceivers are half-duplex, a hardware transition period is requi
 
 \subsubsection{Timeout and Fallback Recovery}
 If the transmitter does not receive a SACK packet within a timeout threshold of 1000~ms, it assumes that either the query or the response was lost. The transmitter falls back to retransmitting the final chunk of the sequence marked with \texttt{ACK\_REQ} to trigger a new status report. Up to 5 consecutive timeouts are allowed before the transmission is aborted as failed.
+
+\begin{figure}[htpb]
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tikzpicture}[->, >=stealth, thick, auto, node distance=2.5cm]
+  \node[draw, circle, align=center, minimum size=1.6cm] (idle) {Idle};
+  \node[draw, circle, align=center, minimum size=1.6cm, right=of idle] (send) {Send};
+  \node[draw, circle, align=center, minimum size=1.6cm, right=of send] (wait) {Wait\\SACK};
+  \node[draw, circle, align=center, minimum size=1.6cm, below=of wait] (retransmit) {Retransmit};
+  \node[draw, circle, align=center, minimum size=1.6cm, below=of send] (completed) {Completed};
+
+  \path
+    (idle) edge node[above] {Tx Req} (send)
+    (send) edge node[above] {Tx Done} (wait)
+    (wait) edge[bend left] node[right, align=center] {SACK\\(Missing)} (retransmit)
+    (retransmit) edge[bend left] node[left, align=center] {Retry\\Done} (wait)
+    (wait) edge node[above left, align=center] {SACK\\(All OK)} (completed)
+    (wait) edge[loop right] node[right, align=center] {Timeout\\(Req Retry)} (wait)
+    (completed) edge node[left] {Reset} (idle);
+\end{tikzpicture}%
+}
+\caption{State machine of the reliable transmission process at the transmitter.}
+\label{fig:state_machine}
+\end{figure}
 
 \section{Preliminary Proof of Concept}
 An initial prototype used commercial Ebyte E220-series modules and validated the segmentation concept. That prototype demonstrated feasibility during flight tests but highlighted three important limitations: (1) the modules exposed a proprietary network layer and did not allow full control of the physical/link layer parameters, (2) repeating the full header in every chunk created measurable airtime overhead, and (3) there was no lightweight acknowledgment or retransmission mechanism.
