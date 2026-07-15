@@ -633,7 +633,7 @@ If the transmitter does not receive a SACK packet within a timeout threshold of 
     (wait) edge[bend left] node[right, align=center] {SACK\\(Missing)} (retransmit)
     (retransmit) edge[bend left] node[left, align=center] {Retry\\Done} (wait)
     (wait) edge node[above left, align=center] {SACK\\(All OK)} (completed)
-    (wait) edge[loop right] node[right, align=center] {Timeout\\($<$ Max)} (wait)
+    (wait) edge[bend right=30] node[right, align=center] {Timeout\\($<$ Max)} (retransmit)
     (wait) edge[bend right=45] node[above, align=center] {Timeout\\(Max Retries)} (idle)
     (completed) edge node[left] {Reset} (idle);
 \end{tikzpicture}%
