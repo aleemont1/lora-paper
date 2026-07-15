@@ -117,8 +117,6 @@
 \usetikzlibrary{automata, positioning, arrows.meta}
 \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
 \renewcommand\tabularxcolumn[1]{m{#1}} % all X columns now vertically centered
-\newcolumntype{L}{>{\centering\arraybackslash}m{2cm}} % first column width 2cm, vertically centered
-\newcolumntype{C}{>{\centering\arraybackslash}m{1.5cm}} % second column width 1.5cm, vertically centered
 \ifCLASSINFOpdf
   % declare the path(s) where your graphic files are
   % \graphicspath{{../pdf/}{../jpeg/}}
@@ -450,6 +448,7 @@
 
 % Note that keywords are not normally used for peerreview papers.
 \begin{IEEEkeywords}
+LoRa, selective acknowledgment, packet fragmentation, transport protocol, Internet of Things.
 \end{IEEEkeywords}
 
 
@@ -489,14 +488,14 @@
 are becoming increasingly important in the context of the \ac{IoT}. Applications
 such as environmental monitoring, precision agriculture or \acp{UAV}, require
 reliable data transmission over extended distances with strict power and hardware
-constraints~\cite{10807074}.\\
+constraints~\cite{10807074}.
 
 A range of different communication standards, including ZigBee, Sigfox and \ac{LoRa}
 have been adopted to address these needs, and \ac{LoRa}, in particular, has
 emerged as the leading choice for low-power and long-range deployments thanks to
 its robust modulation technique and open network architecture~\cite{8424846}.
 However, conventional solutions based on \ac{LoRa} (particularly those following
-the \ac{LoRaWAN} specifications) are optimized for small, non-frequent payloads~\cite{8016141}.\\
+the \ac{LoRaWAN} specifications) are optimized for small, non-frequent payloads~\cite{8016141}.
 
 This layout limitation poses severe restrictions on modern IoT applications, such as drone telemetry, environmental log collections, or remote imaging, which demand the continuous transfer of large data blocks~\cite{multimedia-lora-survey, dare-lorawan}. Standard LoRaWAN links require substantial transmission overhead, restrictive duty-cycle limitations, and lack optimized mechanisms for handling large, multi-packet payloads in point-to-point configurations.
 
@@ -548,7 +547,7 @@ Each individual packet transmitted over the air is structured sequentially as a 
 
 The exact byte alignment and offsets of the packet structure are presented in Table~\ref{tab:packet_offsets}.
 
-\begin{table}[h]
+\begin{table}[t]
 \centering
 \caption{LoRaMultiPacket OTA Packet Layout and Offsets}
 \label{tab:packet_offsets}
