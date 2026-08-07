@@ -542,6 +542,25 @@ To clearly position the proposed protocol within the current technological lands
 \section{Proposed System}
 The proposed protocol, \texttt{LoRaMultiPacket}, operates as a custom transport-layer protocol running directly over \ac{LoRa} physical layers. It aims to segment arbitrarily large payloads at the transmitter and reliably reconstruct them at the receiver, while keeping Logical Header and over-the-air (OTA) overhead minimal.
 
+\subsection{Operational Modes}
+To accommodate diverse IoT workload requirements—ranging from ultra-fast periodic telemetry streams to critical high-capacity firmware or imaging transfers—\texttt{LoRaMultiPacket} defines four distinct operational modes across two dimensions: \textit{Reliability} (Unreliable vs. SACK-Reliable) and \textit{Connection State} (Connectionless vs. Connection-Oriented). The taxonomy of these modes is summarized in Table~\ref{tab:operational_modes}.
+
+\begin{table}[htpb]
+\centering
+\caption{LoRaMultiPacket Operational Modes}
+\label{tab:operational_modes}
+\renewcommand{\arraystretch}{1.3}
+\footnotesize
+\begin{tabular}{|p{2.8cm}|p{2.2cm}|p{2.2cm}|}
+\hline
+\textbf{Mode} & \textbf{Connection State} & \textbf{Delivery Model} \\ \hline
+\textbf{Unreliable Connectionless} & Stateless (No 3WHS) & Best-effort streaming, fire-and-forget. \\ \hline
+\textbf{Unreliable Connected} & Stateful (3WHS) & Negotiated parameters, fire-and-forget. \\ \hline
+\textbf{Reliable Connectionless} & Stateless (No 3WHS) & Unnegotiated SACK-ARQ retransmission. \\ \hline
+\textbf{Reliable Connected} & Stateful (3WHS) & Negotiated SACK-ARQ with buffer protection. \\ \hline
+\end{tabular}
+\end{table}
+
 \subsection{OTA Packet Structure}
 Each individual packet transmitted over the air is structured sequentially as a fixed 7-byte Logical Header, a variable-length Application Payload (up to 246~bytes), and a 2-byte CRC footer. Unused bytes at the end of the payload are omitted from over-the-air transmission to minimize airtime.
 
@@ -643,6 +662,44 @@ If the transmitter does not receive a SACK packet within a timeout threshold of 
 \caption{State machine of the reliable transmission process at the transmitter.}
 \label{fig:state_machine}
 \end{figure}
+
+\subsection{3-Way Handshake (3WHS) and Connection Lifecycle}
+To support stateful stream negotiation and protect resource-constrained receivers from buffer overflows, \texttt{LoRaMultiPacket} Protocol Version 2 introduces a 3-Way Handshake (3WHS) mechanism.
+
+\subsubsection{Handshake Procedure}
+As illustrated in Figure~\ref{fig:3whs_sequence}, the connection lifecycle follows a classic three-step exchange:
+\begin{enumerate}
+  \item \textbf{SYN}: The initiator sends a \texttt{SYN} control frame (\texttt{FLAG\_CONN\_REQ}) containing a 4-byte \texttt{SynMetadata} payload. This payload specifies the initiator's preferred maximum chunk payload size (\texttt{requestedPayloadSize}), sliding window capacity (\texttt{windowSize}), and desired inactivity timeout (\texttt{timeoutMs}).
+  \item \textbf{SYN-ACK}: Upon receiving the \texttt{SYN}, the peer evaluates its available memory and protocol version. If accepted, it responds with a \texttt{SYN-ACK} control frame (\texttt{FLAG\_CONN\_REQ | FLAG\_CONN\_ACK}) containing a 4-byte \texttt{SynAckMetadata} payload. The receiver clamps \texttt{acceptedPayloadSize} to the maximum buffer capability it can allocate.
+  \item \textbf{ACK}: The initiator parses the \texttt{SYN-ACK}, adopts the negotiated payload size, and transmits a final \texttt{ACK} frame (\texttt{FLAG\_CONN\_ACK}). Both nodes transition their internal state machine to \texttt{ESTABLISHED}.
+\end{enumerate}
+
+\begin{figure}[htpb]
+\centering
+\resizebox{0.85\columnwidth}{!}{%
+\begin{tikzpicture}[node distance=3cm, >=stealth, thick]
+  \node[draw, rectangle, minimum width=2cm, minimum height=1cm] (client) {\textbf{Initiator (TX)}};
+  \node[draw, rectangle, minimum width=2cm, minimum height=1cm, right=of client] (server) {\textbf{Peer (RX)}};
+
+  \draw[->] ([yshift=-0.5cm]client.south) -- node[above, font=\footnotesize] {1. SYN (\texttt{FLAG\_CONN\_REQ})} ([yshift=-1.2cm]server.north);
+  \draw[<-] ([yshift=-2.0cm]client.south) -- node[above, font=\footnotesize] {2. SYN-ACK (\texttt{FLAG\_CONN\_REQ | ACK})} ([yshift=-1.3cm]server.south);
+  \draw[->] ([yshift=-2.8cm]client.south) -- node[above, font=\footnotesize] {3. ACK (\texttt{FLAG\_CONN\_ACK})} ([yshift=-3.5cm]server.north);
+
+  \node[below=3.8cm of client, font=\scriptsize\bfseries] {State: ESTABLISHED};
+  \node[below=3.8cm of server, font=\scriptsize\bfseries] {State: ESTABLISHED};
+\end{tikzpicture}%
+}
+\caption{Sequence diagram of the 3-Way Handshake (3WHS) connection setup.}
+\label{fig:3whs_sequence}
+\end{figure}
+
+\subsubsection{Failure Modes and Resilience}
+The connection manager handles exceptional network conditions gracefully:
+\begin{itemize}
+  \item \textbf{Connection Rejection (\texttt{CONN\_NACK})}: If the peer has reached its maximum session capacity, detects a protocol version mismatch, or is explicitly instructed by the application callback to reject incoming streams, it transmits a \texttt{CONN\_NACK} frame (\texttt{FLAG\_CONN\_NACK}). The payload carries an explicit reason code (\texttt{BUSY = 1}, \texttt{UNSUPPORTED\_VERSION = 2}, \texttt{REJECTED = 3}).
+  \item \textbf{Handshake Timeout}: If the initiator does not receive a \texttt{SYN-ACK} response within the configurable handshake window (\texttt{DEFAULT\_SYN\_TIMEOUT\_MS = 3000~ms}), it aborts the attempt and resets to \texttt{CLOSED}.
+  \item \textbf{Idle Inactivity Timeout}: Established sessions maintain an activity timestamp. If no valid data or control packets are exchanged within the negotiated timeout period (default 15000~ms), both nodes silently drop the session to reclaim heap memory.
+\end{itemize}
 
 \section{Preliminary Proof of Concept}
 An initial prototype used commercial Ebyte E220-series modules and validated the segmentation concept. That prototype demonstrated feasibility during preliminary field trials but highlighted three important limitations: (1) the modules exposed a proprietary network layer without full control of physical/link layer parameters, (2) an unoptimized, heavy application header in every chunk introduced excessive airtime overhead, and (3) there was no lightweight acknowledgment or retransmission mechanism.
