@@ -586,13 +586,15 @@ The fields in the Logical Header are defined as follows:
   \item \textbf{\texttt{totalChunks} (1 byte)}: The total count of chunks into which the original large payload is divided.
   \item \textbf{\texttt{chunkIndex} (1 byte)}: The 0-based index of this specific fragment (0 to \texttt{totalChunks} - 1).
   \item \textbf{\texttt{payloadSize} (1 byte)}: The count of valid data bytes contained in the payload section.
-  \item \textbf{\texttt{flags} (1 byte)}: A control bitfield used to manage transmission state. Bit definitions are:
+  \item \textbf{\texttt{flags} (1 byte)}: A control bitfield used to manage transmission and connection states. Bit definitions include:
   \begin{itemize}
-    \item \texttt{PACKET\_FLAG\_SOM} (\texttt{0x01}): Start of Message (first chunk).
-    \item \texttt{PACKET\_FLAG\_EOM} (\texttt{0x02}): End of Message (last chunk).
-    \item \texttt{PACKET\_FLAG\_ACK\_REQ} (\texttt{0x04}): Acknowledgment requested.
-    \item \texttt{PACKET\_FLAG\_ACK} (\texttt{0x08}): Acknowledgment feedback packet.
+    \item \texttt{FLAG\_ACK\_REQ} (\texttt{0x04}): Selective Acknowledgment requested from receiver.
+    \item \texttt{FLAG\_ACK} (\texttt{0x08}): SACK feedback packet containing bitmap of received chunks.
+    \item \texttt{FLAG\_CONN\_REQ} (\texttt{0x10}): Connection Request control frame.
+    \item \texttt{FLAG\_CONN\_ACK} (\texttt{0x20}): Connection Acknowledged control frame.
+    \item \texttt{FLAG\_CONN\_NACK} (\texttt{0x40}): Connection Refused control frame.
   \end{itemize}
+  \textit{Note: Start-of-Message (SOM) and End-of-Message (EOM) markers are implicitly derived from $\texttt{chunkIndex} == 0$ and $\texttt{chunkIndex} == \texttt{totalChunks} - 1$, eliminating redundant bit allocation.}
   \item \textbf{\texttt{protocolVersion} (1 byte)}: Identifies the version of the protocol to ensure backward compatibility.
 \end{itemize}
 
