@@ -613,7 +613,6 @@ The fields in the Logical Header are defined as follows:
     \item \texttt{FLAG\_CONN\_ACK} (\texttt{0x20}): Connection Acknowledged control frame.
     \item \texttt{FLAG\_CONN\_NACK} (\texttt{0x40}): Connection Refused control frame.
   \end{itemize}
-  \textit{Note: Start-of-Message (SOM) and End-of-Message (EOM) markers are implicitly derived from $\texttt{chunkIndex} == 0$ and $\texttt{chunkIndex} == \texttt{totalChunks} - 1$, eliminating redundant bit allocation.}
   \item \textbf{\texttt{protocolVersion} (1 byte)}: Identifies the version of the protocol to ensure backward compatibility.
 \end{itemize}
 
