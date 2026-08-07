@@ -222,6 +222,7 @@
 \else
   \usepackage[caption=false,font=footnotesize]{subfig}
 \fi
+\captionsetup[subfloat]{justification=centering}
 % subfig.sty, written by Steven Douglas Cochran, is the modern replacement
 % for subfigure.sty, the latter of which is no longer maintained and is
 % incompatible with some LaTeX packages including fixltx2e. However,
@@ -641,48 +642,47 @@ If the transmitter does not receive a SACK packet within a timeout threshold of 
 \centering
 \subfloat[Connection Session Lifecycle FSM (Stateful vs. Stateless)]{%
   \resizebox{0.48\textwidth}{!}{%
-  \begin{tikzpicture}[->, >=stealth, thick, auto, node distance=2.4cm, font=\scriptsize]
-    \node[draw, circle, fill=gray!10, minimum size=1.4cm] (closed) {CLOSED};
-    \node[draw, circle, fill=blue!10, right=2.4cm of closed, minimum size=1.4cm] (synsent) {SYN\_SENT};
-    \node[draw, circle, fill=red!10, below=2.4cm of closed, minimum size=1.4cm] (synrcvd) {SYN\_RCVD};
-    \node[draw, circle, fill=green!15, right=2.4cm of synrcvd, minimum size=1.4cm] (established) {ESTABLISHED};
+  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize]
+    \node[draw, circle, fill=gray!10, inner sep=2pt, align=center] (closed) {CLOSED};
+    \node[draw, circle, fill=blue!10, right=3.2cm of closed, inner sep=2pt, align=center] (synsent) {SYN\_SENT};
+    \node[draw, circle, fill=red!10, below=3.0cm of closed, inner sep=2pt, align=center] (synrcvd) {SYN\_RCVD};
+    \node[draw, circle, fill=green!15, right=3.2cm of synrcvd, inner sep=2pt, align=center] (established) {ESTABLISHED};
 
     \path
       (closed) edge node[above, font=\tiny] {Send SYN} (synsent)
       (closed) edge node[left, font=\tiny] {Recv SYN} (synrcvd)
       (synsent) edge node[right, font=\tiny] {Recv SYN-ACK} (established)
       (synrcvd) edge node[below, font=\tiny] {Send ACK} (established)
-      (synsent) edge[bend right=35] node[above, sloped, font=\tiny] {NACK / Timeout} (closed)
-      (synrcvd) edge[bend left=35] node[below, sloped, font=\tiny] {Reject / Timeout} (closed)
-      (established) edge[bend left=45] node[below right, font=\tiny] {Idle Timeout} (closed);
+      (synsent) edge[bend right=40] node[above, font=\tiny] {NACK / Timeout} (closed)
+      (synrcvd) edge[bend left=40] node[left, font=\tiny] {Reject / Timeout} (closed)
+      (established) edge[bend left=45] node[below, font=\tiny] {Idle Timeout / Disconnect} (closed);
   \end{tikzpicture}%
   }%
   \label{fig:fsm_connection}%
 }\hfill
 \subfloat[Data Transfer \& SACK-ARQ FSM (Reliable vs. Unreliable)]{%
   \resizebox{0.48\textwidth}{!}{%
-  \begin{tikzpicture}[->, >=stealth, thick, auto, node distance=2.4cm, font=\scriptsize]
-    \node[draw, circle, fill=gray!10, minimum size=1.4cm] (idle) {IDLE};
-    \node[draw, circle, fill=blue!10, right=2.2cm of idle, minimum size=1.4cm] (send) {TX\_CHUNKS};
-    \node[draw, circle, fill=orange!10, right=2.2cm of send, minimum size=1.4cm] (wait) {WAIT\_SACK};
-    \node[draw, circle, fill=red!10, below=2.2cm of wait, minimum size=1.4cm] (retransmit) {RETX};
-    \node[draw, circle, fill=green!15, below=2.2cm of send, minimum size=1.4cm] (completed) {DONE};
+  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize]
+    \node[draw, circle, fill=gray!10, inner sep=2pt, align=center] (idle) {IDLE};
+    \node[draw, circle, fill=blue!10, right=2.6cm of idle, inner sep=2pt, align=center] (send) {TX\_CHUNKS};
+    \node[draw, circle, fill=orange!10, right=2.6cm of send, inner sep=2pt, align=center] (wait) {WAIT\_SACK};
+    \node[draw, circle, fill=red!10, below=2.6cm of wait, inner sep=2pt, align=center] (retransmit) {RETX};
+    \node[draw, circle, fill=green!15, below=2.6cm of send, inner sep=2pt, align=center] (completed) {DONE};
 
     \path
       (idle) edge node[above, font=\tiny] {Tx Req} (send)
-      (send) edge node[above, font=\tiny] {ACK\_REQ} (wait)
+      (send) edge node[above, font=\tiny] {Reliable (ACK\_REQ)} (wait)
       (send) edge node[left, font=\tiny] {Best-Effort} (completed)
-      (wait) edge[bend left=25] node[right, font=\tiny] {SACK (Missing)} (retransmit)
-      (retransmit) edge[bend left=25] node[left, font=\tiny] {Retry Done} (wait)
-      (wait) edge node[above left, font=\tiny] {SACK (All OK)} (completed)
-      (wait) edge[bend right=35] node[right, font=\tiny] {Timeout (<Max)} (retransmit)
-      (wait) edge[bend right=55] node[above, sloped, font=\tiny] {Max Retries} (idle)
+      (wait) edge[bend left=25] node[right, font=\tiny] {Missing SACK / Timeout} (retransmit)
+      (retransmit) edge[bend left=25] node[left, font=\tiny] {Retry Chunks} (wait)
+      (wait) edge node[above left, font=\tiny] {SACK All OK} (completed)
+      (wait) edge[bend right=60] node[above, sloped, font=\tiny] {Max Retries} (idle)
       (completed) edge node[below, font=\tiny] {Reset} (idle);
   \end{tikzpicture}%
   }%
   \label{fig:fsm_datatransfer}%
 }
-\caption{Finite State Machine (FSM) specifications for connection lifecycle and data transfer modes.}
+\caption{Finite State Machine (FSM) specifications for connection session lifecycle and data transfer modes.}
 \label{fig:state_machines}
 \end{figure*}
 
@@ -735,7 +735,7 @@ As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle fo
     \node[right, font=\tiny\itshape] at (5.0,-1.6) {REJECTING};
 
     \draw[->, color=blue!80!black] (0,-0.9) -- (5.0,-1.5) node[midway, above, sloped, font=\tiny] {1. \texttt{SYN} (\texttt{FLAG\_CONN\_REQ})};
-    \draw[<-, color=purple!80!black, double] (0,-2.5) -- (5.0,-1.9) node[midway, above, sloped, font=\tiny] {2. \texttt{CONN\_NACK} (\texttt{Reason = BUSY/REJECTED})};
+    \draw[<-, color=purple!80!black, double] (0,-2.5) -- (5.0,-1.9) node[midway, above, sloped, font=\tiny] {2. \texttt{CONN\_NACK} (\texttt{Reason = BUSY / REJECTED / UNSUPPORTED\_VERSION})};
 
     \node[left, font=\tiny\color{red!80!black}] at (0,-2.8) {Aborted};
     \node[right, font=\tiny\color{red!80!black}] at (5.0,-2.2) {Dropped};
