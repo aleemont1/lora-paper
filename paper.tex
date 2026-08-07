@@ -642,42 +642,42 @@ If the transmitter does not receive a SACK packet within a timeout threshold of 
 \centering
 \subfloat[Connection Session Lifecycle FSM (Stateful vs. Stateless)]{%
   \resizebox{0.48\textwidth}{!}{%
-  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize]
-    \node[draw, circle, fill=gray!10, inner sep=2pt, align=center] (closed) {CLOSED};
-    \node[draw, circle, fill=blue!10, right=3.2cm of closed, inner sep=2pt, align=center] (synsent) {SYN\_SENT};
-    \node[draw, circle, fill=red!10, below=3.0cm of closed, inner sep=2pt, align=center] (synrcvd) {SYN\_RCVD};
-    \node[draw, circle, fill=green!15, right=3.2cm of synrcvd, inner sep=2pt, align=center] (established) {ESTABLISHED};
+  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, every node/.style={align=center}]
+    \node[draw, circle, fill=gray!10, minimum size=2.4cm, text width=1.9cm] (closed) at (0,0) {CLOSED};
+    \node[draw, circle, fill=blue!10, minimum size=2.4cm, text width=1.9cm] (synsent) at (6,0) {SYN\_SENT};
+    \node[draw, circle, fill=red!10, minimum size=2.4cm, text width=1.9cm] (synrcvd) at (0,-6) {SYN\_RCVD};
+    \node[draw, circle, fill=green!15, minimum size=2.4cm, text width=1.9cm] (established) at (6,-6) {ESTABLISHED};
 
     \path
-      (closed) edge node[above, font=\tiny] {Send SYN} (synsent)
-      (closed) edge node[left, font=\tiny] {Recv SYN} (synrcvd)
-      (synsent) edge node[right, font=\tiny] {Recv SYN-ACK} (established)
-      (synrcvd) edge node[below, font=\tiny] {Send ACK} (established)
-      (synsent) edge[bend right=40] node[above, font=\tiny] {NACK / Timeout} (closed)
-      (synrcvd) edge[bend left=40] node[left, font=\tiny] {Reject / Timeout} (closed)
-      (established) edge[bend left=45] node[below, font=\tiny] {Idle Timeout / Disconnect} (closed);
+      (closed) edge node[above, font=\small] {Send SYN} (synsent)
+      (closed) edge[bend left=25] node[left, font=\small] {Recv SYN} (synrcvd)
+      (synsent) edge node[right, font=\small] {Recv SYN-ACK} (established)
+      (synrcvd) edge node[below, font=\small] {Send ACK} (established)
+      (synsent) edge[bend right=35] node[above, sloped, font=\small] {NACK / Timeout} (closed)
+      (synrcvd) edge[bend left=25] node[left, font=\small] {Reject / Timeout} (closed)
+      (established) edge node[right, font=\small] {Idle Timeout} (closed);
   \end{tikzpicture}%
   }%
   \label{fig:fsm_connection}%
 }\hfill
 \subfloat[Data Transfer \& SACK-ARQ FSM (Reliable vs. Unreliable)]{%
   \resizebox{0.48\textwidth}{!}{%
-  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize]
-    \node[draw, circle, fill=gray!10, inner sep=2pt, align=center] (idle) {IDLE};
-    \node[draw, circle, fill=blue!10, right=2.6cm of idle, inner sep=2pt, align=center] (send) {TX\_CHUNKS};
-    \node[draw, circle, fill=orange!10, right=2.6cm of send, inner sep=2pt, align=center] (wait) {WAIT\_SACK};
-    \node[draw, circle, fill=red!10, below=2.6cm of wait, inner sep=2pt, align=center] (retransmit) {RETX};
-    \node[draw, circle, fill=green!15, below=2.6cm of send, inner sep=2pt, align=center] (completed) {DONE};
+  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, every node/.style={align=center}]
+    \node[draw, circle, fill=gray!10, minimum size=2.4cm, text width=1.9cm] (idle) at (0,0) {IDLE};
+    \node[draw, circle, fill=blue!10, minimum size=2.4cm, text width=1.9cm] (send) at (5.0,0) {TX\_CHUNKS};
+    \node[draw, circle, fill=orange!10, minimum size=2.4cm, text width=1.9cm] (wait) at (10.0,0) {WAIT\_SACK};
+    \node[draw, circle, fill=red!10, minimum size=2.4cm, text width=1.9cm] (retransmit) at (10.0,-6) {RETX};
+    \node[draw, circle, fill=green!15, minimum size=2.4cm, text width=1.9cm] (completed) at (5.0,-6) {DONE};
 
     \path
-      (idle) edge node[above, font=\tiny] {Tx Req} (send)
-      (send) edge node[above, font=\tiny] {Reliable (ACK\_REQ)} (wait)
-      (send) edge node[left, font=\tiny] {Best-Effort} (completed)
-      (wait) edge[bend left=25] node[right, font=\tiny] {Missing SACK / Timeout} (retransmit)
-      (retransmit) edge[bend left=25] node[left, font=\tiny] {Retry Chunks} (wait)
-      (wait) edge node[above left, font=\tiny] {SACK All OK} (completed)
-      (wait) edge[bend right=60] node[above, sloped, font=\tiny] {Max Retries} (idle)
-      (completed) edge node[below, font=\tiny] {Reset} (idle);
+      (idle) edge node[above, font=\small] {Tx Req} (send)
+      (send) edge node[above, font=\small] {ACK\_REQ} (wait)
+      (send) edge node[left, font=\small] {Best-Effort} (completed)
+      (wait) edge[bend left=25] node[right, font=\small] {Timeout} (retransmit)
+      (retransmit) edge[bend left=25] node[left, font=\small] {Retry} (wait)
+      (wait) edge node[left, font=\small] {SACK} (completed)
+      (wait) edge[bend right=40] node[above, sloped, font=\small] {Max Retries} (idle)
+      (completed) edge node[left, font=\small] {Reset} (idle);
   \end{tikzpicture}%
   }%
   \label{fig:fsm_datatransfer}%
@@ -700,47 +700,43 @@ As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle fo
 \begin{figure*}[htpb]
 \centering
 \subfloat[Successful 3-Way Handshake (3WHS)]{%
-  \resizebox{0.48\textwidth}{!}{%
   \begin{tikzpicture}[>=stealth, thick, font=\footnotesize]
-    \draw[very thick] (0,0) -- (0,-4.2) node[below, font=\tiny\bfseries] {ESTABLISHED};
-    \draw[very thick] (5.0,0) -- (5.0,-4.2) node[below, font=\tiny\bfseries] {ESTABLISHED};
+    \draw[very thick] (0,0) -- (0,-5) node[below, font=\tiny\bfseries] {ESTABLISHED};
+    \draw[very thick] (5,0) -- (5,-5) node[below, font=\tiny\bfseries] {ESTABLISHED};
 
-    \node[draw, rectangle, fill=gray!15, minimum width=2.2cm, minimum height=0.6cm] at (0,0.4) {\textbf{Initiator (TX)}};
-    \node[draw, rectangle, fill=gray!15, minimum width=2.2cm, minimum height=0.6cm] at (5.0,0.4) {\textbf{Peer (RX)}};
+    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.6cm] at (0,0.4) {\textbf{Initiator (TX)}};
+    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.6cm] at (5,0.4) {\textbf{Peer (RX)}};
 
     \node[left, font=\tiny\itshape] at (0,-0.3) {CLOSED};
-    \node[right, font=\tiny\itshape] at (5.0,-0.3) {CLOSED};
+    \node[right, font=\tiny\itshape] at (5,-0.3) {CLOSED};
     \node[left, font=\tiny\itshape] at (0,-1.0) {SYN\_SENT};
-    \node[right, font=\tiny\itshape] at (5.0,-1.6) {SYN\_RCVD};
+    \node[right, font=\tiny\itshape] at (5,-1.6) {SYN\_RCVD};
 
-    \draw[->, color=blue!80!black] (0,-0.9) -- (5.0,-1.5) node[midway, above, sloped, font=\tiny] {1. \texttt{SYN} (\texttt{FLAG\_CONN\_REQ})};
-    \draw[<-, color=red!80!black] (0,-2.5) -- (5.0,-1.9) node[midway, above, sloped, font=\tiny] {2. \texttt{SYN-ACK} (\texttt{FLAG\_CONN\_REQ | ACK})};
-    \draw[->, color=green!50!black] (0,-3.0) -- (5.0,-3.6) node[midway, above, sloped, font=\tiny] {3. \texttt{ACK} (\texttt{FLAG\_CONN\_ACK})};
+    \draw[->, color=blue!80!black] (0,-0.9) -- (5,-1.5) node[midway, above, sloped, font=\tiny] {1. \texttt{SYN} (\texttt{FLAG\_CONN\_REQ})};
+    \draw[<-, color=red!80!black] (0,-2.5) -- (5,-1.9) node[midway, above, sloped, font=\tiny] {2. \texttt{SYN-ACK} (\texttt{FLAG\_CONN\_REQ | ACK})};
+    \draw[->, color=green!50!black] (0,-3.0) -- (5,-3.6) node[midway, above, sloped, font=\tiny] {3. \texttt{ACK} (\texttt{FLAG\_CONN\_ACK})};
   \end{tikzpicture}%
-  }%
   \label{fig:seq_success}%
 }\hfill
 \subfloat[Connection Rejection (\texttt{CONN\_NACK}) Failure Mode]{%
-  \resizebox{0.48\textwidth}{!}{%
   \begin{tikzpicture}[>=stealth, thick, font=\footnotesize]
-    \draw[very thick] (0,0) -- (0,-4.2) node[below, font=\tiny\bfseries] {CLOSED};
-    \draw[very thick] (5.0,0) -- (5.0,-4.2) node[below, font=\tiny\bfseries] {CLOSED};
+    \draw[very thick] (0,0) -- (0,-5) node[below, font=\tiny\bfseries] {CLOSED};
+    \draw[very thick] (5,0) -- (5,-5) node[below, font=\tiny\bfseries] {CLOSED};
 
-    \node[draw, rectangle, fill=gray!15, minimum width=2.2cm, minimum height=0.6cm] at (0,0.4) {\textbf{Initiator (TX)}};
-    \node[draw, rectangle, fill=gray!15, minimum width=2.2cm, minimum height=0.6cm] at (5.0,0.4) {\textbf{Peer (RX)}};
+    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.6cm] at (0,0.4) {\textbf{Initiator (TX)}};
+    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.6cm] at (5,0.4) {\textbf{Peer (RX)}};
 
     \node[left, font=\tiny\itshape] at (0,-0.3) {CLOSED};
-    \node[right, font=\tiny\itshape] at (5.0,-0.3) {CLOSED};
+    \node[right, font=\tiny\itshape] at (5,-0.3) {CLOSED};
     \node[left, font=\tiny\itshape] at (0,-1.0) {SYN\_SENT};
-    \node[right, font=\tiny\itshape] at (5.0,-1.6) {REJECTING};
+    \node[right, font=\tiny\itshape] at (5,-1.6) {REJECTING};
 
-    \draw[->, color=blue!80!black] (0,-0.9) -- (5.0,-1.5) node[midway, above, sloped, font=\tiny] {1. \texttt{SYN} (\texttt{FLAG\_CONN\_REQ})};
-    \draw[<-, color=purple!80!black, double] (0,-2.5) -- (5.0,-1.9) node[midway, above, sloped, font=\tiny] {2. \texttt{CONN\_NACK} (\texttt{Reason = BUSY / REJECTED / UNSUPPORTED\_VERSION})};
+    \draw[->, color=blue!80!black] (0,-0.9) -- (5,-1.5) node[midway, above, sloped, font=\tiny] {1. \texttt{SYN} (\texttt{FLAG\_CONN\_REQ})};
+    \draw[<-, color=purple!80!black, double] (0,-2.5) -- (5,-1.9) node[midway, above, sloped, font=\tiny] {2. \texttt{CONN\_NACK} (\texttt{Reason = BUSY / ...})};
 
     \node[left, font=\tiny\color{red!80!black}] at (0,-2.8) {Aborted};
-    \node[right, font=\tiny\color{red!80!black}] at (5.0,-2.2) {Dropped};
+    \node[right, font=\tiny\color{red!80!black}] at (5,-2.2) {Dropped};
   \end{tikzpicture}%
-  }%
   \label{fig:seq_nack}%
 }
 \caption{Sequence interaction flows for successful 3-Way Handshake and \texttt{CONN\_NACK} rejection failure modes.}
