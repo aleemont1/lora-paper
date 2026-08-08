@@ -540,50 +540,73 @@ To clearly position the proposed protocol within the current technological lands
 \end{tabularx}
 \end{table*}
 
-\section{Proposed System}
-The proposed protocol, \texttt{LoRaMultiPacket}, operates as a custom transport-layer protocol running directly over \ac{LoRa} physical layers. It aims to segment arbitrarily large payloads at the transmitter and reliably reconstruct them at the receiver, while keeping Logical Header and over-the-air (OTA) overhead minimal.
+\section{Proposed System Architecture}
+The proposed protocol, \texttt{LoRaMultiPacket}, operates as a custom transport-layer architecture running directly over \ac{LoRa} physical layers. It aims to segment arbitrarily large payloads at the transmitter and reliably reconstruct them at the receiver, while keeping Logical Header and over-the-air (OTA) overhead minimal.
 
-\subsection{Operational Modes}
-To accommodate diverse IoT workload requirements—ranging from ultra-fast periodic telemetry streams to critical high-capacity firmware or imaging transfers—\texttt{LoRaMultiPacket} defines four distinct operational modes across two dimensions: \textit{Reliability} (Unreliable vs. SACK-Reliable) and \textit{Connection State} (Connectionless vs. Connection-Oriented). The taxonomy of these modes is summarized in Table~\ref{tab:operational_modes}.
+\subsection{Operational Modes and Architectural Taxonomy}
+To accommodate diverse IoT workload requirements—ranging from ultra-fast periodic telemetry streams to critical high-capacity firmware or imaging transfers—\texttt{LoRaMultiPacket} defines four distinct operational modes across two primary dimensions: \textit{Reliability} (Unreliable Best-Effort vs. SACK-Reliable ARQ) and \textit{Connection State} (Connectionless Stateless vs. Connection-Oriented Stateful).
+
+Furthermore, the protocol incorporates a compact node addressing mechanism, forming a 3-dimensional architectural space that spans from simple point-to-point datagrams up to multi-node addressed topologies. The taxonomy of these modes is summarized in Table~\ref{tab:operational_modes}.
 
 \begin{table}[htpb]
 \centering
-\caption{LoRaMultiPacket Operational Modes}
+\caption{LoRaMultiPacket Operational Modes and Addressing Taxonomy}
 \label{tab:operational_modes}
 \renewcommand{\arraystretch}{1.3}
 \footnotesize
-\begin{tabular}{|p{2.8cm}|p{2.2cm}|p{2.2cm}|}
+\begin{tabular}{|p{2.6cm}|p{2.1cm}|p{2.3cm}|}
 \hline
-\textbf{Mode} & \textbf{Connection State} & \textbf{Delivery Model} \\ \hline
-\textbf{Unreliable Connectionless} & Stateless (No 3WHS) & Best-effort streaming, fire-and-forget. \\ \hline
-\textbf{Unreliable Connected} & Stateful (3WHS) & Negotiated parameters, fire-and-forget. \\ \hline
-\textbf{Reliable Connectionless} & Stateless (No 3WHS) & Unnegotiated SACK-ARQ retransmission. \\ \hline
+\textbf{Operational Mode} & \textbf{Connection State} & \textbf{Delivery \& Addressing Model} \\ \hline
+\textbf{Unreliable Connectionless} & Stateless (No 3WHS) & Best-effort datagram streaming; Unicast or Broadcast (\texttt{0xFF}). \\ \hline
+\textbf{Unreliable Connected} & Stateful (3WHS) & Negotiated parameters; best-effort stream tracking. \\ \hline
+\textbf{Reliable Connectionless} & Stateless (No 3WHS) & Unnegotiated SACK-ARQ retransmission feedback. \\ \hline
 \textbf{Reliable Connected} & Stateful (3WHS) & Negotiated SACK-ARQ with buffer protection. \\ \hline
 \end{tabular}
 \end{table}
 
-\subsection{OTA Packet Structure}
-Each individual packet transmitted over the air is structured sequentially as a fixed 7-byte Logical Header, a variable-length Application Payload (up to 246~bytes), and a 2-byte CRC footer. Unused bytes at the end of the payload are omitted from over-the-air transmission to minimize airtime.
+\subsection{OTA Packet Structure and Header Optimization}
+Each individual packet transmitted over the air is structured sequentially as a fixed 9-byte Logical Header, a variable-length Application Payload (up to 244~bytes), and a 2-byte CRC footer. Unused padding bytes at the end of partial payloads are omitted from over-the-air transmission to minimize airtime and regulatory duty-cycle footprint.
 
-The exact byte alignment and offsets of the packet structure are presented in Table~\ref{tab:packet_offsets}.
+\subsubsection{Header Overhead Optimization}
+A core design principle of \texttt{LoRaMultiPacket} is the elimination of redundant bit allocations. In traditional LPWAN fragmentation protocols, explicit Start-of-Message (SOM) and End-of-Message (EOM) flags consume dedicated bitfields in every header. In \texttt{LoRaMultiPacket}, SOM and EOM markers are implicitly derived at the receiver from the sequence fields:
+\begin{equation}
+\mathrm{SOM} \iff \texttt{chunkIndex} == 0
+\end{equation}
+\begin{equation}
+\mathrm{EOM} \iff \texttt{chunkIndex} == \texttt{totalChunks} - 1
+\end{equation}
+Eliminating these redundant flags saves header bit space, allowing control flags and node addresses to be packed tightly without increasing airtime.
+
+\subsubsection{Compact Node Addressing}
+To support multi-node communication without incurring the prohibitive airtime overhead of full 128-bit IPv6 headers on LoRa PHY payloads, \texttt{LoRaMultiPacket} introduces a compact 8-bit Node Identifier space:
+\begin{itemize}
+  \item \textbf{\texttt{0x00} (\texttt{ADDRESS\_UNASSIGNED})}: Reserved for legacy or unaddressed P2P datagrams (promiscuous mode).
+  \item \textbf{\texttt{0x01}--\texttt{0xFE}}: 254 unique individual node addresses (Unicast).
+  \item \textbf{\texttt{0xFF} (\texttt{ADDRESS\_BROADCAST})}: Broadcast address processed by all active receiving nodes on the RF channel.
+\end{itemize}
+This 8-bit Node ID design is IPv6-ready: at an edge gateway or application layer, a local 8-bit Node ID (e.g., \texttt{0x42}) maps directly to an IPv6 link-local subnet suffix (e.g., \texttt{fe80::42}), enabling seamless IP-layer integration without transmitting heavy IPv6 headers over the constrained radio link.
+
+The exact byte alignment and offsets of the 9-byte header packet structure are presented in Table~\ref{tab:packet_offsets} and Figure~\ref{fig:header_layout}.
 
 \begin{table}[t]
 \centering
-\caption{LoRaMultiPacket OTA Packet Layout and Offsets}
+\caption{LoRaMultiPacket OTA Packet Layout and Byte Offsets}
 \label{tab:packet_offsets}
 \renewcommand{\arraystretch}{1.2}
 \footnotesize
 \begin{tabular}{|c|c|l|c|}
 \hline
 \textbf{Offset (Bytes)} & \textbf{Field Name} & \textbf{Data Type} & \textbf{Size (Bytes)} \\ \hline
-0--1 & \texttt{messageId} & uint16\_t & 2 \\ \hline
-2 & \texttt{totalChunks} & uint8\_t & 1 \\ \hline
-3 & \texttt{chunkIndex} & uint8\_t & 1 \\ \hline
-4 & \texttt{payloadSize} & uint8\_t & 1 \\ \hline
-5 & \texttt{flags} & uint8\_t & 1 \\ \hline
-6 & \texttt{protocolVersion} & uint8\_t & 1 \\ \hline
-7 & \texttt{payload} & uint8\_t[] & $N$ (up to 246) \\ \hline
-$7 + N$ & \texttt{crc} & uint16\_t & 2 \\ \hline
+0 & \texttt{srcAddr} & uint8\_t & 1 \\ \hline
+1 & \texttt{dstAddr} & uint8\_t & 1 \\ \hline
+2--3 & \texttt{messageId} & uint16\_t & 2 \\ \hline
+4 & \texttt{totalChunks} & uint8\_t & 1 \\ \hline
+5 & \texttt{chunkIndex} & uint8\_t & 1 \\ \hline
+6 & \texttt{payloadSize} & uint8\_t & 1 \\ \hline
+7 & \texttt{flags} & uint8\_t & 1 \\ \hline
+8 & \texttt{protocolVersion} & uint8\_t & 1 \\ \hline
+9 & \texttt{payload} & uint8\_t[] & $N$ (up to 244) \\ \hline
+$9 + N$ & \texttt{crc} & uint16\_t & 2 \\ \hline
 \end{tabular}
 \end{table}
 
@@ -591,33 +614,35 @@ $7 + N$ & \texttt{crc} & uint16\_t & 2 \\ \hline
 \centering
 \renewcommand{\arraystretch}{1.3}
 \footnotesize
-\begin{tabular}{|c|c|c|c|c|c|c|}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
 \hline
-\multicolumn{2}{|c|}{\textbf{Byte 0 -- 1}} & \textbf{Byte 2} & \textbf{Byte 3} & \textbf{Byte 4} & \textbf{Byte 5} & \textbf{Byte 6} \\ \hline
-\multicolumn{2}{|c|}{\texttt{messageId}} & \texttt{totalChunks} & \texttt{chunkIndex} & \texttt{payloadSize} & \texttt{flags} & \texttt{protocolVersion} \\ \hline
+\textbf{Byte 0} & \textbf{Byte 1} & \multicolumn{2}{|c|}{\textbf{Byte 2 -- 3}} & \textbf{Byte 4} & \textbf{Byte 5} & \textbf{Byte 6} & \textbf{Byte 7} & \textbf{Byte 8} \\ \hline
+\texttt{srcAddr} & \texttt{dstAddr} & \multicolumn{2}{|c|}{\texttt{messageId}} & \texttt{totalChunks} & \texttt{chunkIndex} & \texttt{payloadSize} & \texttt{flags} & \texttt{protocolVersion} \\ \hline
 \end{tabular}
-\caption{Byte layout of the 7-byte Logical Header.}
+\caption{Byte layout of the compact 9-byte Logical Header incorporating Node Addressing.}
 \label{fig:header_layout}
 \end{figure*}
 
 The fields in the Logical Header are defined as follows:
 \begin{itemize}
+  \item \textbf{\texttt{srcAddr} (1 byte)}: Source node identifier (\texttt{0x01}--\texttt{0xFE}, or \texttt{0x00} for unassigned).
+  \item \textbf{\texttt{dstAddr} (1 byte)}: Destination node identifier (\texttt{0x01}--\texttt{0xFE}, or \texttt{0xFF} for broadcast).
   \item \textbf{\texttt{messageId} (2 bytes)}: Unique message sequence identifier. All fragments composing the same segmented message share this ID.
   \item \textbf{\texttt{totalChunks} (1 byte)}: The total count of chunks into which the original large payload is divided.
   \item \textbf{\texttt{chunkIndex} (1 byte)}: The 0-based index of this specific fragment (0 to \texttt{totalChunks} - 1).
-  \item \textbf{\texttt{payloadSize} (1 byte)}: The count of valid data bytes contained in the payload section.
-  \item \textbf{\texttt{flags} (1 byte)}: A control bitfield used to manage transmission and connection states. Bit definitions include:
+  \item \textbf{\texttt{payloadSize} (1 byte)}: The count of valid data bytes contained in the payload section ($N \le 244$).
+  \item \textbf{\texttt{flags} (1 byte)}: A control bitfield used to manage transmission and connection states:
   \begin{itemize}
     \item \texttt{FLAG\_ACK\_REQ} (\texttt{0x04}): Selective Acknowledgment requested from receiver.
-    \item \texttt{FLAG\_ACK} (\texttt{0x08}): SACK feedback packet containing bitmap of received chunks.
+    \item \texttt{FLAG\_ACK} (\texttt{0x08}): SACK feedback packet containing binary bitmap of received chunks.
     \item \texttt{FLAG\_CONN\_REQ} (\texttt{0x10}): Connection Request control frame.
     \item \texttt{FLAG\_CONN\_ACK} (\texttt{0x20}): Connection Acknowledged control frame.
     \item \texttt{FLAG\_CONN\_NACK} (\texttt{0x40}): Connection Refused control frame.
   \end{itemize}
-  \item \textbf{\texttt{protocolVersion} (1 byte)}: Identifies the version of the protocol to ensure backward compatibility.
+  \item \textbf{\texttt{protocolVersion} (1 byte)}: Identifies protocol version (currently 2) to ensure backward compatibility.
 \end{itemize}
 
-After the payload, a 16-bit CRC-16 (Modbus CRC-16, polynomial \texttt{0xA001}, initialized to \texttt{0xFFFF}) is appended. The checksum covers the entire 7-byte header and only the valid \texttt{payloadSize} payload bytes, reliably detecting transmission corruptions.
+After the payload, a 16-bit CRC-16 (Modbus CRC-16, polynomial \texttt{0xA001}, initialized to \texttt{0xFFFF}) is appended. The checksum covers the entire 9-byte header and valid payload bytes, reliably detecting transmission corruptions.
 
 \subsection{Selective Acknowledgment (SACK) Retransmission}
 To provide reliable delivery under lossy radio conditions while maintaining minimal airtime overhead, the protocol implements a Selective Acknowledgment (SACK) mechanism~\cite{lora-arq-sar}.
@@ -625,10 +650,10 @@ To provide reliable delivery under lossy radio conditions while maintaining mini
 \subsubsection{Retransmission Handshake}
 When a transmission is executed in reliable mode:
 \begin{enumerate}
-  \item The transmitter segments the payload, serializes the chunks, and streams them sequentially. The final chunk index ($Index = \texttt{totalChunks} - 1$) is marked with the \texttt{PACKET\_FLAG\_ACK\_REQ} flag.
+  \item The transmitter segments the payload, serializes the chunks with \texttt{srcAddr} and \texttt{dstAddr}, and streams them sequentially. The final chunk index ($Index = \texttt{totalChunks} - 1$) is marked with the \texttt{FLAG\_ACK\_REQ} flag.
   \item Upon receipt of the chunk requesting acknowledgment, the receiver evaluates its reassembly session. It identifies which fragments are still missing by checking its internal bitmask of received chunks.
-  \item The receiver responds by transmitting a SACK packet (indicated by the \texttt{PACKET\_FLAG\_ACK} flag). The SACK's payload contains a binary bitmap where each bit represents the receipt status of a chunk (1 for received, 0 for missing).
-  \item The transmitter parses the received SACK bitmap. If some chunks are missing, it selectively retransmits only those lost chunks. The last retransmitted chunk has the \texttt{ACK\_REQ} flag set again to query the receiver.
+  \item The receiver responds by transmitting a SACK packet (\texttt{FLAG\_ACK}) addressed back to the transmitter's \texttt{srcAddr}. The SACK's payload contains a binary bitmap where each bit represents the receipt status of a chunk (1 for received, 0 for missing).
+  \item The transmitter parses the received SACK bitmap. If some chunks are missing, it selectively retransmits only those lost chunks. The last retransmitted chunk has the \texttt{FLAG\_ACK\_REQ} flag set again to query the receiver.
   \item This selective retry loop continues until the full message is reconstructed at the receiver, or the transmitter reaches the maximum retry count.
 \end{enumerate}
 
@@ -636,50 +661,46 @@ When a transmission is executed in reliable mode:
 Because LoRa transceivers are half-duplex, a hardware transition period is required for the transmitter to switch from transmit (TX) mode to receive (RX) mode after sending a packet. If the receiver replies instantly, the transmitter will miss the SACK preamble. To guarantee correct reception, the receiver introduces a configurable hardware guard delay (e.g., 25~ms) before transmitting the SACK packet.
 
 \subsubsection{Timeout and Fallback Recovery}
-If the transmitter does not receive a SACK packet within a timeout threshold of 1000~ms, it assumes that either the query or the response was lost. The transmitter falls back to retransmitting the final chunk of the sequence marked with \texttt{ACK\_REQ} to trigger a new status report. Up to 5 consecutive timeouts are allowed before the transmission is aborted as failed.
+If the transmitter does not receive a SACK packet within a dynamic timeout threshold based on estimated ToA, it assumes that either the query or the response was lost. The transmitter falls back to retransmitting the final chunk of the sequence marked with \texttt{FLAG\_ACK\_REQ} to trigger a new status report. Up to 5 consecutive timeouts are allowed before the transmission is aborted as failed.
 
 \begin{figure*}[htpb]
 \centering
 \subfloat[Connection Session Lifecycle FSM (Stateful vs. Stateless)]{%
-  \resizebox{0.48\textwidth}{!}{%
   \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, every node/.style={align=center}]
-    \node[draw, circle, fill=gray!10, minimum size=2.4cm, text width=1.9cm] (closed) at (0,0) {CLOSED};
-    \node[draw, circle, fill=blue!10, minimum size=2.4cm, text width=1.9cm] (synsent) at (6,0) {SYN\_SENT};
-    \node[draw, circle, fill=red!10, minimum size=2.4cm, text width=1.9cm] (synrcvd) at (0,-6) {SYN\_RCVD};
-    \node[draw, circle, fill=green!15, minimum size=2.4cm, text width=1.9cm] (established) at (6,-6) {ESTABLISHED};
+    \node[draw, circle, fill=gray!10, minimum size=1.6cm, text width=1.4cm] (closed) at (0,0) {CLOSED};
+    \node[draw, circle, fill=blue!10, minimum size=1.6cm, text width=1.4cm] (synsent) at (4.5,0) {SYN\_SENT};
+    \node[draw, circle, fill=red!10, minimum size=1.6cm, text width=1.4cm] (synrcvd) at (0,-4.5) {SYN\_RCVD};
+    \node[draw, circle, fill=green!15, minimum size=1.6cm, text width=1.4cm] (established) at (4.5,-4.5) {ESTABLISHED};
 
     \path
-      (closed) edge node[above, font=\small] {Send SYN} (synsent)
-      (closed) edge[bend left=25] node[left, font=\small] {Recv SYN} (synrcvd)
-      (synsent) edge node[right, font=\small] {Recv SYN-ACK} (established)
-      (synrcvd) edge node[below, font=\small] {Send ACK} (established)
-      (synsent) edge[bend right=35] node[above, sloped, font=\small] {NACK / Timeout} (closed)
-      (synrcvd) edge[bend left=25] node[left, font=\small] {Reject / Timeout} (closed)
-      (established) edge node[right, font=\small] {Idle Timeout} (closed);
+      (closed) edge node[above, font=\tiny] {Send SYN} (synsent)
+      (closed) edge[bend left=25] node[left, font=\tiny] {Recv SYN} (synrcvd)
+      (synsent) edge node[right, font=\tiny] {Recv SYN-ACK} (established)
+      (synrcvd) edge node[below, font=\tiny] {Send ACK} (established)
+      (synsent) edge[bend right=35] node[above, sloped, font=\tiny] {NACK/Timeout} (closed)
+      (synrcvd) edge[bend left=25] node[left, font=\tiny] {Reject/Timeout} (closed)
+      (established) edge node[right, font=\tiny] {Idle Timeout} (closed);
   \end{tikzpicture}%
-  }%
   \label{fig:fsm_connection}%
 }\hfill
 \subfloat[Data Transfer \& SACK-ARQ FSM (Reliable vs. Unreliable)]{%
-  \resizebox{0.48\textwidth}{!}{%
   \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, every node/.style={align=center}]
-    \node[draw, circle, fill=gray!10, minimum size=2.4cm, text width=1.9cm] (idle) at (0,0) {IDLE};
-    \node[draw, circle, fill=blue!10, minimum size=2.4cm, text width=1.9cm] (send) at (5.0,0) {TX\_CHUNKS};
-    \node[draw, circle, fill=orange!10, minimum size=2.4cm, text width=1.9cm] (wait) at (10.0,0) {WAIT\_SACK};
-    \node[draw, circle, fill=red!10, minimum size=2.4cm, text width=1.9cm] (retransmit) at (10.0,-6) {RETX};
-    \node[draw, circle, fill=green!15, minimum size=2.4cm, text width=1.9cm] (completed) at (5.0,-6) {DONE};
+    \node[draw, circle, fill=gray!10, minimum size=1.6cm, text width=1.4cm] (idle) at (0,0) {IDLE};
+    \node[draw, circle, fill=blue!10, minimum size=1.6cm, text width=1.4cm] (send) at (3.8,0) {TX\_CHUNKS};
+    \node[draw, circle, fill=orange!10, minimum size=1.6cm, text width=1.4cm] (wait) at (7.6,0) {WAIT\_SACK};
+    \node[draw, circle, fill=red!10, minimum size=1.6cm, text width=1.4cm] (retransmit) at (7.6,-4.5) {RETX};
+    \node[draw, circle, fill=green!15, minimum size=1.6cm, text width=1.4cm] (completed) at (3.8,-4.5) {DONE};
 
     \path
-      (idle) edge node[above, font=\small] {Tx Req} (send)
-      (send) edge node[above, font=\small] {ACK\_REQ} (wait)
-      (send) edge node[left, font=\small] {Best-Effort} (completed)
-      (wait) edge[bend left=25] node[right, font=\small] {Timeout} (retransmit)
-      (retransmit) edge[bend left=25] node[left, font=\small] {Retry} (wait)
-      (wait) edge node[left, font=\small] {SACK} (completed)
-      (wait) edge[bend right=40] node[above, sloped, font=\small] {Max Retries} (idle)
-      (completed) edge node[left, font=\small] {Reset} (idle);
+      (idle) edge node[above, font=\tiny] {Tx Req} (send)
+      (send) edge node[above, font=\tiny] {ACK\_REQ} (wait)
+      (send) edge node[left, font=\tiny] {Best-Effort} (completed)
+      (wait) edge[bend left=25] node[right, font=\tiny] {Timeout} (retransmit)
+      (retransmit) edge[bend left=25] node[left, font=\tiny] {Retry} (wait)
+      (wait) edge node[left, font=\tiny] {SACK} (completed)
+      (wait) edge[bend right=40] node[above, sloped, font=\tiny] {Max Retries} (idle)
+      (completed) edge node[left, font=\tiny] {Reset} (idle);
   \end{tikzpicture}%
-  }%
   \label{fig:fsm_datatransfer}%
 }
 \caption{Finite State Machine (FSM) specifications for connection session lifecycle and data transfer modes.}
@@ -687,13 +708,13 @@ If the transmitter does not receive a SACK packet within a timeout threshold of 
 \end{figure*}
 
 \subsection{3-Way Handshake (3WHS) and Connection Lifecycle}
-To support stateful stream negotiation and protect resource-constrained receivers from buffer overflows, \texttt{LoRaMultiPacket} Protocol Version 2 introduces a 3-Way Handshake (3WHS) mechanism.
+To support stateful stream negotiation and protect resource-constrained receivers from buffer overflows, \texttt{LoRaMultiPacket} Version 2 introduces a 3-Way Handshake (3WHS) mechanism.
 
 \subsubsection{Handshake Procedure}
-As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle follows a classic three-step exchange:
+As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle follows a three-step exchange:
 \begin{enumerate}
-  \item \textbf{SYN}: The initiator sends a \texttt{SYN} control frame (\texttt{FLAG\_CONN\_REQ}) containing a 4-byte \texttt{SynMetadata} payload. This payload specifies the initiator's preferred maximum chunk payload size (\texttt{requestedPayloadSize}), sliding window capacity (\texttt{windowSize}), and desired inactivity timeout (\texttt{timeoutMs}).
-  \item \textbf{SYN-ACK}: Upon receiving the \texttt{SYN}, the peer evaluates its available memory and protocol version. If accepted, it responds with a \texttt{SYN-ACK} control frame (\texttt{FLAG\_CONN\_REQ | FLAG\_CONN\_ACK}) containing a 4-byte \texttt{SynAckMetadata} payload. The receiver clamps \texttt{acceptedPayloadSize} to the maximum buffer capability it can allocate.
+  \item \textbf{SYN}: The initiator sends a \texttt{SYN} control frame (\texttt{FLAG\_CONN\_REQ}) addressed to the target node's \texttt{dstAddr}, containing a 4-byte \texttt{SynMetadata} payload (\texttt{requestedPayloadSize}, \texttt{windowSize}, \texttt{timeoutMs}).
+  \item \textbf{SYN-ACK}: Upon receiving the \texttt{SYN}, the peer evaluates available memory and protocol version. If accepted, it responds with a \texttt{SYN-ACK} control frame (\texttt{FLAG\_CONN\_REQ | FLAG\_CONN\_ACK}) addressed back to the initiator. The receiver clamps \texttt{acceptedPayloadSize} to its maximum buffer capability.
   \item \textbf{ACK}: The initiator parses the \texttt{SYN-ACK}, adopts the negotiated payload size, and transmits a final \texttt{ACK} frame (\texttt{FLAG\_CONN\_ACK}). Both nodes transition their internal state machine to \texttt{ESTABLISHED}.
 \end{enumerate}
 
@@ -704,8 +725,8 @@ As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle fo
     \draw[very thick] (0,0) -- (0,-5) node[below, font=\tiny\bfseries] {ESTABLISHED};
     \draw[very thick] (5,0) -- (5,-5) node[below, font=\tiny\bfseries] {ESTABLISHED};
 
-    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.6cm] at (0,0.4) {\textbf{Initiator (TX)}};
-    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.6cm] at (5,0.4) {\textbf{Peer (RX)}};
+    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.6cm] at (0,0.4) {\textbf{Initiator (TX 0x01)}};
+    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.6cm] at (5,0.4) {\textbf{Peer (RX 0x02)}};
 
     \node[left, font=\tiny\itshape] at (0,-0.3) {CLOSED};
     \node[right, font=\tiny\itshape] at (5,-0.3) {CLOSED};
@@ -723,8 +744,8 @@ As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle fo
     \draw[very thick] (0,0) -- (0,-5) node[below, font=\tiny\bfseries] {CLOSED};
     \draw[very thick] (5,0) -- (5,-5) node[below, font=\tiny\bfseries] {CLOSED};
 
-    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.6cm] at (0,0.4) {\textbf{Initiator (TX)}};
-    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.6cm] at (5,0.4) {\textbf{Peer (RX)}};
+    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.6cm] at (0,0.4) {\textbf{Initiator (TX 0x01)}};
+    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.6cm] at (5,0.4) {\textbf{Peer (RX 0x02)}};
 
     \node[left, font=\tiny\itshape] at (0,-0.3) {CLOSED};
     \node[right, font=\tiny\itshape] at (5,-0.3) {CLOSED};
@@ -732,7 +753,7 @@ As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle fo
     \node[right, font=\tiny\itshape] at (5,-1.6) {REJECTING};
 
     \draw[->, color=blue!80!black] (0,-0.9) -- (5,-1.5) node[midway, above, sloped, font=\tiny] {1. \texttt{SYN} (\texttt{FLAG\_CONN\_REQ})};
-    \draw[<-, color=purple!80!black, double] (0,-2.5) -- (5,-1.9) node[midway, above, sloped, font=\tiny] {2. \texttt{CONN\_NACK} (\texttt{Reason = BUSY / ...})};
+    \draw[<-, color=purple!80!black, double] (0,-2.5) -- (5,-1.9) node[midway, above, sloped, font=\tiny] {2. \texttt{CONN\_NACK} (\texttt{BUSY / REJECTED / ...})};
 
     \node[left, font=\tiny\color{red!80!black}] at (0,-2.8) {Aborted};
     \node[right, font=\tiny\color{red!80!black}] at (5,-2.2) {Dropped};
@@ -743,12 +764,14 @@ As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle fo
 \label{fig:3whs_sequence}
 \end{figure*}
 
-\subsubsection{Failure Modes and Resilience}
-The connection manager handles exceptional network conditions gracefully:
+\subsection{Robustness and Edge-Case Protections}
+To ensure protocol stability in multi-agent and lossy environments, \texttt{LoRaMultiPacket} incorporates strict edge-case resolution mechanics:
 \begin{itemize}
-  \item \textbf{Connection Rejection (\texttt{CONN\_NACK})}: If the peer has reached its maximum session capacity, detects a protocol version mismatch, or is explicitly instructed by the application callback to reject incoming streams, it transmits a \texttt{CONN\_NACK} frame (\texttt{FLAG\_CONN\_NACK}). The payload carries an explicit reason code (\texttt{BUSY = 1}, \texttt{UNSUPPORTED\_VERSION = 2}, \texttt{REJECTED = 3}).
-  \item \textbf{Handshake Timeout}: If the initiator does not receive a \texttt{SYN-ACK} response within the configurable handshake window (\texttt{DEFAULT\_SYN\_TIMEOUT\_MS = 3000~ms}), it aborts the attempt and resets to \texttt{CLOSED}.
-  \item \textbf{Idle Inactivity Timeout}: Established sessions maintain an activity timestamp. If no valid data or control packets are exchanged within the negotiated timeout period (default 15000~ms), both nodes silently drop the session to reclaim heap memory.
+  \item \textbf{Deterministic \texttt{BUSY} Rejection}: If a receiver currently in an active session (\texttt{SYN\_RCVD} or \texttt{ESTABLISHED}) receives a concurrent \texttt{SYN} from a different transmitter, it immediately responds with a \texttt{CONN\_NACK} frame containing reason code \texttt{BUSY} (\texttt{1}). This prevents buffer corruption and informs the second sender without delay.
+  \item \textbf{Source Address Matching}: Initiators in \texttt{waitForSynAck} and \texttt{waitForSack} validate that the received feedback frame originates from the exact target node (\texttt{srcAddr == targetAddress}). Responses from un-targeted nodes are ignored to prevent session hijacking.
+  \item \textbf{Implicit Connection Promotion}: If the final \texttt{CONN\_ACK} of a 3WHS is lost in transit, the receiver in \texttt{SYN\_RCVD} state automatically promotes the session to \texttt{ESTABLISHED} upon receiving the first valid data chunk from the peer.
+  \item \textbf{Simultaneous SYN Tie-Breaking}: If two nodes simultaneously transmit \texttt{SYN} frames to each other (both entering \texttt{SYN\_SENT}), the node with the lower numerical \texttt{Node ID} wins initiation priority, while the higher \texttt{Node ID} node recedes to \texttt{SYN\_RCVD}, eliminating deadlock.
+  \item \textbf{Self-Echo Filtering and Inactivity Pruning}: Packets where \texttt{srcAddr == nodeAddress\_} are dropped to prevent antenna echo loops. Idle sessions are automatically pruned after \texttt{timeoutMs} to reclaim memory.
 \end{itemize}
 
 \section{Preliminary Proof of Concept}
@@ -861,15 +884,31 @@ These benchmarks will allow us to evaluate the efficiency of the SACK retransmis
 % The receiver, upon receiving this request, checks its active reassembly sessions and memory constraints. If resources are available, it replies with a connection acknowledgment (\texttt{CONN\_ACK}), thereby temporarily disabling its own local application-level transmissions to prevent half-duplex collision during the incoming data stream.
 % Once the sender receives the \texttt{CONN\_ACK}, it starts streaming the data chunks. This handshake synchronizes the transceivers' half-duplex states and prevents wasteful Time-on-Air and battery consumption.
 
-\section{Conclusion and Future Work}
-This paper presented the design and implementation of \texttt{LoRaMultiPacket}, a lightweight and reliable transport-layer protocol optimized for transmitting segmented large payloads over point-to-point LoRa links. By replacing traditional Stop-and-Wait per-packet acknowledgments with selective retransmissions requested via cumulative binary bitmaps, the protocol is expected to achieve high reliability under lossy conditions with minimal airtime overhead and duty-cycle footprint. The proposed testing methodology across varying physical distances and payload sizes will provide a comprehensive validation of the protocol's robustness for low-power, large-payload IoT communication scenarios.
+\section{Conclusion and Architectural Roadmap}
+This paper presented the design, implementation, and hardware validation of \texttt{LoRaMultiPacket}, a lightweight and reliable transport-layer architecture optimized for transmitting segmented large payloads over point-to-point LoRa links. By replacing traditional Stop-and-Wait per-packet acknowledgments with selective retransmissions requested via cumulative binary bitmaps, and eliminating redundant SOM/EOM markers in favor of implicit index derivation, the protocol achieves high reliability under lossy conditions with minimal airtime overhead and duty-cycle footprint.
 
-For future work, several research directions will be explored to address open challenges in LPWAN communications:
+\subsection{Three-Level Architectural Evolution Roadmap}
+To guide the long-term progression of \texttt{LoRaMultiPacket} from point-to-point data links to decentralized multi-agent mesh networks, we define a strategic three-level architectural roadmap:
+
 \begin{itemize}
-  \item \textbf{Adaptive Spreading Factor Control}: Integrating an adaptive data rate (ADR) loop within the SACK handshake. By monitoring the retransmission count or packet loss rate from the binary bitmap feedback, the transmitter can dynamically adjust its Spreading Factor (SF) and Coding Rate (CR) to optimize transmission speed under clean channel conditions or improve resilience under deep fading.
-  \item \textbf{Network Coexistence via CAD Backoff}: Stream-transmitting large packet sequences (up to 255 packets) consecutively can block shared channels. Future versions will introduce a Channel Activity Detection (CAD) check and a randomized backoff delay between subsequent chunks, enhancing network fairness and reducing collision probabilities in multi-node environments.
-  \item \textbf{Hybrid FEC-ARQ Scheme}: Combining application-layer Forward Error Correction (e.g., erasure coding) with the SACK mechanism. The receiver will attempt to reconstruct lost packets using parity packets first, triggering the SACK feedback only when the number of lost packets exceeds the recovery threshold of the codes, further minimizing downlink acknowledgment traffic.
-  \item \textbf{Windowed Selective Acknowledgment}: For very large payloads (exceeding 32 chunks), dividing the transmission into smaller sub-windows (e.g., 16 chunks per window) will allow the transmitter to query the receiver's state mid-transmission. This avoids wasting airtime and energy on transmitting subsequent chunks when a link drop occurs early in the sequence, while keeping the reassembly buffer size constrained.
+  \item \textbf{Level 1: Point-to-Point Addressed Communication (Implemented \& Validated)}: 
+  The core protocol stack established in this work. It features 8-bit source and destination node addressing (\texttt{srcAddr}, \texttt{dstAddr}), dynamic 9-byte header packing, four operational modes (unreliable best-effort datagrams to stateful SACK-ARQ streams), a 3-Way Handshake (3WHS) for parameter negotiation, and hardware-validated edge-case resolution (BUSY rejection, address filtering, and simultaneous SYN tie-breaking).
+  
+  \item \textbf{Level 2: Multi-Node Local Area Communication (Near Future Extension)}: 
+  Extending the link layer to support local multi-node clusters sharing the same RF channel. Key features will include:
+  \begin{itemize}
+    \item \textit{Broadcast and Multicast Messaging}: Utilizing \texttt{0xFF} for unacknowledged broadcast telemetry and group addressing for multi-agent synchronization.
+    \item \textit{Shared Channel Access Control}: Implementing Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) to prevent collisions during bulk packet bursts in multi-node environments.
+    \item \textit{Adaptive Data Rate (ADR)}: Dynamically tuning Spreading Factor (SF7--SF12) and Coding Rate (CR) based on RSSI/SNR metrics embedded in SACK bitmaps.
+  \end{itemize}
+  
+  \item \textbf{Level 3: Multi-Hop / Multi-Agent Mesh Networking (Future Vision)}: 
+  Scaling the architecture to autonomous multi-hop networks, such as Unmanned Aerial Vehicle (UAV) swarms and distributed sensor meshes:
+  \begin{itemize}
+    \item \textit{Mesh Routing Protocol}: Integrating dynamic routing (e.g., AODV-Light or RPL adaptation) with hop-by-hop vs. end-to-end SACK reliability options to limit retransmission overhead over multi-hop links.
+    \item \textit{IPv6 Network Layer Integration}: Leveraging the 8-bit Node ID mapping to establish full IPv6 link-local capability (\texttt{fe80::/64}), connecting micro-drones directly to global IP infrastructure.
+    \item \textit{TDMA / Scheduled Time-Slotted Access}: Incorporating microsecond time synchronization for collision-free multi-agent payload transfers in high-density networks.
+  \end{itemize}
 \end{itemize}
 % An example of a floating figure using the graphicx package.
 % Note that \label must occur AFTER (or within) \caption.
