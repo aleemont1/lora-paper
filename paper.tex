@@ -516,11 +516,18 @@ Reliable packet transmission and fragmentation over Low-Power Wide-Area Networks
 
 A prominent industrial standard is Static Context Header Compression (SCHC)~\cite{dare-lorawan}, which introduces a framework for fragmenting IPv6 packets over resource-constrained networks. To guarantee reliability, SCHC ACK frames carry a bitmap representing the status of individual tiles within a window (ACK-on-Error). However, SCHC is designed as a generic adaptation layer for IP-based architectures, requiring pre-shared context rules and gateway-centric networks. Similarly, the LoRa Alliance standardized the Fragmented Data Block Transport specification to support Firmware Update Over The Air (FUOTA) using Forward Error Correction (FEC) codes to reconstruct blocks without feedback. However, FEC-based recovery introduces a constant over-the-air encoding overhead and high computational requirements for low-cost embedded systems.
 
-For custom peer-to-peer LoRa networks, several proprietary and academic fragmentation protocols have been proposed. In~\cite{multimedia-lora-survey}, surveys on multimedia LoRa networks show that existing implementations primarily rely on Stop-and-Wait (S\&W) ARQ schemes to recover lost packets (e.g., transmitting resized images in sequential segments). In Stop-and-Wait configurations, the transmitter blocks and waits for a dedicated acknowledgment frame for every single transmitted chunk. In high Time-on-Air (ToA) LoRa settings, S\&W ARQ introduces severe idle latencies, keeps the half-duplex transceivers active for extended periods (draining battery), and quickly violates regulatory duty-cycle limitations. 
+For custom peer-to-peer LoRa networks, early efforts focused on overcoming the severe airtime latencies of traditional Stop-and-Wait (S\&W) ARQ schemes~\cite{multimedia-lora-survey}, where the transmitter blocks and waits for a dedicated acknowledgment after every single chunk. A pioneering contribution in this domain was introduced by Chen et al.~\cite{mplr-chen2019} with the Multi-Packet LoRa (MPLR) protocol. MPLR introduced the core concept of replacing Stop-and-Wait ARQ with a windowed batch transmission scheme acknowledged by a bit-vector acknowledgment packet (\texttt{BVACK}).
 
-In contrast, this paper proposes a transport-layer protocol that bridges these limits. By utilizing a Selective Acknowledgment (SACK) mechanism with a cumulative binary bitmap, the protocol enables bulk transmission of up to 255 chunks in a single window, requiring feedback only at the end of the sequence. This design combines the low overhead of P2P communications with the robustness of bit-vector acknowledgments.
+While \texttt{LoRaMultiPacket} draws foundational inspiration from the bit-vector SACK mechanism introduced in MPLR~\cite{mplr-chen2019}, our architecture introduces major engineering and protocol-level advancements that generalize and optimize the concept for modern embedded IoT applications:
+\begin{itemize}
+  \item \textbf{Header Overhead Optimization}: MPLR relies on a heavy 16-byte header per fragment (carrying 4-byte Destination EUI, 4-byte Source EUI, Service Number, Sequence Number, Flags, Payload Size, Batch Size, and Checksum), limiting application payload to 239~bytes. In contrast, \texttt{LoRaMultiPacket} reduces header overhead to a compact 9-byte Logical Header (1-byte \texttt{srcAddr}, 1-byte \texttt{dstAddr}, 2-byte \texttt{messageId}, 1-byte \texttt{totalChunks}, 1-byte \texttt{chunkIndex}, 1-byte \texttt{payloadSize}, 1-byte \texttt{flags}, and 1-byte \texttt{protocolVersion}). This saves 7~bytes of over-the-air overhead per chunk while increasing maximum payload to 244~bytes per frame.
+  \item \textbf{General-Purpose Transport vs. Domain-Specific Framing}: MPLR was engineered specifically as an application-level image transmission protocol for agricultural uplink nodes to a central gateway. \texttt{LoRaMultiPacket} is designed as a domain-agnostic, general-purpose transport layer capable of segmenting any arbitrary data payload up to 62.7~KB (ranging from high-frequency sensor telemetry arrays and robotic SLAM keyframes to firmware binaries and multi-agent state matrices).
+  \item \textbf{Architectural Taxonomy (4 Operational Modes)}: MPLR operates under a single stateful batch delivery model. \texttt{LoRaMultiPacket} defines a 2x2 operational taxonomy spanning \textit{Unreliable Connectionless} (best-effort datagrams), \textit{Unreliable Connected} (session-tracked streaming), \textit{Reliable Connectionless} (stateless SACK-ARQ), and \textit{Reliable Connected} (stateful negotiated streams).
+  \item \textbf{Dynamic Parameter Negotiation via 3WHS}: MPLR utilizes a fixed batch size and requires a 4-way handshake tear-down (\texttt{FIN}/\texttt{ACK}). \texttt{LoRaMultiPacket} implements a lightweight 3-Way Handshake (3WHS) embedded with dynamic parameter negotiation (\texttt{SynMetadata} and \texttt{SynAckMetadata} negotiating chunk size, sliding window, and inactivity timeout) and replaces explicit tear-down overhead with automatic idle session pruning.
+  \item \textbf{Decoupled C++17 HAL and Host-Based TDD}: While MPLR was coupled to a specific hardware control/data channel switching architecture, \texttt{LoRaMultiPacket} is implemented in modular C++17 built over a Hardware Abstraction Layer (HAL). This design enables native host-based unit testing (using Unity) and provides deterministic edge-case resolution (e.g., \texttt{BUSY} rejection, source address matching, and simultaneous SYN tie-breaking).
+\end{itemize}
 
-To clearly position the proposed protocol within the current technological landscape, Table~\ref{tab:arch_comparison} provides an architectural comparison with other prominent fragmentation and transport solutions over LoRa.
+To clearly position the proposed protocol within the current technological landscape, Table~\ref{tab:arch_comparison} provides an architectural comparison with other prominent fragmentation and transport solutions over LoRa, including MPLR.
 
 \begin{table*}[htpb]
 \centering
@@ -528,15 +535,16 @@ To clearly position the proposed protocol within the current technological lands
 \label{tab:arch_comparison}
 \renewcommand{\arraystretch}{1.3}
 \footnotesize
-\begin{tabularx}{0.8\textwidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
+\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
 \hline
-\textbf{Feature} & \textbf{S\&W} & \textbf{SCHC} & \textbf{LoRaWAN Frag.} & \textbf{Proposed} \\ \hline
-\textbf{Target Topology} & P2P / Mesh & Star (Gateway) & Star (Gateway) & P2P \\ \hline
-\textbf{ACK Mechanism} & Per-packet & ACK-on-Error & None (FEC) & Cumulative SACK \\ \hline
-\textbf{Transmission Overhead} & High & Moderate & High (Parity) & Minimal \\ \hline
-\textbf{System Complexity} & Low & High (Contexts) & High & Moderate \\ \hline
-\textbf{Hardware Dependency} & Transceiver & IP / MAC Layer & LoRaWAN Stack & HAL (Agnostic) \\ \hline
-\textbf{Reliability Model} & Deterministic & Deterministic & Probabilistic & Deterministic \\ \hline
+\textbf{Feature} & \textbf{S\&W ARQ} & \textbf{SCHC~\cite{dare-lorawan}} & \textbf{LoRaWAN Frag.} & \textbf{MPLR~\cite{mplr-chen2019}} & \textbf{Proposed (\texttt{LoRaMultiPacket})} \\ \hline
+\textbf{Target Domain} & Generic & IP / Cellular & FUOTA & Agriculture (Images) & General-Purpose IoT / CPS \\ \hline
+\textbf{Target Topology} & P2P / Mesh & Star (Gateway) & Star (Gateway) & Star / P2P & P2P / Multi-Node Addressed \\ \hline
+\textbf{ACK Mechanism} & Per-packet & ACK-on-Error & None (FEC) & Batch Bit-Vector & Cumulative SACK Bitmap \\ \hline
+\textbf{Header Size} & Variable & 1--2 Bytes & 2 Bytes & 16 Bytes & 9 Bytes (Compact Addressed) \\ \hline
+\textbf{Operational Modes} & 1 (Reliable) & 2 (ACK/No-ACK) & 1 (Unreliable FEC) & 1 (Reliable Batch) & 4 (2x2 Matrix Taxonomy) \\ \hline
+\textbf{Connection Setup} & None & Static Context & Session Setup & 3WHS + 4WHS Teardown & 3WHS + Dynamic Negotiation \\ \hline
+\textbf{Hardware Stack} & Transceiver & IP / MAC Layer & LoRaWAN Stack & Channel Switching & Decoupled HAL (C++17 TDD) \\ \hline
 \end{tabularx}
 \end{table*}
 
