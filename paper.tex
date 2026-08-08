@@ -553,19 +553,19 @@ The proposed protocol, \texttt{LoRaMultiPacket}, operates as a custom transport-
 \subsection{Operational Modes and Architectural Taxonomy}
 To accommodate diverse IoT workload requirements—ranging from ultra-fast periodic telemetry streams to critical high-capacity firmware or imaging transfers—\texttt{LoRaMultiPacket} defines four distinct operational modes across two primary dimensions: \textit{Reliability} (Unreliable Best-Effort vs. SACK-Reliable ARQ) and \textit{Connection State} (Connectionless Stateless vs. Connection-Oriented Stateful).
 
-\begin{table}[htpb]
+\begin{table*}[htpb]
 \centering
-\caption{LoRaMultiPacket $2 \times 2$ Operational Mode Matrix}
+\caption{LoRaMultiPacket $2 \times 2$ Operational Mode Architecture Matrix}
 \label{tab:operational_modes}
-\renewcommand{\arraystretch}{1.4}
+\renewcommand{\arraystretch}{1.45}
 \small
-\begin{tabularx}{\columnwidth}{|>{\bfseries}l|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+\begin{tabular}{|>{\bfseries}c|c|c|}
 \hline
-\textbf{Connection State} & \centering\textbf{Unreliable Mode} & \centering\textbf{Reliable Mode} \arraybackslash \\ \hline
-Connectionless & Best-effort datagrams; no handshake, no ACKs. & Stateless bulk transfer; SACK bitmap feedback. \\ \hline
-Connected & Stream tracking via 3WHS; no ACKs. & 3WHS negotiation (buffer/window) + SACK-ARQ. \\ \hline
-\end{tabularx}
-\end{table}
+\textbf{Connection State} & \textbf{Unreliable Mode (Best-Effort)} & \textbf{Reliable Mode (SACK-ARQ)} \\ \hline
+Connectionless & No handshake; best-effort streaming without ACKs. & No handshake; bulk transfer with SACK bitmap feedback. \\ \hline
+Connected & 3WHS negotiation; best-effort streaming without ACKs. & 3WHS negotiation; bulk transfer with SACK bitmap feedback. \\ \hline
+\end{tabular}
+\end{table*}
 
 \subsection{OTA Packet Structure and Header Optimization}
 Each individual packet transmitted over the air is structured sequentially as a fixed 9-byte Logical Header, a variable-length Application Payload (up to 244~bytes), and a 2-byte CRC footer. Unused padding bytes at the end of partial payloads are omitted from over-the-air transmission to minimize airtime and regulatory duty-cycle footprint.
