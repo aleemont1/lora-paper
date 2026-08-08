@@ -557,13 +557,13 @@ To accommodate diverse IoT workload requirements—ranging from ultra-fast perio
 \centering
 \caption{LoRaMultiPacket $2 \times 2$ Operational Mode Matrix}
 \label{tab:operational_modes}
-\renewcommand{\arraystretch}{1.35}
+\renewcommand{\arraystretch}{1.4}
 \small
-\begin{tabularx}{\columnwidth}{|l|X|X|}
-\hline
-& \textbf{Unreliable} \textit{(Best-Effort)} & \textbf{Reliable} \textit{(SACK-ARQ)} \\ \hline
-\textbf{Connectionless} \textit{(Stateless)} & \textbf{Unreliable Connectionless}\newline Best-effort datagrams; no handshake, no ACKs. & \textbf{Reliable Connectionless}\newline Stateless bulk transfer; SACK bitmap feedback. \\ \hline
-\textbf{Connected} \textit{(Stateful 3WHS)} & \textbf{Unreliable Connected}\newline Stream tracking via 3WHS; no ACKs. & \textbf{Reliable Connected}\newline 3WHS negotiation (buffer/window) + SACK-ARQ. \\ \hline
+\begin{tabularx}{\columnwidth}{l|X|X|}
+\cline{2-3}
+& \multicolumn{1}{c|}{\textbf{Unreliable Mode}} & \multicolumn{1}{c|}{\textbf{Reliable Mode}} \\ \hline
+\multicolumn{1}{|l|}{\textbf{Connectionless}} & Best-effort datagrams; no handshake, no ACKs. & Stateless bulk transfer; SACK bitmap feedback. \\ \hline
+\multicolumn{1}{|l|}{\textbf{Connected}} & Stream tracking via 3WHS; no ACKs. & 3WHS negotiation (buffer/window) + SACK-ARQ. \\ \hline
 \end{tabularx}
 \end{table}
 
