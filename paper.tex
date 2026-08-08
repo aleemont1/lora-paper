@@ -533,18 +533,17 @@ To clearly position the proposed protocol within the current technological lands
 \centering
 \caption{Architectural Comparison of LoRa Transport Solutions}
 \label{tab:arch_comparison}
-\renewcommand{\arraystretch}{1.3}
-\footnotesize
-\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
+\renewcommand{\arraystretch}{1.35}
+\small
+\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
 \hline
-\textbf{Feature} & \textbf{S\&W ARQ} & \textbf{SCHC~\cite{dare-lorawan}} & \textbf{LoRaWAN Frag.} & \textbf{MPLR~\cite{mplr-chen2019}} & \textbf{Proposed (\texttt{LoRaMultiPacket})} \\ \hline
-\textbf{Target Domain} & Generic & IP / Cellular & FUOTA & Agriculture (Images) & General-Purpose IoT / CPS \\ \hline
-\textbf{Target Topology} & P2P / Mesh & Star (Gateway) & Star (Gateway) & Star / P2P & P2P / Multi-Node Addressed \\ \hline
-\textbf{ACK Mechanism} & Per-packet & ACK-on-Error & None (FEC) & Batch Bit-Vector & Cumulative SACK Bitmap \\ \hline
-\textbf{Header Size} & Variable & 1--2 Bytes & 2 Bytes & 16 Bytes & 9 Bytes (Compact Addressed) \\ \hline
-\textbf{Operational Modes} & 1 (Reliable) & 2 (ACK/No-ACK) & 1 (Unreliable FEC) & 1 (Reliable Batch) & 4 (2x2 Matrix Taxonomy) \\ \hline
-\textbf{Connection Setup} & None & Static Context & Session Setup & 3WHS + 4WHS Teardown & 3WHS + Dynamic Negotiation \\ \hline
-\textbf{Hardware Stack} & Transceiver & IP / MAC Layer & LoRaWAN Stack & Channel Switching & Decoupled HAL (C++17 TDD) \\ \hline
+\textbf{Feature} & \textbf{Stop-and-Wait} & \textbf{SCHC~\cite{dare-lorawan}} & \textbf{LoRaWAN Frag.} & \textbf{MPLR~\cite{mplr-chen2019}} & \textbf{Proposed (\texttt{LoRaMultiPacket})} \\ \hline
+\textbf{ACK / Retransmission} & Per-Packet ACK & ACK-on-Error Bitmap & None (FEC Code) & Bit-Vector SACK & Bit-Vector SACK \\ \hline
+\textbf{Header Size} & 2--4 Bytes & 1--2 Bytes & 2 Bytes & 16 Bytes & 9 Bytes (Compact Node ID) \\ \hline
+\textbf{Max Frame Payload} & 240+ Bytes & Variable & Variable & 239 Bytes & 244 Bytes \\ \hline
+\textbf{Operational Modes} & 1 (Reliable S\&W) & 2 (ACK / No-ACK) & 1 (Unreliable FEC) & 1 (Reliable Batch) & 4 (2x2 Matrix Taxonomy) \\ \hline
+\textbf{Handshake / Setup} & None & Static Rules & Session Setup & 3WHS + 4WHS Teardown & 3WHS Dynamic Negotiation \\ \hline
+\textbf{Target Scope} & Simple P2P & IP Star Network & Gateway FUOTA & Image Upload & General-Purpose P2P / Multi-Node \\ \hline
 \end{tabularx}
 \end{table*}
 
@@ -556,52 +555,20 @@ To accommodate diverse IoT workload requirements—ranging from ultra-fast perio
 
 Furthermore, the protocol incorporates a compact node addressing mechanism, forming a 3-dimensional architectural space that spans from simple point-to-point datagrams up to multi-node addressed topologies. The taxonomy of these modes is summarized in Table~\ref{tab:operational_modes}.
 
-\begin{table}[htpb]
+\begin{table*}[htpb]
 \centering
-\caption{LoRaMultiPacket Operational Modes and Addressing Taxonomy}
+\caption{LoRaMultiPacket $2 \times 2$ Operational Mode Architecture Matrix and Addressing Axis}
 \label{tab:operational_modes}
-\renewcommand{\arraystretch}{1.3}
-\footnotesize
-\begin{tabular}{|p{2.6cm}|p{2.1cm}|p{2.3cm}|}
+\renewcommand{\arraystretch}{1.5}
+\small
+\begin{tabularx}{0.95\textwidth}{|c|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
 \hline
-\textbf{Operational Mode} & \textbf{Connection State} & \textbf{Delivery \& Addressing Model} \\ \hline
-\textbf{Unreliable Connectionless} & Stateless (No 3WHS) & Best-effort datagram streaming; Unicast or Broadcast (\texttt{0xFF}). \\ \hline
-\textbf{Unreliable Connected} & Stateful (3WHS) & Negotiated parameters; best-effort stream tracking. \\ \hline
-\textbf{Reliable Connectionless} & Stateless (No 3WHS) & Unnegotiated SACK-ARQ retransmission feedback. \\ \hline
-\textbf{Reliable Connected} & Stateful (3WHS) & Negotiated SACK-ARQ with buffer protection. \\ \hline
-\end{tabular}
-\end{table}
-
-\begin{figure}[htpb]
-\centering
-\begin{tikzpicture}[scale=0.85, every node/.style={transform shape}]
-  % 2x2 Matrix Grid
-  \draw[thick, fill=blue!8, rounded corners=2pt] (0, 2.2) rectangle (3.8, 4.2);
-  \draw[thick, fill=green!8, rounded corners=2pt] (4.2, 2.2) rectangle (8.0, 4.2);
-  \draw[thick, fill=orange!8, rounded corners=2pt] (0, 0) rectangle (3.8, 1.8);
-  \draw[thick, fill=purple!8, rounded corners=2pt] (4.2, 0) rectangle (8.0, 1.8);
-
-  % Matrix Content Labels
-  \node[align=center, font=\tiny\bfseries] at (1.9, 3.2) {Unreliable\\Connectionless\\[1pt]\color{black!70}(Best-Effort Datagram)};
-  \node[align=center, font=\tiny\bfseries] at (6.1, 3.2) {Reliable\\Connectionless\\[1pt]\color{black!70}(Stateless SACK-ARQ)};
-  \node[align=center, font=\tiny\bfseries] at (1.9, 0.9) {Unreliable\\Connected\\[1pt]\color{black!70}(Session Stream)};
-  \node[align=center, font=\tiny\bfseries] at (6.1, 0.9) {Reliable\\Connected\\[1pt]\color{black!70}(3WHS + SACK-ARQ)};
-
-  % Axis Headers
-  \node[font=\small\bfseries, align=center] at (4.0, 4.7) {Reliability Dimension $\longrightarrow$};
-  \node[font=\tiny] at (1.9, 4.4) {Unreliable (Best-Effort)};
-  \node[font=\tiny] at (6.1, 4.4) {Reliable (SACK-ARQ)};
-
-  \node[font=\small\bfseries, rotate=90, align=center] at (-0.7, 2.1) {Connection State $\longrightarrow$};
-  \node[font=\tiny, rotate=90] at (-0.3, 3.2) {Connectionless (Stateless)};
-  \node[font=\tiny, rotate=90] at (-0.3, 0.9) {Connected (Stateful 3WHS)};
-
-  % Addressing Axis (Evolution Arrow below Matrix)
-  \draw[very thick, ->, color=blue!80!black] (0, -0.8) -- (8.0, -0.8) node[midway, below=2pt, font=\tiny\bfseries] {Topology Evolution: P2P Unaddressed (0x00) $\longrightarrow$ P2P Addressed (0x01-0xFE) $\longrightarrow$ Multi-Node Mesh (0xFF Broadcast)};
-\end{tikzpicture}
-\caption{Architectural $2 \times 2$ operational mode matrix and the addressing evolution dimension.}
-\label{fig:matrix_taxonomy}
-\end{figure}
+& \centering\textbf{Unreliable Mode}\newline\textit{(Best-Effort Streaming)} & \centering\textbf{Reliable Mode}\newline\textit{(SACK-ARQ Feedback)} \arraybackslash \\ \hline
+\textbf{Connectionless}\newline\textit{(Stateless, No 3WHS)} & \textbf{Unreliable Connectionless Mode}\newline Best-effort datagrams; fire-and-forget streaming. Minimizes airtime for periodic sensor telemetry. & \textbf{Reliable Connectionless Mode}\newline Stateless bulk data transfer with unnegotiated SACK bitmap retransmission feedback. Eliminates 3WHS setup latency. \\ \hline
+\textbf{Connected}\newline\textit{(Stateful, 3WHS)} & \textbf{Unreliable Connected Mode}\newline Session-tracked stream using 3-Way Handshake parameter negotiation without retransmission feedback. & \textbf{Reliable Connected Mode}\newline Stateful 3WHS negotiation (buffer size, window, timeout) combined with cumulative SACK-ARQ retransmission. \\ \hline
+\multicolumn{3}{|c|}{\textbf{Addressing \& Topology Evolution Axis:}\quad \texttt{0x00} P2P Unaddressed \ $\longrightarrow$ \ \texttt{0x01}--\texttt{0xFE} Unicast Addressed \ $\longrightarrow$ \ \texttt{0xFF} Broadcast / Mesh} \\ \hline
+\end{tabularx}
+\end{table*}
 
 \subsection{OTA Packet Structure and Header Optimization}
 Each individual packet transmitted over the air is structured sequentially as a fixed 9-byte Logical Header, a variable-length Application Payload (up to 244~bytes), and a 2-byte CRC footer. Unused padding bytes at the end of partial payloads are omitted from over-the-air transmission to minimize airtime and regulatory duty-cycle footprint.
