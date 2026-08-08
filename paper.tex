@@ -562,8 +562,8 @@ To accommodate diverse IoT workload requirements—ranging from ultra-fast perio
 \begin{tabular}{|>{\bfseries}c|c|c|}
 \hline
 \textbf{Connection State} & \textbf{Unreliable Mode (Best-Effort)} & \textbf{Reliable Mode (SACK-ARQ)} \\ \hline
-Connectionless & No handshake; best-effort streaming without ACKs. & No handshake; bulk transfer with SACK bitmap feedback. \\ \hline
-Connected & 3WHS negotiation; best-effort streaming without ACKs. & 3WHS negotiation; bulk transfer with SACK bitmap feedback. \\ \hline
+Connectionless & Stateless datagrams; no handshake, no ACKs. & Stateless bulk transfer with SACK bitmap feedback. \\ \hline
+Connected & 3WHS session tracking; no retransmissions. & 3WHS parameter negotiation + SACK-ARQ. \\ \hline
 \end{tabular}
 \end{table*}
 
