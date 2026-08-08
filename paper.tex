@@ -559,11 +559,11 @@ To accommodate diverse IoT workload requirements—ranging from ultra-fast perio
 \label{tab:operational_modes}
 \renewcommand{\arraystretch}{1.4}
 \small
-\begin{tabularx}{\columnwidth}{l|X|X|}
-\cline{2-3}
-& \multicolumn{1}{c|}{\textbf{Unreliable Mode}} & \multicolumn{1}{c|}{\textbf{Reliable Mode}} \\ \hline
-\multicolumn{1}{|l|}{\textbf{Connectionless}} & Best-effort datagrams; no handshake, no ACKs. & Stateless bulk transfer; SACK bitmap feedback. \\ \hline
-\multicolumn{1}{|l|}{\textbf{Connected}} & Stream tracking via 3WHS; no ACKs. & 3WHS negotiation (buffer/window) + SACK-ARQ. \\ \hline
+\begin{tabularx}{\columnwidth}{|>{\bfseries}l|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Connection State} & \centering\textbf{Unreliable Mode} & \centering\textbf{Reliable Mode} \arraybackslash \\ \hline
+Connectionless & Best-effort datagrams; no handshake, no ACKs. & Stateless bulk transfer; SACK bitmap feedback. \\ \hline
+Connected & Stream tracking via 3WHS; no ACKs. & 3WHS negotiation (buffer/window) + SACK-ARQ. \\ \hline
 \end{tabularx}
 \end{table}
 
