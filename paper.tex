@@ -555,13 +555,13 @@ To accommodate diverse IoT workload requirements—ranging from ultra-fast perio
 
 \begin{table*}[htpb]
 \centering
-\caption{LoRaMultiPacket $2 \times 2$ Operational Mode Architecture Matrix}
+\caption{LoRaMultiPacket Operational Modes Architecture}
 \label{tab:operational_modes}
 \renewcommand{\arraystretch}{1.45}
 \small
 \begin{tabular}{|>{\bfseries}c|c|c|}
-\hline
-\textbf{Connection State} & \textbf{Unreliable Mode (Best-Effort, No ACKs)} & \textbf{Reliable Mode (SACK-ARQ Feedback)} \\ \hline
+\cline{2-3}
+\multicolumn{1}{c|}{} & \textbf{Unreliable Mode (Best-Effort, No ACKs)} & \textbf{Reliable Mode (SACK-ARQ Feedback)} \\ \hline
 Connectionless \textit{(Stateless)} & Best-effort datagram streaming. & Bulk data transfer. \\ \hline
 Connected \textit{(Stateful, 3WHS)} & Session-tracked stream. & Negotiated parameter stream. \\ \hline
 \end{tabular}
