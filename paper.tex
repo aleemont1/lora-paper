@@ -567,15 +567,15 @@ Furthermore, the protocol incorporates a compact node addressing mechanism, form
 \subsection{OTA Packet Structure and Header Optimization}
 Each individual packet transmitted over the air is structured sequentially as a fixed 9-byte Logical Header, a variable-length Application Payload (up to 244~bytes), and a 2-byte CRC footer. Unused padding bytes at the end of partial payloads are omitted from over-the-air transmission to minimize airtime and regulatory duty-cycle footprint.
 
-\subsubsection{Header Overhead Optimization}
-A core design principle of \texttt{LoRaMultiPacket} is the elimination of redundant bit allocations. In traditional LPWAN fragmentation protocols, explicit Start-of-Message (SOM) and End-of-Message (EOM) flags consume dedicated bitfields in every header. In \texttt{LoRaMultiPacket}, SOM and EOM markers are implicitly derived at the receiver from the sequence fields:
+\subsubsection{Implicit Boundary Detection and Sequence Indexing}
+To maintain a compact 9-byte header while supporting robust out-of-order packet reassembly, \texttt{LoRaMultiPacket} avoids dedicated boundary control bits. Instead, Start-of-Message (SOM) and End-of-Message (EOM) boundaries are implicitly derived at the receiver directly from the 0-based fragment index (\texttt{chunkIndex}) and the total fragment count (\texttt{totalChunks}):
 \begin{equation}
 \mathrm{SOM} \iff \texttt{chunkIndex} == 0
 \end{equation}
 \begin{equation}
 \mathrm{EOM} \iff \texttt{chunkIndex} == \texttt{totalChunks} - 1
 \end{equation}
-Eliminating these redundant flags saves header bit space, allowing control flags and node addresses to be packed tightly without increasing airtime.
+Explicitly carrying \texttt{totalChunks} in every fragment header allows the receiver to instantly determine the exact message bounds and pre-allocate the required reassembly buffer and SACK bitmap upon receiving \textit{any} fragment, even if fragments arrive out of order or if the initial chunk is lost.
 
 \subsubsection{Compact Node Addressing}
 To support multi-node communication without incurring the prohibitive airtime overhead of full 128-bit IPv6 headers on LoRa PHY payloads, \texttt{LoRaMultiPacket} introduces a compact 8-bit Node Identifier space:
