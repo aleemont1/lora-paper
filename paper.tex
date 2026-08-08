@@ -516,7 +516,7 @@ Reliable packet transmission and fragmentation over Low-Power Wide-Area Networks
 
 A prominent industrial standard is Static Context Header Compression (SCHC)~\cite{dare-lorawan}, which introduces a framework for fragmenting IPv6 packets over resource-constrained networks. To guarantee reliability, SCHC ACK frames carry a bitmap representing the status of individual tiles within a window (ACK-on-Error). However, SCHC is designed as a generic adaptation layer for IP-based architectures, requiring pre-shared context rules and gateway-centric networks. Similarly, the LoRa Alliance standardized the Fragmented Data Block Transport specification to support Firmware Update Over The Air (FUOTA) using Forward Error Correction (FEC) codes to reconstruct blocks without feedback. However, FEC-based recovery introduces a constant over-the-air encoding overhead and high computational requirements for low-cost embedded systems.
 
-For custom peer-to-peer LoRa networks, early efforts focused on overcoming the severe airtime latencies of traditional Stop-and-Wait (S\&W) ARQ schemes~\cite{multimedia-lora-survey}, where the transmitter blocks and waits for a dedicated acknowledgment after every single chunk. A pioneering contribution in this domain was introduced by Chen et al.~\cite{mplr-chen2019} with the Multi-Packet LoRa (MPLR) protocol. MPLR introduced the core concept of replacing Stop-and-Wait ARQ with a windowed batch transmission scheme acknowledged by a bit-vector acknowledgment packet (\texttt{BVACK}).
+For custom peer-to-peer LoRa networks, early efforts focused on overcoming the severe airtime latencies of traditional Stop-and-Wait (S\&W) ARQ schemes~\cite{multimedia-lora-survey}, where the transmitter blocks and waits for a dedicated acknowledgment after every single chunk. A pioneering contribution in this domain was introduced by Chen et al.~\cite{mplr-chen2019} with the Multi-Packet LoRa (MPLR) protocol. MPLR introduced the core concept of replacing Stop-and-Wait ARQ with a windowed batch transmission scheme acknowledged by a bit-vector acknowledgment packet (\texttt{BVACK}). Subsequent specialized studies explored multi-hop relay networks for visual IoT coverage~\cite{kim2022multihop}, comprehensive mesh survey frameworks~\cite{wong2024mesh}, and Time Division Multiplexing (TDM) scheduled channels~\cite{wei2020tdm}.
 
 While \texttt{LoRaMultiPacket} draws foundational inspiration from the bit-vector SACK mechanism introduced in MPLR~\cite{mplr-chen2019}, our architecture introduces major engineering and protocol-level advancements that generalize and optimize the concept for modern embedded IoT applications:
 \begin{itemize}
@@ -906,14 +906,14 @@ To guide the long-term progression of \texttt{LoRaMultiPacket} from point-to-poi
   Extending the link layer to support local multi-node clusters sharing the same RF channel. Key features will include:
   \begin{itemize}
     \item \textit{Broadcast and Multicast Messaging}: Utilizing \texttt{0xFF} for unacknowledged broadcast telemetry and group addressing for multi-agent synchronization.
-    \item \textit{Shared Channel Access Control}: Implementing Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) to prevent collisions during bulk packet bursts in multi-node environments.
+    \item \textit{Shared Channel Access Control}: Implementing Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) or Time Division Multiplexing (TDM)~\cite{wei2020tdm} to prevent collisions during bulk packet bursts in multi-node environments.
     \item \textit{Adaptive Data Rate (ADR)}: Dynamically tuning Spreading Factor (SF7--SF12) and Coding Rate (CR) based on RSSI/SNR metrics embedded in SACK bitmaps.
   \end{itemize}
   
   \item \textbf{Level 3: Multi-Hop / Multi-Agent Mesh Networking (Future Vision)}: 
-  Scaling the architecture to autonomous multi-hop networks, such as Unmanned Aerial Vehicle (UAV) swarms and distributed sensor meshes:
+  Scaling the architecture to autonomous multi-hop networks, such as Unmanned Aerial Vehicle (UAV) swarms, distributed sensor meshes, and relay networks~\cite{kim2022multihop, wong2024mesh}:
   \begin{itemize}
-    \item \textit{Mesh Routing Protocol}: Integrating dynamic routing (e.g., AODV-Light or RPL adaptation) with hop-by-hop vs. end-to-end SACK reliability options to limit retransmission overhead over multi-hop links.
+    \item \textit{Mesh Routing Protocol}: Integrating dynamic routing (e.g., AODV-Light or RPL adaptation) with hop-by-hop vs. end-to-end SACK reliability options to limit retransmission overhead over multi-hop links~\cite{wong2024mesh}.
     \item \textit{IPv6 Network Layer Integration}: Leveraging the 8-bit Node ID mapping to establish full IPv6 link-local capability (\texttt{fe80::/64}), connecting micro-drones directly to global IP infrastructure.
     \item \textit{TDMA / Scheduled Time-Slotted Access}: Incorporating microsecond time synchronization for collision-free multi-agent payload transfers in high-density networks.
   \end{itemize}
