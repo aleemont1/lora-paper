@@ -553,22 +553,19 @@ The proposed protocol, \texttt{LoRaMultiPacket}, operates as a custom transport-
 \subsection{Operational Modes and Architectural Taxonomy}
 To accommodate diverse IoT workload requirements—ranging from ultra-fast periodic telemetry streams to critical high-capacity firmware or imaging transfers—\texttt{LoRaMultiPacket} defines four distinct operational modes across two primary dimensions: \textit{Reliability} (Unreliable Best-Effort vs. SACK-Reliable ARQ) and \textit{Connection State} (Connectionless Stateless vs. Connection-Oriented Stateful).
 
-Furthermore, the protocol incorporates a compact node addressing mechanism, forming a 3-dimensional architectural space that spans from simple point-to-point datagrams up to multi-node addressed topologies. The taxonomy of these modes is summarized in Table~\ref{tab:operational_modes}.
-
-\begin{table*}[htpb]
+\begin{table}[htpb]
 \centering
-\caption{LoRaMultiPacket $2 \times 2$ Operational Mode Architecture Matrix and Addressing Axis}
+\caption{LoRaMultiPacket $2 \times 2$ Operational Mode Matrix}
 \label{tab:operational_modes}
-\renewcommand{\arraystretch}{1.5}
+\renewcommand{\arraystretch}{1.35}
 \small
-\begin{tabularx}{0.95\textwidth}{|c|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+\begin{tabularx}{\columnwidth}{|l|X|X|}
 \hline
-& \centering\textbf{Unreliable Mode}\newline\textit{(Best-Effort Streaming)} & \centering\textbf{Reliable Mode}\newline\textit{(SACK-ARQ Feedback)} \arraybackslash \\ \hline
-\textbf{Connectionless}\newline\textit{(Stateless, No 3WHS)} & \textbf{Unreliable Connectionless Mode}\newline Best-effort datagrams; fire-and-forget streaming. Minimizes airtime for periodic sensor telemetry. & \textbf{Reliable Connectionless Mode}\newline Stateless bulk data transfer with unnegotiated SACK bitmap retransmission feedback. Eliminates 3WHS setup latency. \\ \hline
-\textbf{Connected}\newline\textit{(Stateful, 3WHS)} & \textbf{Unreliable Connected Mode}\newline Session-tracked stream using 3-Way Handshake parameter negotiation without retransmission feedback. & \textbf{Reliable Connected Mode}\newline Stateful 3WHS negotiation (buffer size, window, timeout) combined with cumulative SACK-ARQ retransmission. \\ \hline
-\multicolumn{3}{|c|}{\textbf{Addressing \& Topology Evolution Axis:}\quad \texttt{0x00} P2P Unaddressed \ $\longrightarrow$ \ \texttt{0x01}--\texttt{0xFE} Unicast Addressed \ $\longrightarrow$ \ \texttt{0xFF} Broadcast / Mesh} \\ \hline
+& \textbf{Unreliable} \textit{(Best-Effort)} & \textbf{Reliable} \textit{(SACK-ARQ)} \\ \hline
+\textbf{Connectionless} \textit{(Stateless)} & \textbf{Unreliable Connectionless}\newline Best-effort datagrams; no handshake, no ACKs. & \textbf{Reliable Connectionless}\newline Stateless bulk transfer; SACK bitmap feedback. \\ \hline
+\textbf{Connected} \textit{(Stateful 3WHS)} & \textbf{Unreliable Connected}\newline Stream tracking via 3WHS; no ACKs. & \textbf{Reliable Connected}\newline 3WHS negotiation (buffer/window) + SACK-ARQ. \\ \hline
 \end{tabularx}
-\end{table*}
+\end{table}
 
 \subsection{OTA Packet Structure and Header Optimization}
 Each individual packet transmitted over the air is structured sequentially as a fixed 9-byte Logical Header, a variable-length Application Payload (up to 244~bytes), and a 2-byte CRC footer. Unused padding bytes at the end of partial payloads are omitted from over-the-air transmission to minimize airtime and regulatory duty-cycle footprint.
