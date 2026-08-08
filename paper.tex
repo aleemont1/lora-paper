@@ -572,6 +572,37 @@ Furthermore, the protocol incorporates a compact node addressing mechanism, form
 \end{tabular}
 \end{table}
 
+\begin{figure}[htpb]
+\centering
+\begin{tikzpicture}[scale=0.85, every node/.style={transform shape}]
+  % 2x2 Matrix Grid
+  \draw[thick, fill=blue!8, rounded corners=2pt] (0, 2.2) rectangle (3.8, 4.2);
+  \draw[thick, fill=green!8, rounded corners=2pt] (4.2, 2.2) rectangle (8.0, 4.2);
+  \draw[thick, fill=orange!8, rounded corners=2pt] (0, 0) rectangle (3.8, 1.8);
+  \draw[thick, fill=purple!8, rounded corners=2pt] (4.2, 0) rectangle (8.0, 1.8);
+
+  % Matrix Content Labels
+  \node[align=center, font=\tiny\bfseries] at (1.9, 3.2) {Unreliable\\Connectionless\\[1pt]\color{black!70}(Best-Effort Datagram)};
+  \node[align=center, font=\tiny\bfseries] at (6.1, 3.2) {Reliable\\Connectionless\\[1pt]\color{black!70}(Stateless SACK-ARQ)};
+  \node[align=center, font=\tiny\bfseries] at (1.9, 0.9) {Unreliable\\Connected\\[1pt]\color{black!70}(Session Stream)};
+  \node[align=center, font=\tiny\bfseries] at (6.1, 0.9) {Reliable\\Connected\\[1pt]\color{black!70}(3WHS + SACK-ARQ)};
+
+  % Axis Headers
+  \node[font=\small\bfseries, align=center] at (4.0, 4.7) {Reliability Dimension $\longrightarrow$};
+  \node[font=\tiny] at (1.9, 4.4) {Unreliable (Best-Effort)};
+  \node[font=\tiny] at (6.1, 4.4) {Reliable (SACK-ARQ)};
+
+  \node[font=\small\bfseries, rotate=90, align=center] at (-0.7, 2.1) {Connection State $\longrightarrow$};
+  \node[font=\tiny, rotate=90] at (-0.3, 3.2) {Connectionless (Stateless)};
+  \node[font=\tiny, rotate=90] at (-0.3, 0.9) {Connected (Stateful 3WHS)};
+
+  % Addressing Axis (Evolution Arrow below Matrix)
+  \draw[very thick, ->, color=blue!80!black] (0, -0.8) -- (8.0, -0.8) node[midway, below=2pt, font=\tiny\bfseries] {Topology Evolution: P2P Unaddressed (0x00) $\longrightarrow$ P2P Addressed (0x01-0xFE) $\longrightarrow$ Multi-Node Mesh (0xFF Broadcast)};
+\end{tikzpicture}
+\caption{Architectural $2 \times 2$ operational mode matrix and the addressing evolution dimension.}
+\label{fig:matrix_taxonomy}
+\end{figure}
+
 \subsection{OTA Packet Structure and Header Optimization}
 Each individual packet transmitted over the air is structured sequentially as a fixed 9-byte Logical Header, a variable-length Application Payload (up to 244~bytes), and a 2-byte CRC footer. Unused padding bytes at the end of partial payloads are omitted from over-the-air transmission to minimize airtime and regulatory duty-cycle footprint.
 
