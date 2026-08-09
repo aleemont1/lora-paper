@@ -910,8 +910,8 @@ As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle fo
     \node[left, font=\tiny\itshape] at (0,-1.0) {SYN\_SENT};
     \node[right, font=\tiny\itshape] at (6.5,-1.6) {SYN\_RCVD};
 
-    \draw[->, color=blue!80!black] (0,-0.9) -- (6.5,-1.5) node[midway, above, sloped, font=\tiny] {1. \texttt{SYN} (\texttt{FLAG\_CONN\_REQ}, \texttt{SynMetadata}: reqSize, win, timeout)};
-    \draw[<-, color=red!80!black] (0,-2.7) -- (6.5,-2.1) node[midway, above, sloped, font=\tiny] {2. \texttt{SYN-ACK} (\texttt{FLAG\_CONN\_REQ|ACK}, \texttt{SynAckMetadata}: accSize, status)};
+    \draw[->, color=blue!80!black] (0,-0.9) -- (6.5,-1.5) node[midway, above, sloped, font=\tiny] {1. \texttt{SYN} (\texttt{FLAG\_CONN\_REQ}, \texttt{SynMetadata}: reqPayloadSize, winSize, timeoutMs)};
+    \draw[<-, color=red!80!black] (0,-2.7) -- (6.5,-2.1) node[midway, above, sloped, font=\tiny] {2. \texttt{SYN-ACK} (\texttt{FLAG\_CONN\_REQ|ACK}, \texttt{SynAckMetadata}: accPayloadSize, winSize)};
     \draw[->, color=green!50!black] (0,-3.4) -- (6.5,-4.0) node[midway, above, sloped, font=\tiny] {3. \texttt{ACK} (\texttt{FLAG\_CONN\_ACK})};
   \end{tikzpicture}%
   \label{fig:seq_success}%
