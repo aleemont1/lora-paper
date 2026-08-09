@@ -500,7 +500,7 @@ the \ac{LoRaWAN} specifications) are optimized for small, non-frequent payloads~
 
 This layout limitation poses severe restrictions on modern IoT applications, such as drone telemetry, environmental log collections, or remote imaging, which demand the continuous transfer of large data blocks~\cite{multimedia-lora-survey, dare-lorawan}. Standard LoRaWAN links require substantial transmission overhead, restrictive duty-cycle limitations, and lack optimized mechanisms for handling large, multi-packet payloads in point-to-point configurations.
 
-This paper presents the design and implementation of a comprehensive, lightweight transport protocol for point-to-point \ac{LoRa} networks. While early iterations of this work primarily focused on payload segmentation, the introduction of a Selective Acknowledgment (SACK) scheme, a Hardware Abstraction Layer (HAL), and dual reliable/best-effort transmission modes has evolved the architecture into a full-fledged transport solution. It is designed to support the transmission of large data payloads (up to approximately 62.7~KB) over point-to-point topologies, theoretically minimizing the radio duty-cycle footprint compared to traditional Stop-and-Wait approaches while operating entirely independently of higher-layer middleware (e.g., \ac{LoRaWAN}). 
+This paper presents the design and implementation of a comprehensive, lightweight transport protocol for point-to-point \ac{LoRa} networks. While early iterations of this work primarily focused on payload segmentation, the introduction of a Selective Acknowledgment (SACK) scheme, a Hardware Abstraction Layer (HAL), and dual reliable/best-effort transmission modes has evolved the architecture into a full-fledged transport solution. It is designed to support the transmission of large data payloads (up to 65.0~KB theoretically, and 62.2~KB on standard 255-byte FIFO LoRa transceivers) over point-to-point topologies, theoretically minimizing the radio duty-cycle footprint compared to traditional Stop-and-Wait approaches while operating entirely independently of higher-layer middleware (e.g., \ac{LoRaWAN}). 
 
 The key contributions of this work are three-fold:
 \begin{itemize}
@@ -521,7 +521,7 @@ For custom peer-to-peer LoRa networks, early efforts focused on overcoming the s
 While \texttt{LAMP} draws foundational inspiration from the bit-vector SACK mechanism introduced in MPLR~\cite{mplr-chen2019}, our architecture introduces major engineering and protocol-level advancements that generalize and optimize the concept for modern embedded IoT applications:
 \begin{itemize}
   \item \textbf{Header Overhead Optimization}: MPLR relies on a 16-byte header per fragment (carrying 4-byte Destination EUI, 4-byte Source EUI, Service Number, Sequence Number, Flags, Payload Size, Batch Size, and Checksum). In contrast, \texttt{LAMP} reduces header overhead to a 9-byte Logical Header (1-byte~\texttt{srcAddr}, 1-byte~\texttt{dstAddr}, 2-byte~\texttt{messageId}, 1-byte~\texttt{totalChunks}, 1-byte~\texttt{chunkIndex}, 1-byte~\texttt{payloadSize}, 1-byte~\texttt{flags}, and 1-byte~\texttt{protocolVersion}). This saves 7~bytes of over-the-air overhead per chunk.
-  \item \textbf{Target Scope}: MPLR was engineered specifically as an application-level image transmission protocol for agricultural uplink nodes to a central gateway. \texttt{LAMP} is designed as a domain-agnostic, general-purpose transport layer capable of segmenting any arbitrary data payload up to 62.7~KB (ranging from high-frequency sensor telemetry arrays and robotic SLAM keyframes to firmware binaries and multiagent state matrices).
+  \item \textbf{Target Scope}: MPLR was engineered specifically as an application-level image transmission protocol for agricultural uplink nodes to a central gateway. \texttt{LAMP} is designed as a domain-agnostic, general-purpose transport layer capable of segmenting any arbitrary data payload up to 62.2~KB on standard LoRa transceivers (ranging from high-frequency sensor telemetry arrays and robotic SLAM keyframes to firmware binaries and multiagent state matrices).
   \item \textbf{Flexible Operational Modes}: MPLR operates under a single stateful batch delivery model. In contrast, \texttt{LAMP} provides four operational modes spanning \textit{Unreliable Connectionless} (best-effort datagrams), \textit{Unreliable Connected} (session-tracked streaming), \textit{Reliable Connectionless} (stateless SACK-ARQ), and \textit{Reliable Connected} (stateful negotiated streams).
   \item \textbf{Dynamic Parameter Negotiation}: MPLR utilizes a fixed batch size and requires a 4-way handshake tear-down (\texttt{FIN}/\texttt{ACK}). \texttt{LAMP} implements a lightweight 3-Way Handshake (3WHS) embedded with dynamic parameter negotiation (\texttt{SynMetadata} and \texttt{SynAckMetadata} negotiating chunk size, sliding window, and inactivity timeout) and replaces explicit tear-down overhead with automatic idle session pruning.
 \end{itemize}
@@ -580,16 +580,15 @@ To accommodate diverse IoT workload requirements—ranging from ultra-fast perio
 \label{tab:operational_modes}
 \renewcommand{\arraystretch}{1.45}
 \small
-\begin{tabular}{|>{\bfseries}c|c|c|}
-\cline{2-3}
-\multicolumn{1}{c|}{} & \textbf{Unreliable Mode (Best-Effort, No ACKs)} & \textbf{Reliable Mode (SACK-ARQ Feedback)} \\ \hline
-Connectionless \textit{(Stateless)} & Best-effort datagram streaming. & Bulk data transfer. \\ \hline
-Connected \textit{(Stateful, 3WHS)} & Session-tracked stream. & Negotiated parameter stream. \\ \hline
-\end{tabular}
+\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Operational Mode} & \textbf{Reliability \& Connection State} & \textbf{Primary Target Use Case} \\ \hline
+\textbf{Mode 1: Best-Effort Datagram} & Unreliable, Connectionless (Stateless) & High-frequency telemetry streams, periodic sensor data bursts. \\ \hline
+\textbf{Mode 2: Best-Effort Stream} & Unreliable, Connection-Oriented (Stateful) & Session-tracked real-time sensor streams without retransmission delays. \\ \hline
+\textbf{Mode 3: SACK-Reliable Datagram} & Reliable (SACK), Connectionless (Stateless) & Isolated high-priority sensor bursts requiring delivery confirmation. \\ \hline
+\textbf{Mode 4: SACK-Reliable Stream} & Reliable (SACK), Connection-Oriented (3WHS) & Critical large payload transfers (FUOTA binaries, camera images, SLAM maps). \\ \hline
+\end{tabularx}
 \end{table*}
-
-\subsection{OTA Packet Structure and Header Optimization}
-Each individual packet transmitted over the air is structured sequentially as a fixed 9-byte Logical Header, a variable-length Application Payload (up to 244~bytes), and a 2-byte CRC footer. Unused padding bytes at the end of partial payloads are omitted from over-the-air transmission to minimize airtime and regulatory duty-cycle footprint.
 
 \subsubsection{Implicit Boundary Detection and Sequence Indexing}
 To maintain a compact 9-byte header while supporting robust out-of-order packet reassembly, \texttt{LAMP} avoids dedicated boundary control bits. Instead, Start-of-Message (SOM) and End-of-Message (EOM) boundaries are implicitly derived at the receiver directly from the 0-based fragment index (\texttt{chunkIndex}) and the total fragment count (\texttt{totalChunks}):
@@ -616,23 +615,23 @@ The exact byte alignment and offsets of the 9-byte header packet structure are p
 \centering
 \caption{LAMP OTA Packet Layout and Byte Offsets}
 \label{tab:packet_offsets}
-\renewcommand{\arraystretch}{1.2}
-\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{2.5pt}
 \footnotesize
-\begin{tabular}{|c|c|l|c|}
+\begin{tabularx}{\columnwidth}{|c|l|c|>{\raggedright\arraybackslash}X|}
 \hline
-\textbf{Offset (Bytes)} & \textbf{Field Name} & \textbf{Data Type} & \textbf{Size (Bytes)} \\ \hline
-0 & \texttt{srcAddr} & uint8\_t & 1 \\ \hline
-1 & \texttt{dstAddr} & uint8\_t & 1 \\ \hline
-2--3 & \texttt{messageId} & uint16\_t & 2 \\ \hline
-4 & \texttt{totalChunks} & uint8\_t & 1 \\ \hline
-5 & \texttt{chunkIndex} & uint8\_t & 1 \\ \hline
-6 & \texttt{payloadSize} & uint8\_t & 1 \\ \hline
-7 & \texttt{flags} & uint8\_t & 1 \\ \hline
-8 & \texttt{protocolVersion} & uint8\_t & 1 \\ \hline
-9 & \texttt{payload} & uint8\_t[] & $N$ (up to 244) \\ \hline
-$9 + N$ & \texttt{crc} & uint16\_t & 2 \\ \hline
-\end{tabular}
+\textbf{Offset} & \textbf{Field Name} & \textbf{Type} & \textbf{Description} \\ \hline
+0 & \texttt{srcAddr} & uint8\_t & Source Node ID (\texttt{0x01}--\texttt{0xFE}) \\ \hline
+1 & \texttt{dstAddr} & uint8\_t & Destination Node ID (\texttt{0x01}--\texttt{0xFE}, \texttt{0xFF}) \\ \hline
+2--3 & \texttt{messageId} & uint16\_t & Message Sequence ID \\ \hline
+4 & \texttt{totalChunks} & uint8\_t & Total Count ($1 \le N \le 255$) \\ \hline
+5 & \texttt{chunkIndex} & uint8\_t & Index ($0 \le i < \mathtt{totalChunks}$) \\ \hline
+6 & \texttt{payloadSize} & uint8\_t & Payload Count ($N \le 244$~B) \\ \hline
+7 & \texttt{flags} & uint8\_t & Bitfield (\texttt{ACK\_REQ}, \texttt{CONN\_REQ}) \\ \hline
+8 & \texttt{protocolVersion} & uint8\_t & Protocol Version (\texttt{0x02}) \\ \hline
+9--$N$+8 & \texttt{payload[]} & uint8\_t[] & Application Data ($N$ bytes) \\ \hline
+$N$+9--$N$+10 & \texttt{crc} & uint16\_t & CRC-16 Checksum \\ \hline
+\end{tabularx}
 \end{table}
 
 \begin{figure*}[t]
@@ -653,9 +652,9 @@ The fields in the Logical Header are defined as follows:
   \item \textbf{\texttt{srcAddr} (1 byte)}: Source node identifier (\texttt{0x01}--\texttt{0xFE}, or \texttt{0x00} for unassigned).
   \item \textbf{\texttt{dstAddr} (1 byte)}: Destination node identifier (\texttt{0x01}--\texttt{0xFE}, or \texttt{0xFF} for broadcast).
   \item \textbf{\texttt{messageId} (2 bytes)}: Unique message sequence identifier. All fragments composing the same segmented message share this ID.
-  \item \textbf{\texttt{totalChunks} (1 byte)}: The total count of chunks into which the original large payload is divided.
-  \item \textbf{\texttt{chunkIndex} (1 byte)}: The 0-based index of this specific fragment (0 to \texttt{totalChunks} - 1).
-  \item \textbf{\texttt{payloadSize} (1 byte)}: The count of valid data bytes contained in the payload section ($N \le 244$).
+  \item \textbf{\texttt{totalChunks} (1 byte)}: The total count of chunks into which the original large payload is divided ($1 \le \texttt{totalChunks} \le 255$).
+  \item \textbf{\texttt{chunkIndex} (1 byte)}: The 0-based index of this specific fragment ($0 \le \texttt{chunkIndex} < \texttt{totalChunks}$).
+  \item \textbf{\texttt{payloadSize} (1 byte)}: Payload data byte count. Logically, the 1-byte field supports up to 255~bytes per chunk, enabling a theoretical protocol capacity of $255 \times 255 = 65,025$~bytes ($\approx 65.0$~KB) per session. On standard transceivers with a 255-byte hardware FIFO limit (e.g., SX1262), subtracting the 9-byte header and 2-byte CRC-16 yields $N = 244$~bytes per chunk, resulting in an empirical capacity of $255 \times 244 = 62,220$~bytes ($\approx 62.2$~KB).
   \item \textbf{\texttt{flags} (1 byte)}: A control bitfield used to manage transmission and connection states:
   \begin{itemize}
     \item \texttt{FLAG\_ACK\_REQ} (\texttt{0x04}): Selective Acknowledgment requested from receiver.
