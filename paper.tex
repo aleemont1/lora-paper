@@ -567,30 +567,30 @@ To clearly position the proposed protocol within the current technological lands
 
 \section{Proposed System Architecture}
 The proposed protocol, LAMP, operates as a custom transport-layer architecture running directly over \ac{LoRa} physical layers. It aims to segment arbitrarily large payloads at the transmitter and reliably reconstruct them at the receiver, while keeping Logical Header and \ac{OTA} overhead minimal.
-\subsection{Protocol Evolution: From v1 Baseline to v2 Stateful Architecture}
+\subsection{Protocol Specification and Design Iterations}
 The development of LAMP followed an iterative engineering trajectory, progressing from an initial stateless baseline (v1) to a full-fledged, stateful, and addressed transport framework (v2).
 
-\subsubsection{Baseline Architecture (v1: Stateless 7-Byte Header)}
+\subsubsection{Stateless Header Specification}
 The initial protocol version (v1) was engineered for maximum header compression during periodic sensor telemetry transfers over point-to-point links. It utilized a compact 7-byte Logical Header containing only sequence tracking and payload bounds (\texttt{messageId} [2~B], \texttt{totalChunks} [1~B], \texttt{chunkIndex} [1~B], \texttt{payloadSize} [1~B], \texttt{flags} [1~B], and \texttt{protocolVersion} [1~B]). 
 
 While v1 achieved high spectral efficiency for isolated datagram bursts, real-world deployment on embedded hardware exposed three critical architectural vulnerabilities:
 \begin{itemize}
-  \item \textbf{Unchecked Buffer Pre-allocation}: Receivers were forced to allocate reassembly memory speculatively upon receiving the first fragment of an unannounced stream. When receiving large payloads (e.g., image tiles or firmware blocks), memory-constrained microcontrollers frequently suffered heap exhaustion or buffer overflows.
-  \item \textbf{Session Collision and Hijacking}: Lacking explicit source and destination identifiers, multiple unaddressed transmitters sharing the same RF channel risked interleaving fragments with identical sequence numbers, leading to corrupted reassembly buffers.
-  \item \textbf{Static Transport Parameters}: Fixed chunk sizes and static timeout thresholds prevented dynamic adaptation to link quality degradation or variable receiver memory limits.
+  \item \textit{Speculative Buffer Allocation}: Receivers were forced to allocate reassembly memory speculatively upon receiving the first fragment of an unannounced stream. When receiving large payloads (e.g., image tiles or firmware blocks), memory-constrained microcontrollers frequently suffered heap exhaustion or buffer overflows.
+  \item \textit{Session Interference}: Lacking explicit source and destination identifiers, multiple unaddressed transmitters sharing the same RF channel risked interleaving fragments with identical sequence numbers, leading to corrupted reassembly buffers.
+  \item \textit{Static Transport Limits}: Fixed chunk sizes and static timeout thresholds prevented dynamic adaptation to link quality degradation or variable receiver memory limits.
 \end{itemize}
 
-\subsubsection{Complete Architecture (v2: Stateful 9-Byte Header with \ac{3WHS})}
+\subsubsection{Addressed Logical Header Specification}
 To resolve the limitations of v1, LAMP Version 2 introduces a complete, production-grade transport architecture. Version 2 expands the Logical Header to 9~bytes by embedding explicit 8-bit Source (\texttt{srcAddr}) and Destination (\texttt{dstAddr}) Node Identifiers, while incorporating an integrated \ac{3WHS} mechanism.
 
 Although adding 2~bytes to the header increases over-the-air frame length by less than 0.8\% on a 244-byte payload, this trade-off delivers essential architectural guarantees:
 \begin{enumerate}
-  \item \textbf{Guaranteed Memory Safety}: The \ac{3WHS} exchange allows nodes to negotiate reassembly buffer limits (\texttt{SynMetadata}) prior to payload transmission, guaranteeing zero buffer overflows.
-  \item \textbf{Session Isolation}: Explicit node addressing completely prevents promiscuous packet hijacking and session corruption in multi-node wireless topologies.
-  \item \textbf{IPv6 Readiness}: The 8-bit address space maps natively to local IPv6 link-local subnet suffixes without the overhead of full 128-bit IP headers over the air.
+  \item \textit{Buffer Memory Safety}: The \ac{3WHS} exchange allows nodes to negotiate reassembly buffer limits (\texttt{SynMetadata}) prior to payload transmission, guaranteeing zero buffer overflows.
+  \item \textit{Channel Session Isolation}: Explicit node addressing completely prevents promiscuous packet hijacking and session corruption in multi-node wireless topologies.
+  \item \textit{IPv6 Addressing Compatibility}: The 8-bit address space maps natively to local IPv6 link-local subnet suffixes without the overhead of full 128-bit IP headers over the air.
 \end{enumerate}
 
-\subsection{Operational Modes}
+\subsection{Operational Modes and Sequence Management}
 To accommodate diverse \ac{IoT} workload requirements—ranging from ultra-fast periodic telemetry streams to critical high-capacity firmware or imaging transfers—LAMP defines four distinct operational modes across two primary dimensions: \textit{Reliability} (Unreliable Best-Effort vs. \ac{SACK}-\ac{ARQ}) and \textit{Connection State} (Connectionless Stateless vs. Connection-Oriented Stateful).
 
 \begin{table*}[htpb]
@@ -609,7 +609,7 @@ To accommodate diverse \ac{IoT} workload requirements—ranging from ultra-fast 
 \end{tabularx}
 \end{table*}
 
-\subsubsection{Implicit Boundary Detection and Sequence Indexing}
+\subsubsection{Implicit Frame Boundary Derivation}
 To maintain a compact 9-byte header while supporting robust out-of-order packet reassembly, LAMP avoids dedicated boundary control bits. Instead, Start-of-Message (SOM) and End-of-Message (EOM) boundaries are implicitly derived at the receiver directly from the 0-based fragment index (\texttt{chunkIndex}) and the total fragment count (\texttt{totalChunks}):
 \begin{equation}
 \mathrm{SOM} \iff \texttt{chunkIndex} == 0
@@ -619,7 +619,7 @@ To maintain a compact 9-byte header while supporting robust out-of-order packet 
 \end{equation}
 Explicitly carrying \texttt{totalChunks} in every fragment header allows the receiver to instantly determine the exact message bounds and pre-allocate the required reassembly buffer and \ac{SACK} bitmap upon receiving \textit{any} fragment, even if fragments arrive out of order or if the initial chunk is lost.
 
-\subsubsection{Compact Node Addressing}
+\subsubsection{Node Addressing Scheme}
 To support multi-node communication without incurring the prohibitive airtime overhead of full 128-bit IPv6 headers on \ac{LoRa} PHY payloads, LAMP introduces a compact 8-bit Node Identifier space:
 \begin{itemize}
   \item \textbf{\texttt{0x00} (\texttt{ADDRESS\_UNASSIGNED})}: Reserved for legacy or unaddressed P2P datagrams (promiscuous mode).
@@ -688,23 +688,23 @@ The fields in the Logical Header are defined as follows:
 After the payload, a 16-bit CRC-16 (Modbus CRC-16, polynomial \texttt{0xA001}, initialized to \texttt{0xFFFF}) is appended. The checksum covers the entire 9-byte header and valid payload bytes, reliably detecting transmission corruptions.
 
 \subsection{Selective Acknowledgment (SACK) Retransmission}
-To provide reliable delivery under lossy radio conditions while maintaining minimal airtime overhead, the protocol implements a Selective Acknowledgment (SACK) mechanism~\cite{lora-arq-sar}.
+To provide reliable delivery under lossy radio conditions while maintaining minimal airtime overhead, the protocol implements a Selective Acknowledgment (\ac{SACK}) mechanism~\cite{lora-arq-sar}.
 
-\subsubsection{Retransmission Handshake}
+\subsubsection{Retransmission Protocol Interaction}
 When a transmission is executed in reliable mode:
 \begin{enumerate}
   \item The transmitter segments the payload, serializes the chunks with \texttt{srcAddr} and \texttt{dstAddr}, and streams them sequentially. The final chunk index ($Index = \texttt{totalChunks} - 1$) is marked with the \texttt{FLAG\_ACK\_REQ} flag.
   \item Upon receipt of the chunk requesting acknowledgment, the receiver evaluates its reassembly session. It identifies which fragments are still missing by checking its internal bitmask of received chunks.
-  \item The receiver responds by transmitting a SACK packet (\texttt{FLAG\_ACK}) addressed back to the transmitter's \texttt{srcAddr}. The SACK's payload contains a binary bitmap where each bit represents the receipt status of a chunk (1 for received, 0 for missing).
-  \item The transmitter parses the received SACK bitmap. If some chunks are missing, it selectively retransmits only those lost chunks. The last retransmitted chunk has the \texttt{FLAG\_ACK\_REQ} flag set again to query the receiver.
+  \item The receiver responds by transmitting a \ac{SACK} packet (\texttt{FLAG\_ACK}) addressed back to the transmitter's \texttt{srcAddr}. The \ac{SACK}'s payload contains a binary bitmap where each bit represents the receipt status of a chunk (1 for received, 0 for missing).
+  \item The transmitter parses the received \ac{SACK} bitmap. If some chunks are missing, it selectively retransmits only those lost chunks. The last retransmitted chunk has the \texttt{FLAG\_ACK\_REQ} flag set again to query the receiver.
   \item This selective retry loop continues until the full message is reconstructed at the receiver, or the transmitter reaches the maximum retry count.
 \end{enumerate}
 
 \subsubsection{Half-Duplex Hardware Switching Guard}
-Because \ac{LoRa} transceivers are half-duplex, a hardware transition period is required for the transmitter to switch from transmit (TX) mode to receive (RX) mode after sending a packet. If the receiver replies instantly, the transmitter will miss the SACK preamble. To guarantee correct reception, the receiver introduces a configurable hardware guard delay (e.g., 25~ms) before transmitting the SACK packet.
+Because \ac{LoRa} transceivers are half-duplex, a hardware transition period is required for the transmitter to switch from transmit (TX) mode to receive (RX) mode after sending a packet. If the receiver replies instantly, the transmitter will miss the \ac{SACK} preamble. To guarantee correct reception, the receiver introduces a configurable hardware guard delay (e.g., 25~ms) before transmitting the \ac{SACK} packet.
 
 \subsubsection{Timeout and Fallback Recovery}
-If the transmitter does not receive a SACK packet within a dynamic timeout threshold based on estimated ToA, it assumes that either the query or the response was lost. The transmitter falls back to retransmitting the final chunk of the sequence marked with \texttt{FLAG\_ACK\_REQ} to trigger a new status report. Up to 5 consecutive timeouts are allowed before the transmission is aborted as failed.
+If the transmitter does not receive a \ac{SACK} packet within a dynamic timeout threshold based on estimated ToA, it assumes that either the query or the response was lost. The transmitter falls back to retransmitting the final chunk of the sequence marked with \texttt{FLAG\_ACK\_REQ} to trigger a new status report. Up to 5 consecutive timeouts are allowed before the transmission is aborted as failed.
 
 \begin{figure*}[htpb]
 \centering
@@ -750,10 +750,10 @@ If the transmitter does not receive a SACK packet within a dynamic timeout thres
 \label{fig:state_machines}
 \end{figure*}
 
-\subsection{3-Way Handshake (3WHS) and Connection Lifecycle}
-To support stateful stream negotiation and protect resource-constrained receivers from buffer overflows, \texttt{LAMP} Version 2 introduces a 3-Way Handshake (3WHS) mechanism.
+\subsection{Session Control and Handshake Protocol}
+To support stateful stream negotiation and protect resource-constrained receivers from buffer overflows, LAMP Version 2 introduces a \ac{3WHS} mechanism.
 
-\subsubsection{Handshake Procedure}
+\subsubsection{Three-Way Handshake Procedure}
 As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle follows a three-step exchange:
 \begin{enumerate}
   \item \textbf{SYN}: The initiator sends a \texttt{SYN} control frame (\texttt{FLAG\_CONN\_REQ}) addressed to the target node's \texttt{dstAddr}, containing a 4-byte \texttt{SynMetadata} payload (\texttt{requestedPayloadSize}, \texttt{windowSize}, \texttt{timeoutMs}).
@@ -807,25 +807,13 @@ As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle fo
 \label{fig:3whs_sequence}
 \end{figure*}
 
-\subsection{Robustness and Edge-Case Protections}
-To ensure protocol stability in multiagent and lossy environments, LAMP Version 2 introduces a \ac{3WHS} mechanism.
-
-\subsubsection{Session Establishment Handshake}
-Prior to streaming data in connected mode (Modes 3 and 4):
-\begin{enumerate}
-  \item \textbf{SYN}: The initiator sends a \texttt{SYN} control frame (\texttt{FLAG\_CONN\_REQ}) to the target \texttt{dstAddr}, containing a 4-byte \texttt{SynMetadata} payload (\texttt{requestedPayloadSize}, \texttt{windowSize}, \texttt{timeoutMs}).
-  \item \textbf{SYN-ACK}: Upon receipt of the \texttt{SYN}, the receiver evaluates available memory and protocol version. If accepted, it responds with a \texttt{SYN-ACK} control frame (\texttt{FLAG\_CONN\_ACK}) containing a 4-byte \texttt{SynAckMetadata} payload confirming the negotiated parameters.
-  \item \textbf{ACK}: The initiator completes the handshake by transmitting an \texttt{ACK} control frame (\texttt{FLAG\_ACK}) or immediately streaming the first data fragment with \texttt{chunkIndex} = 0.
-\end{enumerate}
-Once the \ac{3WHS} is completed, both nodes transition to the \texttt{ESTABLISHED} state.
-
-\subsubsection{Edge-Case and Error Recovery Mechanics}
-To ensure protocol stability in multiagent and lossy environments, LAMP incorporates strict edge-case resolution mechanics:
+\subsection{Concurrency and Fault Handling}
+To ensure protocol stability in multiagent and lossy environments, LAMP incorporates strict exception handling mechanics:
 \begin{itemize}
-  \item \textbf{Simultaneous SYN Resolution (Tie-Breaking)}: If two nodes transmit \texttt{SYN} frames to each other simultaneously, a deterministic tie-breaking rule resolves the conflict: the node with the lower numerical \texttt{NodeAddress} yields and transitions back to \texttt{CLOSED}, while the node with the higher \texttt{NodeAddress} proceeds with session setup.
-  \item \textbf{Busy State Rejection}: If a receiver receives a \texttt{SYN} frame while its active reassembly session is already locked by another node, it responds with a \texttt{CONN\_NACK} frame (\texttt{FLAG\_CONN\_NACK}) specifying a \texttt{BUSY} status code, causing the requester to back off.
-  \item \textbf{Source Address Matching}: Initiators in \texttt{waitForSynAck} and \texttt{waitForSack} validate incoming control frames against the expected \texttt{srcAddr}, ignoring packets from unrelated third-party nodes.
-  \item \textbf{Incomplete Handshake Timeout}: If a \texttt{SYN-ACK} or \texttt{ACK} of a \ac{3WHS} is lost in transit, the receiver in \texttt{SYN\_RCVD} or initiator in \texttt{SYN\_SENT} automatically aborts and resets to \texttt{CLOSED} after an inactivity timeout (\texttt{timeoutMs}).
+  \item \textit{Simultaneous Connection Resolution}: If two nodes transmit \texttt{SYN} frames to each other simultaneously, a deterministic tie-breaking rule resolves the conflict: the node with the lower numerical \texttt{NodeAddress} yields and transitions back to \texttt{CLOSED}, while the node with the higher \texttt{NodeAddress} proceeds with session setup.
+  \item \textit{Receiver Busy Rejection}: If a receiver receives a \texttt{SYN} frame while its active reassembly session is already locked by another node, it responds with a \texttt{CONN\_NACK} frame (\texttt{FLAG\_CONN\_NACK}) specifying a \texttt{BUSY} status code, causing the requester to back off.
+  \item \textit{Source Address Filtering}: Initiators in \texttt{waitForSynAck} and \texttt{waitForSack} validate incoming control frames against the expected \texttt{srcAddr}, ignoring packets from unrelated third-party nodes.
+  \item \textit{Incomplete Handshake Timeout}: If a \texttt{SYN-ACK} or \texttt{ACK} of a \ac{3WHS} is lost in transit, the receiver in \texttt{SYN\_RCVD} or initiator in \texttt{SYN\_SENT} automatically aborts and resets to \texttt{CLOSED} after an inactivity timeout (\texttt{timeoutMs}).
 \end{itemize}
 
 \section{Preliminary Proof of Concept}
@@ -924,25 +912,25 @@ These benchmarks will allow us to evaluate the efficiency of the \ac{SACK} retra
 \section{Conclusion and Architectural Roadmap}
 This paper presented the design, implementation, and hardware validation of LAMP, a lightweight and reliable transport-layer architecture optimized for transmitting segmented large payloads over point-to-point \ac{LoRa} links. By replacing traditional Stop-and-Wait per-packet acknowledgments with selective retransmissions requested via cumulative binary bitmaps, and eliminating redundant SOM/EOM markers in favor of implicit index derivation, the protocol achieves high reliability under lossy conditions with minimal airtime overhead and duty-cycle footprint.
 
-\subsection{Three-Level Architectural Evolution Roadmap}
+\subsection{Architectural Roadmap}
 To guide the long-term progression of LAMP from point-to-point data links to decentralized multiagent mesh networks, we define a strategic three-level architectural roadmap:
 
 \begin{itemize}
-  \item \textbf{Level 1: Point-to-Point Addressed Communication (Implemented \& Validated)}: 
+  \item \textit{Point-to-Point Transport (Current Stack)}: 
   The core protocol stack established in this work. It features 8-bit source and destination node addressing (\texttt{srcAddr}, \texttt{dstAddr}), dynamic 9-byte header packing, four operational modes (unreliable best-effort datagrams to stateful \ac{SACK}-\ac{ARQ} streams), a \ac{3WHS} for parameter negotiation, and hardware-validated edge-case resolution (BUSY rejection, address filtering, and simultaneous SYN tie-breaking).
   
-  \item \textbf{Level 2: Multi-Node Local Area Communication (Near Future Extension)}: 
+  \item \textit{Local Multi-Node Networking}: 
   Extending the link layer to support local multi-node clusters sharing the same RF channel. Key features will include:
   \begin{itemize}
     \item \textit{Broadcast and Multicast Messaging}: Utilizing \texttt{0xFF} for unacknowledged broadcast telemetry and group addressing for multiagent synchronization.
     \item \textit{Shared Channel Access Control}: Implementing Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) or Time Division Multiplexing (TDM)~\cite{wei2020tdm} to prevent collisions during bulk packet bursts in multi-node environments.
-    \item \textit{Adaptive Data Rate (ADR)}: Dynamically tuning Spreading Factor (SF7--SF12) and Coding Rate (CR) based on RSSI/SNR metrics embedded in SACK bitmaps.
+    \item \textit{Adaptive Data Rate (\ac{ADR})}: Dynamically tuning Spreading Factor (SF7--SF12) and Coding Rate (CR) based on RSSI/SNR metrics embedded in \ac{SACK} bitmaps.
   \end{itemize}
   
-  \item \textbf{Level 3: Multi-Hop / Multi-Agent Mesh Networking (Future Vision)}: 
-  Scaling the architecture to autonomous multi-hop networks, such as Unmanned Aerial Vehicle (UAV) swarms, distributed sensor meshes, and relay networks~\cite{kim2022multihop, wong2024mesh}:
+  \item \textit{Multi-Hop Mesh Extension}: 
+  Scaling the architecture to autonomous multi-hop networks, such as \ac{UAV} swarms, distributed sensor meshes, and relay networks~\cite{kim2022multihop, wong2024mesh}:
   \begin{itemize}
-    \item \textit{Mesh Routing Protocol}: Integrating dynamic routing (e.g., AODV-Light or RPL adaptation) with hop-by-hop vs. end-to-end SACK reliability options to limit retransmission overhead over multi-hop links~\cite{wong2024mesh}.
+    \item \textit{Mesh Routing Protocol}: Integrating dynamic routing (e.g., AODV-Light or RPL adaptation) with hop-by-hop vs. end-to-end \ac{SACK} reliability options to limit retransmission overhead over multi-hop links~\cite{wong2024mesh}.
     \item \textit{IPv6 Network Layer Integration}: Leveraging the 8-bit Node ID mapping to establish full IPv6 link-local capability (\texttt{fe80::/64}), connecting micro-drones directly to global IP infrastructure.
     \item \textit{TDMA / Scheduled Time-Slotted Access}: Incorporating microsecond time synchronization for collision-free multiagent payload transfers in high-density networks.
   \end{itemize}
