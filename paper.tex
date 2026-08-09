@@ -777,7 +777,7 @@ To ensure complete specification clarity and system-level reproducibility across
     \If{$M \in \{\text{ReliableDatagram}, \text{ReliableStream}\} \textbf{ and } i == N-1$}
         \State $flags \gets flags \mid \texttt{FLAG\_ACK\_REQ}$
     \EndIf
-    \State $hdr \gets \text{BuildHeader}(srcAddr, dstAddr, msgId, N, i, chunkLen, flags)$
+    \State $hdr \gets \text{BuildHdr}(srcAddr, dstAddr, msgId, N, i, chunkLen, flags)$
     \State $crc \gets \text{CalcCRC16}(hdr, P[i\cdot S : i\cdot S + chunkLen])$
     \State $F_i \gets \text{SerializeFrame}(hdr, P[i\cdot S : i\cdot S + chunkLen], crc)$
     \State $\text{Transmit}(F_i)$
@@ -795,23 +795,23 @@ To ensure complete specification clarity and system-level reproducibility across
 \State $(hdr, payload, crc) \gets \text{ParseFrame}(F)$
 \If{$\text{ValidateCRC}(hdr, payload, crc) == \text{FAIL}$} \State \text{Drop}($F$); \Return \EndIf
 \If{$hdr.dstAddr \neq myAddr \textbf{ and } hdr.dstAddr \neq \texttt{0xFF}$} \State \text{Drop}($F$); \Return \EndIf
-\State $session \gets \text{FindOrCreateSession}(hdr.srcAddr, hdr.msgId)$
+\State $session \gets \text{FindSession}(hdr.srcAddr, hdr.msgId)$
 \If{$session == \text{NULL}$}
-    \If{$\text{AvailableMem}() < hdr.totalChunks \cdot hdr.payloadSize$} 
+    \If{$\text{AvailMem}() < hdr.totalChunks \cdot hdr.payloadSize$} 
         \State \text{SendNack}(hdr.srcAddr, \texttt{BUSY}); \Return 
     \EndIf
-    \State $session \gets \text{AllocBuffer}(hdr.totalChunks, hdr.payloadSize)$
+    \State $session \gets \text{AllocBuf}(hdr.totalChunks, hdr.payloadSize)$
 \EndIf
 \State $idx \gets hdr.chunkIndex$
 \If{$\text{IsBitSet}(session.bitmap, idx)$}
     \State \text{Drop}($F$) \Comment{Duplicate chunk, ignore write}
 \Else
-    \State $\text{WriteBuffer}(session.buffer[idx \cdot S], payload, hdr.payloadSize)$
+    \State $\text{WriteBuf}(session.buffer[idx \cdot S], payload, hdr.payloadSize)$
     \State $\text{SetBit}(session.bitmap, idx)$
     \State $session.count \gets session.count + 1$
 \EndIf
 \If{$hdr.flags \ \& \ \texttt{FLAG\_ACK\_REQ}$}
-    \State $\text{SendSackFrame}(hdr.srcAddr, hdr.msgId, session.bitmap)$
+    \State $\text{SendSack}(hdr.srcAddr, hdr.msgId, session.bitmap)$
 \EndIf
 \If{$session.count == hdr.totalChunks$}
     \State $P \gets \text{ExtractPayload}(session.buffer)$
