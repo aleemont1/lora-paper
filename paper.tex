@@ -444,7 +444,7 @@
 \maketitle
 
 \begin{abstract}
-  This paper presents a lightweight transport protocol that enables the continuous transfer of large data blocks over point-to-point \ac{LoRa} networks. To overcome the severe Time-on-Air overhead and duty-cycle exhaustion typical of existing Stop-and-Wait solutions, the proposed architecture segments payloads into up to 256 chunks per transmission window. Each chunk is secured by a compact 9-byte Logical Header incorporating IPv6-ready node addressing and a CRC-16 checksum. The protocol offers a complete 2x2 operational taxonomy spanning best-effort streaming for periodic telemetry and reliable stateful streams negotiated via a 3-Way Handshake (3WHS) and Selective Acknowledgment (SACK) bitmap feedback. By requiring receiver feedback only at sequence boundaries rather than per-packet, the SACK mechanism significantly reduces acknowledgment overhead without relying on heavy Forward Error Correction. We outline a comprehensive testing methodology to evaluate the protocol across variable distances (1--5000~m) under Line-of-Sight and Non-Line-of-Sight conditions. Initial short-range benchmarking demonstrates that the reliable mode introduces minimal latency and throughput overhead compared to the best-effort baseline, providing a flexible, high-capacity data link for resource-constrained embedded systems.
+  This paper presents a lightweight transport protocol that enables the continuous transfer of large data blocks over point-to-point \ac{LoRa} networks. To overcome the severe Time-on-Air overhead and duty-cycle exhaustion typical of existing Stop-and-Wait solutions, the proposed architecture segments payloads into up to 256 chunks per transmission window. Each chunk is secured by a compact 9-byte Logical Header incorporating IPv6-ready node addressing and a CRC-16 checksum. The protocol provides four distinct operational modes combining connection state (connectionless vs. stateful) and reliability (best-effort vs. SACK-ARQ feedback). By requiring receiver feedback only at sequence boundaries rather than per-packet, the SACK mechanism significantly reduces acknowledgment overhead without relying on heavy Forward Error Correction. We outline a comprehensive testing methodology to evaluate the protocol across variable distances (1--5000~m) under Line-of-Sight and Non-Line-of-Sight conditions. Initial short-range benchmarking demonstrates that the reliable mode introduces minimal latency and throughput overhead compared to the best-effort baseline, providing a flexible, high-capacity data link for resource-constrained embedded systems.
 \end{abstract}
 
 % Note that keywords are not normally used for peerreview papers.
@@ -522,7 +522,7 @@ While \texttt{LAMP} draws foundational inspiration from the bit-vector SACK mech
 \begin{itemize}
   \item \textbf{Header Overhead Optimization}: MPLR relies on a 16-byte header per fragment (carrying 4-byte Destination EUI, 4-byte Source EUI, Service Number, Sequence Number, Flags, Payload Size, Batch Size, and Checksum). In contrast, \texttt{LAMP} reduces header overhead to a 9-byte Logical Header (1-byte~\texttt{srcAddr}, 1-byte~\texttt{dstAddr}, 2-byte~\texttt{messageId}, 1-byte~\texttt{totalChunks}, 1-byte~\texttt{chunkIndex}, 1-byte~\texttt{payloadSize}, 1-byte~\texttt{flags}, and 1-byte~\texttt{protocolVersion}). This saves 7~bytes of over-the-air overhead per chunk.
   \item \textbf{Target Scope}: MPLR was engineered specifically as an application-level image transmission protocol for agricultural uplink nodes to a central gateway. \texttt{LAMP} is designed as a domain-agnostic, general-purpose transport layer capable of segmenting any arbitrary data payload up to 62.7~KB (ranging from high-frequency sensor telemetry arrays and robotic SLAM keyframes to firmware binaries and multiagent state matrices).
-  \item \textbf{Architectural Taxonomy}: MPLR operates under a single stateful batch delivery model. \texttt{LAMP} defines a 2x2 operational taxonomy spanning \textit{Unreliable Connectionless} (best-effort datagrams), \textit{Unreliable Connected} (session-tracked streaming), \textit{Reliable Connectionless} (stateless SACK-ARQ), and \textit{Reliable Connected} (stateful negotiated streams).
+  \item \textbf{Flexible Operational Modes}: MPLR operates under a single stateful batch delivery model. In contrast, \texttt{LAMP} provides four operational modes spanning \textit{Unreliable Connectionless} (best-effort datagrams), \textit{Unreliable Connected} (session-tracked streaming), \textit{Reliable Connectionless} (stateless SACK-ARQ), and \textit{Reliable Connected} (stateful negotiated streams).
   \item \textbf{Dynamic Parameter Negotiation}: MPLR utilizes a fixed batch size and requires a 4-way handshake tear-down (\texttt{FIN}/\texttt{ACK}). \texttt{LAMP} implements a lightweight 3-Way Handshake (3WHS) embedded with dynamic parameter negotiation (\texttt{SynMetadata} and \texttt{SynAckMetadata} negotiating chunk size, sliding window, and inactivity timeout) and replaces explicit tear-down overhead with automatic idle session pruning.
 \end{itemize}
 
@@ -540,7 +540,7 @@ To clearly position the proposed protocol within the current technological lands
 \textbf{ACK / Retransmission} & Per-Packet ACK & ACK-on-Error Bitmap & None (FEC Code) & Bit-Vector SACK & Bit-Vector SACK \\ \hline
 \textbf{Header Size} & 2--4 Bytes & 1--2 Bytes & 2 Bytes & 16 Bytes & 9 Bytes \\ \hline
 \textbf{Max Frame Payload} & 240+ Bytes & Variable & Variable & 239 Bytes & 244 Bytes \\ \hline
-\textbf{Operational Modes} & 1 (Reliable S\&W) & 2 (ACK / No-ACK) & 1 (Unreliable FEC) & 1 (Reliable Batch) & 4 (2x2 Matrix Taxonomy) \\ \hline
+\textbf{Operational Modes} & 1 (Reliable S\&W) & 2 (ACK / No-ACK) & 1 (Unreliable FEC) & 1 (Reliable Batch) & 4 Operational Modes \\ \hline
 \textbf{Handshake / Setup} & None & Static Rules & Session Setup & 3WHS + 4WHS Teardown & 3WHS Dynamic Negotiation \\ \hline
 \textbf{Target Scope} & Simple P2P & IP Star Network & Gateway FUOTA & Image Upload & General-Purpose P2P / Multi-Node \\ \hline
 \end{tabularx}
@@ -548,7 +548,6 @@ To clearly position the proposed protocol within the current technological lands
 
 \section{Proposed System Architecture}
 The proposed protocol, \texttt{LAMP} (\textbf{L}ong-range \textbf{A}daptive \textbf{M}ulti-packet \textbf{P}rotocol), operates as a custom transport-layer architecture running directly over \ac{LoRa} physical layers. It aims to segment arbitrarily large payloads at the transmitter and reliably reconstruct them at the receiver, while keeping Logical Header and over-the-air (OTA) overhead minimal.
-
 \subsection{Protocol Evolution: From v1 Baseline to v2 Stateful Architecture}
 The development of \texttt{LAMP} followed an iterative engineering trajectory, progressing from an initial stateless baseline (v1) to a full-fledged, stateful, and addressed transport framework (v2).
 
@@ -572,7 +571,7 @@ Although adding 2~bytes to the header increases over-the-air frame length by les
   \item \textbf{IPv6 Readiness}: The 8-bit address space maps natively to local IPv6 link-local subnet suffixes without the overhead of full 128-bit IP headers over the air.
 \end{enumerate}
 
-\subsection{Operational Modes and Architectural Taxonomy}
+\subsection{Operational Modes}
 To accommodate diverse IoT workload requirements—ranging from ultra-fast periodic telemetry streams to critical high-capacity firmware or imaging transfers—\texttt{LAMP} defines four distinct operational modes across two primary dimensions: \textit{Reliability} (Unreliable Best-Effort vs. SACK-Reliable ARQ) and \textit{Connection State} (Connectionless Stateless vs. Connection-Oriented Stateful).
 
 \begin{table*}[htpb]
