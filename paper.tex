@@ -505,13 +505,13 @@
 % 
 % Here we have the typical use of a "T" for an initial drop letter
 % and "HIS" in caps to complete the first word.
-\IEEEPARstart{L}{ow-power}, low-cost and long-range wireless communication technologies
+\IEEEPARstart{L}{ow-power}, low-cost, and long-range wireless communication technologies
 are becoming increasingly important in the context of the \ac{IoT}. Applications
-such as environmental monitoring, precision agriculture, \acp{UAV} or drone swarms require
-reliable data transmission over extended distances with strict power and hardware
+such as environmental monitoring, precision agriculture, and autonomous \acp{UAV} require
+reliable data transmission over extended distances under strict power and hardware
 constraints~\cite{10807074}.
 
-Different communication standards, including ZigBee, Sigfox and \ac{LoRa}
+Several communication standards, including ZigBee, Sigfox, and \ac{LoRa}
 have been adopted to address these needs, and \ac{LoRa}, in particular, has
 emerged as the leading choice for low-power and long-range deployments thanks to
 its robust modulation technique and open network architecture~\cite{8424846}.
@@ -520,11 +520,11 @@ the \ac{LoRaWAN} specifications) are optimized for small, non-frequent payloads~
 
 This limitation poses severe restrictions on data-intensive \ac{IoT} applications---such as firmware-over-the-air (FOTA) updates, \ac{SLAM} map transfers in autonomous robotics, or bulk sensor log collection---which demand the continuous transfer of large data blocks~\cite{multimedia-lora-survey, dare-lorawan}. Standard \ac{LoRaWAN} links require substantial transmission overhead, restrictive duty-cycle limitations~\cite{etsi300220}, and lack optimized mechanisms for handling large, multi-packet payloads in point-to-point configurations.
 
-This paper presents the design and implementation of a comprehensive, lightweight transport protocol for point-to-point \ac{LoRa} networks. While early iterations of this work primarily focused on payload segmentation, the introduction of a \ac{SACK} scheme, a \ac{HAL}, and dual reliable/best-effort transmission modes has evolved the architecture into a full-fledged transport solution. It is designed to support the transmission of large data payloads (up to 65.0~KB theoretically, and 62.2~KB on standard 255-byte \ac{FIFO} \ac{LoRa} transceivers) over point-to-point topologies, theoretically minimizing the radio duty-cycle footprint compared to traditional Stop-and-Wait approaches while operating entirely independently of higher-layer middleware (e.g., \ac{LoRaWAN}). 
+This paper presents the design and implementation of LAMP, a lightweight transport protocol for point-to-point \ac{LoRa} networks. While early iterations focused on payload segmentation, successive additions---a \ac{SACK} scheme, a hardware abstraction layer, and dual reliable/best-effort transmission modes---have evolved the architecture into a complete transport solution supporting payloads up to 65.0~KB (or 62.2~KB on 255-byte-\ac{FIFO} transceivers such as the Semtech SX1262), operating independently of higher-layer middleware such as \ac{LoRaWAN}.
 
-The key contributions of this work are three-fold:
+The main contributions of this work are:
 \begin{itemize}
-  \item \textbf{High-Efficiency \ac{SACK} Protocol}: Unlike existing \ac{LPWAN} multimedia transmission protocols in literature that rely on Stop-and-Wait (S\&W) \ac{ARQ}, which requires an acknowledgment for every single packet and introduces severe latency and duty-cycle exhaustion, the proposed protocol implements a \ac{SACK} scheme. By utilizing a compact, cumulative binary bitmap inside a single feedback packet, the receiver reports the status of up to 255 chunks in a single round-trip, minimizing over-the-air overhead and transceivers' duty-cycle footprint.
+  \item \textbf{Bitmap-Based \ac{SACK} Scheme}: Unlike existing \ac{LPWAN} fragmentation solutions that rely on Stop-and-Wait (S\&W) \ac{ARQ}---which requires one acknowledgment per packet and incurs severe latency under duty-cycle constraints---the proposed protocol uses a compact binary bitmap carried in a single feedback frame. The receiver reports the delivery status of up to 255 chunks per round-trip, reducing retransmission overhead and over-the-air footprint.
   \item \textbf{Lightweight Packet Segmentation and Abstraction}: The protocol introduces a 9-byte logical header (with 8-bit IPv6-ready node addressing) and a custom \ac{CRC} integrity check on partial payloads, allowing robust reassembly of out-of-order chunks, even on resource-constrained microcontrollers.
   \item \textbf{Modular C++17 Implementation and \ac{TDD} Validation}: The core state machine is completely decoupled from the physical radio driver through a \ac{HAL}. This design enables both native host-based unit testing (using the Unity framework) and physical deployment on Semtech SX126x transceivers, bridging the gap between simulation and real-world embedded systems.
 \end{itemize}
@@ -532,7 +532,7 @@ The key contributions of this work are three-fold:
 
 
 \section{State of The Art}
-Reliable packet transmission and fragmentation over \acp{LPWAN} have been actively studied to support data-intensive \ac{IoT} applications. 
+Reliable packet fragmentation and reassembly over \acp{LPWAN} has been the subject of active research, driven by the growing demand for data-intensive \ac{IoT} applications.
 
 A prominent industrial standard is \ac{SCHC}~\cite{dare-lorawan}, which introduces a framework for fragmenting IPv6 packets over resource-constrained networks. To guarantee reliability, \ac{SCHC} ACK frames carry a bitmap representing the status of individual tiles within a window (ACK-on-Error). However, \ac{SCHC} is designed as a generic adaptation layer for IP-based architectures, requiring pre-shared context rules and gateway-centric networks. Similarly, the \ac{LoRa} Alliance standardized the Fragmented Data Block Transport specification to support \ac{FUOTA} using \ac{FEC} codes to reconstruct blocks without feedback. However, \ac{FEC}-based recovery introduces a constant over-the-air encoding overhead and high computational requirements for low-cost embedded systems.
 
@@ -567,9 +567,9 @@ To clearly position the proposed protocol within the current technological lands
 \end{table*}
 
 \section{Proposed System Architecture}
-The proposed protocol, LAMP, operates as a custom transport-layer architecture running directly over \ac{LoRa} physical layers. It aims to segment arbitrarily large payloads at the transmitter and reliably reconstruct them at the receiver, while keeping Logical Header and \ac{OTA} overhead minimal.
+LAMP is a transport-layer protocol running directly over the \ac{LoRa} physical layer. It segments arbitrarily large payloads at the transmitter and reconstructs them at the receiver while minimizing Logical Header and \ac{OTA} overhead.
 \subsection{Protocol Specification and Design Iterations}
-The development of LAMP followed an iterative engineering trajectory, progressing from an initial stateless baseline (LAMPv1) to a full-fledged, stateful, and addressed transport framework (LAMPv2).
+The development of LAMP followed an iterative trajectory, progressing from an initial stateless baseline (LAMPv1) to a stateful, addressed transport architecture (LAMPv2).
 
 \subsubsection{Stateless Header Specification}
 The initial protocol version, LAMPv1, was engineered for maximum header compression during periodic sensor telemetry transfers over point-to-point links. It utilized a compact 7-byte Logical Header containing only sequence tracking and payload bounds (\texttt{messageId} [2~B], \texttt{totalChunks} [1~B], \texttt{chunkIndex} [1~B], \texttt{payloadSize} [1~B], \texttt{flags} [1~B], and \texttt{protocolVersion} [1~B]). 
@@ -586,7 +586,7 @@ To resolve the limitations of LAMPv1, LAMPv2 introduces an addressed, stateful t
 
 Although adding 2~bytes to the header increases over-the-air frame length by less than 0.8\% on a 244-byte payload, this trade-off delivers essential architectural guarantees:
 \begin{enumerate}
-  \item \textit{Buffer Memory Safety}: The \ac{3WHS} exchange allows nodes to negotiate reassembly buffer limits (\texttt{SynMetadata}) prior to payload transmission, guaranteeing zero buffer overflows.
+  \item \textit{Buffer Memory Safety}: The \ac{3WHS} exchange allows nodes to negotiate reassembly buffer limits (\texttt{SynMetadata}) prior to payload transmission, preventing allocation failures on memory-constrained receivers.
   \item \textit{Channel Session Isolation}: Explicit node addressing completely prevents promiscuous packet hijacking and session corruption in multi-node wireless topologies.
   \item \textit{IPv6 Addressing Compatibility}: The 8-bit address space maps natively to local IPv6 link-local subnet suffixes without the overhead of full 128-bit IP headers over the air.
 \end{enumerate}
@@ -688,8 +688,8 @@ The fields in the Logical Header are defined as follows:
 
 After the payload, a 16-bit CRC-16 (Modbus CRC-16, polynomial \texttt{0xA001}, initialized to \texttt{0xFFFF}) is appended. The checksum covers the entire 9-byte header and valid payload bytes, reliably detecting transmission corruptions.
 
-\subsection{Selective Acknowledgment (SACK) Retransmission}
-To provide reliable delivery under lossy radio conditions while maintaining minimal airtime overhead, the protocol implements a Selective Acknowledgment (\ac{SACK}) mechanism~\cite{lora-arq-sar}.
+\subsection{Selective Acknowledgment and Retransmission}
+In reliable mode, the protocol implements a \ac{SACK} mechanism~\cite{lora-arq-sar} to recover lost fragments with minimal additional airtime.
 
 \subsubsection{Retransmission Protocol Interaction}
 When a transmission is executed in reliable mode:
@@ -809,7 +809,7 @@ As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle fo
 \end{figure*}
 
 \subsection{Concurrency and Fault Handling}
-To ensure protocol stability in multiagent and lossy environments, LAMP incorporates strict exception handling mechanics:
+To ensure protocol stability in multi-node and lossy environments, LAMP incorporates the following fault-handling mechanisms:
 \begin{itemize}
   \item \textit{Simultaneous Connection Resolution}: If two nodes transmit \texttt{SYN} frames to each other simultaneously, a deterministic tie-breaking rule resolves the conflict: the node with the lower numerical \texttt{NodeAddress} yields and transitions back to \texttt{CLOSED}, while the node with the higher \texttt{NodeAddress} proceeds with session setup.
   \item \textit{Receiver Busy Rejection}: If a receiver receives a \texttt{SYN} frame while its active reassembly session is already locked by another node, it responds with a \texttt{CONN\_NACK} frame (\texttt{FLAG\_CONN\_NACK}) specifying a \texttt{BUSY} status code, causing the requester to back off.
@@ -818,9 +818,10 @@ To ensure protocol stability in multiagent and lossy environments, LAMP incorpor
 \end{itemize}
 
 \section{Preliminary Proof of Concept}
-An initial prototype used commercial Ebyte E220-series modules and validated the segmentation concept. That prototype demonstrated feasibility during preliminary field trials but highlighted three important limitations: (1) the modules exposed a proprietary network layer without full control of physical/link layer parameters, (2) an unoptimized, heavy application header in every chunk introduced excessive airtime overhead, and (3) there was no lightweight acknowledgment or retransmission mechanism.
+An initial prototype using commercial Ebyte E220-series modules validated the core segmentation concept. Field trials confirmed feasibility but exposed three limitations: (1)~the modules exposed a proprietary network layer that prevented direct control of physical-layer parameters; (2)~a large, unoptimized application header inflated per-chunk airtime; and (3)~no acknowledgment or retransmission mechanism was available.
 
-To address these shortcomings, we designed the LAMP library on Semtech SX126x-class transceivers (demonstrated on a Heltec Wi-Fi \ac{LoRa} 32 V3 development board). The new implementation keeps the protocol independent of vendor-specific APIs and focuses on the primitives described above: a 9-byte Logical Header (incorporating 8-bit node addressing and \ac{3WHS} dynamic negotiation), a per-packet \ac{CRC}-16 covering header and payload, and \ac{SACK}-based reliable delivery. Receivers reassemble messages by matching the \texttt{messageId} and collecting fragments indexed from 0 to \texttt{totalChunks} - 1. Duplicate fragments are ignored by checking the received bitmap in the session.
+These findings motivated the redesign on Semtech SX126x-class transceivers via the RadioLib driver, validated on Heltec Wi-Fi \ac{LoRa}~32~V3 boards. The revised implementation---described in the following sections---is fully hardware-agnostic through the \ac{HAL} interface and incorporates the 9-byte Logical Header, \ac{CRC}-16 integrity checks, and the \ac{SACK}-based retransmission mechanism.
+
 \section{Hardware Level Implementation}
 To validate the proposed protocol, a complete implementation of the LAMP library was developed in C++17. The design is modular, separating the transport state machine from physical hardware dependencies.
 
