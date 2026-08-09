@@ -1,5 +1,10 @@
 {
     "latex-workshop.latex.recipe.default": "first",
+    "latex-workshop.message.badbox.show": false,
+    "latex-workshop.diagnostics.ignored": [
+        ".*Underfull.*",
+        ".*badness.*"
+    ],
     "latex-workshop.latex.recipes": [
         {
             "name": "pdflatex -> bibtex -> pdflatex*2",
