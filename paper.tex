@@ -568,12 +568,12 @@ To clearly position the proposed protocol within the current technological lands
 \section{Proposed System Architecture}
 The proposed protocol, LAMP, operates as a custom transport-layer architecture running directly over \ac{LoRa} physical layers. It aims to segment arbitrarily large payloads at the transmitter and reliably reconstruct them at the receiver, while keeping Logical Header and \ac{OTA} overhead minimal.
 \subsection{Protocol Specification and Design Iterations}
-The development of LAMP followed an iterative engineering trajectory, progressing from an initial stateless baseline (v1) to a full-fledged, stateful, and addressed transport framework (v2).
+The development of LAMP followed an iterative engineering trajectory, progressing from an initial stateless baseline (LAMPv1) to a full-fledged, stateful, and addressed transport framework (LAMPv2).
 
 \subsubsection{Stateless Header Specification}
-The initial protocol version (v1) was engineered for maximum header compression during periodic sensor telemetry transfers over point-to-point links. It utilized a compact 7-byte Logical Header containing only sequence tracking and payload bounds (\texttt{messageId} [2~B], \texttt{totalChunks} [1~B], \texttt{chunkIndex} [1~B], \texttt{payloadSize} [1~B], \texttt{flags} [1~B], and \texttt{protocolVersion} [1~B]). 
+The initial protocol version, LAMPv1, was engineered for maximum header compression during periodic sensor telemetry transfers over point-to-point links. It utilized a compact 7-byte Logical Header containing only sequence tracking and payload bounds (\texttt{messageId} [2~B], \texttt{totalChunks} [1~B], \texttt{chunkIndex} [1~B], \texttt{payloadSize} [1~B], \texttt{flags} [1~B], and \texttt{protocolVersion} [1~B]). 
 
-While v1 achieved high spectral efficiency for isolated datagram bursts, real-world deployment on embedded hardware exposed three critical architectural vulnerabilities:
+While LAMPv1 achieved high spectral efficiency for isolated datagram bursts, real-world deployment on embedded hardware exposed three critical architectural vulnerabilities:
 \begin{itemize}
   \item \textit{Speculative Buffer Allocation}: Receivers were forced to allocate reassembly memory speculatively upon receiving the first fragment of an unannounced stream. When receiving large payloads (e.g., image tiles or firmware blocks), memory-constrained microcontrollers frequently suffered heap exhaustion or buffer overflows.
   \item \textit{Session Interference}: Lacking explicit source and destination identifiers, multiple unaddressed transmitters sharing the same RF channel risked interleaving fragments with identical sequence numbers, leading to corrupted reassembly buffers.
@@ -581,7 +581,7 @@ While v1 achieved high spectral efficiency for isolated datagram bursts, real-wo
 \end{itemize}
 
 \subsubsection{Addressed Logical Header Specification}
-To resolve the limitations of v1, LAMP Version 2 introduces an addressed, stateful transport architecture. Version 2 expands the Logical Header to 9~bytes by embedding explicit 8-bit Source (\texttt{srcAddr}) and Destination (\texttt{dstAddr}) Node Identifiers, while incorporating an integrated \ac{3WHS} mechanism.
+To resolve the limitations of LAMPv1, LAMPv2 introduces an addressed, stateful transport architecture. LAMPv2 expands the Logical Header to 9~bytes by embedding explicit 8-bit Source (\texttt{srcAddr}) and Destination (\texttt{dstAddr}) Node Identifiers, while incorporating an integrated \ac{3WHS} mechanism.
 
 Although adding 2~bytes to the header increases over-the-air frame length by less than 0.8\% on a 244-byte payload, this trade-off delivers essential architectural guarantees:
 \begin{enumerate}
@@ -751,7 +751,7 @@ If the transmitter does not receive a \ac{SACK} packet within a dynamic timeout 
 \end{figure*}
 
 \subsection{Session Control and Handshake Protocol}
-To support stateful stream negotiation and protect resource-constrained receivers from buffer overflows, LAMP Version 2 introduces a \ac{3WHS} mechanism.
+To support stateful stream negotiation and protect resource-constrained receivers from buffer overflows, LAMPv2 introduces a \ac{3WHS} mechanism.
 
 \subsubsection{Three-Way Handshake Procedure}
 As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle follows a three-step exchange:
