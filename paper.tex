@@ -414,7 +414,7 @@
 
 % The paper headers
 \markboth{Journal of Telecommunications}%
-{Monticelli \MakeLowercase{\textit{et al.}}: Development of a Segmented, Reliable Communication Protocol for Data Transmission over Long-Range (LoRa) Links}
+{Monticelli \MakeLowercase{\textit{et al.}}: Development of a Segmented, Reliable Communication Protocol for Data Transmission over Long-Range (\ac{LoRa}) Links}
 % The only time the second header will appear is for the odd numbered pages
 % after the title page when using the twoside option.
 % 
@@ -498,9 +498,9 @@ its robust modulation technique and open network architecture~\cite{8424846}.
 However, conventional solutions based on \ac{LoRa} (particularly those following
 the \ac{LoRaWAN} specifications) are optimized for small, non-frequent payloads~\cite{8016141}.
 
-This layout limitation poses severe restrictions on modern IoT applications, such as drone telemetry, environmental log collections, or remote imaging, which demand the continuous transfer of large data blocks~\cite{multimedia-lora-survey, dare-lorawan}. Standard LoRaWAN links require substantial transmission overhead, restrictive duty-cycle limitations, and lack optimized mechanisms for handling large, multi-packet payloads in point-to-point configurations.
+This layout limitation poses severe restrictions on modern IoT applications, such as drone telemetry, environmental log collections, or remote imaging, which demand the continuous transfer of large data blocks~\cite{multimedia-lora-survey, dare-lorawan}. Standard \ac{LoRaWAN} links require substantial transmission overhead, restrictive duty-cycle limitations, and lack optimized mechanisms for handling large, multi-packet payloads in point-to-point configurations.
 
-This paper presents the design and implementation of a comprehensive, lightweight transport protocol for point-to-point \ac{LoRa} networks. While early iterations of this work primarily focused on payload segmentation, the introduction of a Selective Acknowledgment (SACK) scheme, a Hardware Abstraction Layer (HAL), and dual reliable/best-effort transmission modes has evolved the architecture into a full-fledged transport solution. It is designed to support the transmission of large data payloads (up to 65.0~KB theoretically, and 62.2~KB on standard 255-byte FIFO LoRa transceivers) over point-to-point topologies, theoretically minimizing the radio duty-cycle footprint compared to traditional Stop-and-Wait approaches while operating entirely independently of higher-layer middleware (e.g., \ac{LoRaWAN}). 
+This paper presents the design and implementation of a comprehensive, lightweight transport protocol for point-to-point \ac{LoRa} networks. While early iterations of this work primarily focused on payload segmentation, the introduction of a Selective Acknowledgment (SACK) scheme, a Hardware Abstraction Layer (HAL), and dual reliable/best-effort transmission modes has evolved the architecture into a full-fledged transport solution. It is designed to support the transmission of large data payloads (up to 65.0~KB theoretically, and 62.2~KB on standard 255-byte FIFO \ac{LoRa} transceivers) over point-to-point topologies, theoretically minimizing the radio duty-cycle footprint compared to traditional Stop-and-Wait approaches while operating entirely independently of higher-layer middleware (e.g., \ac{LoRaWAN}). 
 
 The key contributions of this work are three-fold:
 \begin{itemize}
@@ -514,29 +514,29 @@ This approach is generalizable to a wide range of \ac{IoT} applications requirin
 \section{State of The Art}
 Reliable packet transmission and fragmentation over Low-Power Wide-Area Networks (LPWANs) have been actively studied to support data-intensive IoT applications. 
 
-A prominent industrial standard is Static Context Header Compression (SCHC)~\cite{dare-lorawan}, which introduces a framework for fragmenting IPv6 packets over resource-constrained networks. To guarantee reliability, SCHC ACK frames carry a bitmap representing the status of individual tiles within a window (ACK-on-Error). However, SCHC is designed as a generic adaptation layer for IP-based architectures, requiring pre-shared context rules and gateway-centric networks. Similarly, the LoRa Alliance standardized the Fragmented Data Block Transport specification to support Firmware Update Over The Air (FUOTA) using Forward Error Correction (FEC) codes to reconstruct blocks without feedback. However, FEC-based recovery introduces a constant over-the-air encoding overhead and high computational requirements for low-cost embedded systems.
+A prominent industrial standard is Static Context Header Compression (SCHC)~\cite{dare-lorawan}, which introduces a framework for fragmenting IPv6 packets over resource-constrained networks. To guarantee reliability, SCHC ACK frames carry a bitmap representing the status of individual tiles within a window (ACK-on-Error). However, SCHC is designed as a generic adaptation layer for IP-based architectures, requiring pre-shared context rules and gateway-centric networks. Similarly, the \ac{LoRa} Alliance standardized the Fragmented Data Block Transport specification to support Firmware Update Over The Air (FUOTA) using Forward Error Correction (FEC) codes to reconstruct blocks without feedback. However, FEC-based recovery introduces a constant over-the-air encoding overhead and high computational requirements for low-cost embedded systems.
 
-For custom peer-to-peer LoRa networks, early efforts focused on overcoming the severe airtime latencies of traditional Stop-and-Wait (S\&W) ARQ schemes~\cite{multimedia-lora-survey}, where the transmitter blocks and waits for a dedicated acknowledgment after every single chunk. A pioneering contribution in this domain was introduced by Chen et al.~\cite{mplr-chen2019} with the Multi-Packet LoRa (MPLR) protocol. MPLR introduced the core concept of replacing Stop-and-Wait ARQ with a windowed batch transmission scheme acknowledged by a bit-vector acknowledgment packet (\texttt{BVACK}). Subsequent specialized studies explored multi-hop relay networks for visual IoT coverage~\cite{kim2022multihop}, comprehensive mesh survey frameworks~\cite{wong2024mesh}, and Time Division Multiplexing (TDM) scheduled channels~\cite{wei2020tdm}.
+For custom peer-to-peer \ac{LoRa} networks, early efforts focused on overcoming the severe airtime latencies of traditional Stop-and-Wait (S\&W) ARQ schemes~\cite{multimedia-lora-survey}, where the transmitter blocks and waits for a dedicated acknowledgment after every single chunk. A pioneering contribution in this domain was introduced by Chen et al.~\cite{mplr-chen2019} with the Multi-Packet \ac{LoRa} (MPLR) protocol. MPLR introduced the core concept of replacing Stop-and-Wait ARQ with a windowed batch transmission scheme acknowledged by a bit-vector acknowledgment packet (\texttt{BVACK}). Subsequent specialized studies explored multi-hop relay networks for visual IoT coverage~\cite{kim2022multihop}, comprehensive mesh survey frameworks~\cite{wong2024mesh}, and Time Division Multiplexing (TDM) scheduled channels~\cite{wei2020tdm}.
 
 While \texttt{LAMP} draws foundational inspiration from the bit-vector SACK mechanism introduced in MPLR~\cite{mplr-chen2019}, our architecture introduces major engineering and protocol-level advancements that generalize and optimize the concept for modern embedded IoT applications:
 \begin{itemize}
   \item \textbf{Header Overhead Optimization}: MPLR relies on a 16-byte header per fragment (carrying 4-byte Destination EUI, 4-byte Source EUI, Service Number, Sequence Number, Flags, Payload Size, Batch Size, and Checksum). In contrast, \texttt{LAMP} reduces header overhead to a 9-byte Logical Header (1-byte~\texttt{srcAddr}, 1-byte~\texttt{dstAddr}, 2-byte~\texttt{messageId}, 1-byte~\texttt{totalChunks}, 1-byte~\texttt{chunkIndex}, 1-byte~\texttt{payloadSize}, 1-byte~\texttt{flags}, and 1-byte~\texttt{protocolVersion}). This saves 7~bytes of over-the-air overhead per chunk.
-  \item \textbf{Target Scope}: MPLR was engineered specifically as an application-level image transmission protocol for agricultural uplink nodes to a central gateway. \texttt{LAMP} is designed as a domain-agnostic, general-purpose transport layer capable of segmenting any arbitrary data payload up to 62.2~KB on standard LoRa transceivers (ranging from high-frequency sensor telemetry arrays and robotic SLAM keyframes to firmware binaries and multiagent state matrices).
+  \item \textbf{Target Scope}: MPLR was engineered specifically as an application-level image transmission protocol for agricultural uplink nodes to a central gateway. \texttt{LAMP} is designed as a domain-agnostic, general-purpose transport layer capable of segmenting any arbitrary data payload up to 62.2~KB on standard \ac{LoRa} transceivers (ranging from high-frequency sensor telemetry arrays and robotic SLAM keyframes to firmware binaries and multiagent state matrices).
   \item \textbf{Flexible Operational Modes}: MPLR operates under a single stateful batch delivery model. In contrast, \texttt{LAMP} provides four operational modes spanning \textit{Unreliable Connectionless} (best-effort datagrams), \textit{Unreliable Connected} (session-tracked streaming), \textit{Reliable Connectionless} (stateless SACK-ARQ), and \textit{Reliable Connected} (stateful negotiated streams).
   \item \textbf{Dynamic Parameter Negotiation}: MPLR utilizes a fixed batch size and requires a 4-way handshake tear-down (\texttt{FIN}/\texttt{ACK}). \texttt{LAMP} implements a lightweight 3-Way Handshake (3WHS) embedded with dynamic parameter negotiation (\texttt{SynMetadata} and \texttt{SynAckMetadata} negotiating chunk size, sliding window, and inactivity timeout) and replaces explicit tear-down overhead with automatic idle session pruning.
 \end{itemize}
 
-To clearly position the proposed protocol within the current technological landscape, Table~\ref{tab:arch_comparison} provides an architectural comparison with other prominent fragmentation and transport solutions over LoRa, including MPLR.
+To clearly position the proposed protocol within the current technological landscape, Table~\ref{tab:arch_comparison} provides an architectural comparison with other prominent fragmentation and transport solutions over \ac{LoRa}, including MPLR.
 
 \begin{table*}[htpb]
 \centering
-\caption{Architectural Comparison of LoRa Transport Solutions}
+\caption{Architectural Comparison of \ac{LoRa} Transport Solutions}
 \label{tab:arch_comparison}
-\renewcommand{\arraystretch}{1.35}
+\renewcommand{\arraystretch}{1.15}
 \small
 \begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
 \hline
-\textbf{Feature} & \textbf{Stop-and-Wait} & \textbf{SCHC~\cite{dare-lorawan}} & \textbf{LoRaWAN Frag.} & \textbf{MPLR~\cite{mplr-chen2019}} & \textbf{Proposed (\texttt{LAMP})} \\ \hline
+\textbf{Feature} & \textbf{Stop-and-Wait} & \textbf{SCHC~\cite{dare-lorawan}} & \textbf{\ac{LoRaWAN} Frag.} & \textbf{MPLR~\cite{mplr-chen2019}} & \textbf{Proposed (\texttt{LAMP})} \\ \hline
 \textbf{ACK / Retransmission} & Per-Packet ACK & ACK-on-Error Bitmap & None (FEC Code) & Bit-Vector SACK & Bit-Vector SACK \\ \hline
 \textbf{Header Size} & 2--4 Bytes & 1--2 Bytes & 2 Bytes & 16 Bytes & 9 Bytes \\ \hline
 \textbf{Max Frame Payload} & 240+ Bytes & Variable & Variable & 239 Bytes & 244 Bytes \\ \hline
@@ -601,7 +601,7 @@ To maintain a compact 9-byte header while supporting robust out-of-order packet 
 Explicitly carrying \texttt{totalChunks} in every fragment header allows the receiver to instantly determine the exact message bounds and pre-allocate the required reassembly buffer and SACK bitmap upon receiving \textit{any} fragment, even if fragments arrive out of order or if the initial chunk is lost.
 
 \subsubsection{Compact Node Addressing}
-To support multi-node communication without incurring the prohibitive airtime overhead of full 128-bit IPv6 headers on LoRa PHY payloads, \texttt{LAMP} introduces a compact 8-bit Node Identifier space:
+To support multi-node communication without incurring the prohibitive airtime overhead of full 128-bit IPv6 headers on \ac{LoRa} PHY payloads, \texttt{LAMP} introduces a compact 8-bit Node Identifier space:
 \begin{itemize}
   \item \textbf{\texttt{0x00} (\texttt{ADDRESS\_UNASSIGNED})}: Reserved for legacy or unaddressed P2P datagrams (promiscuous mode).
   \item \textbf{\texttt{0x01}--\texttt{0xFE}}: 254 unique individual node addresses (Unicast).
@@ -682,7 +682,7 @@ When a transmission is executed in reliable mode:
 \end{enumerate}
 
 \subsubsection{Half-Duplex Hardware Switching Guard}
-Because LoRa transceivers are half-duplex, a hardware transition period is required for the transmitter to switch from transmit (TX) mode to receive (RX) mode after sending a packet. If the receiver replies instantly, the transmitter will miss the SACK preamble. To guarantee correct reception, the receiver introduces a configurable hardware guard delay (e.g., 25~ms) before transmitting the SACK packet.
+Because \ac{LoRa} transceivers are half-duplex, a hardware transition period is required for the transmitter to switch from transmit (TX) mode to receive (RX) mode after sending a packet. If the receiver replies instantly, the transmitter will miss the SACK preamble. To guarantee correct reception, the receiver introduces a configurable hardware guard delay (e.g., 25~ms) before transmitting the SACK packet.
 
 \subsubsection{Timeout and Fallback Recovery}
 If the transmitter does not receive a SACK packet within a dynamic timeout threshold based on estimated ToA, it assumes that either the query or the response was lost. The transmitter falls back to retransmitting the final chunk of the sequence marked with \texttt{FLAG\_ACK\_REQ} to trigger a new status report. Up to 5 consecutive timeouts are allowed before the transmission is aborted as failed.
@@ -812,7 +812,7 @@ To ensure protocol stability in multiagent and lossy environments, \texttt{LAMP}
 \section{Preliminary Proof of Concept}
 An initial prototype used commercial Ebyte E220-series modules and validated the segmentation concept. That prototype demonstrated feasibility during preliminary field trials but highlighted three important limitations: (1) the modules exposed a proprietary network layer without full control of physical/link layer parameters, (2) an unoptimized, heavy application header in every chunk introduced excessive airtime overhead, and (3) there was no lightweight acknowledgment or retransmission mechanism.
 
-To address these shortcomings, we designed the \texttt{LAMP} library on Semtech SX126x-class transceivers (demonstrated on a Heltec Wi-Fi LoRa 32 V3 development board). The new implementation keeps the protocol independent of vendor-specific APIs and focuses on the primitives described above: a 9-byte Logical Header (incorporating 8-bit node addressing and 3WHS dynamic negotiation), a per-packet CRC-16 covering header and payload, and SACK-based reliable delivery. Receivers reassemble messages by matching the \texttt{messageId} and collecting fragments indexed from 0 to \texttt{totalChunks} - 1. Duplicate fragments are ignored by checking the received bitmap in the session.
+To address these shortcomings, we designed the \texttt{LAMP} library on Semtech SX126x-class transceivers (demonstrated on a Heltec Wi-Fi \ac{LoRa} 32 V3 development board). The new implementation keeps the protocol independent of vendor-specific APIs and focuses on the primitives described above: a 9-byte Logical Header (incorporating 8-bit node addressing and 3WHS dynamic negotiation), a per-packet CRC-16 covering header and payload, and SACK-based reliable delivery. Receivers reassemble messages by matching the \texttt{messageId} and collecting fragments indexed from 0 to \texttt{totalChunks} - 1. Duplicate fragments are ignored by checking the received bitmap in the session.
 \section{Hardware Level Implementation}
 To validate the proposed protocol, a complete implementation of the \texttt{LAMP} library was developed in C++17. The design is modular, separating the transport state machine from physical hardware dependencies.
 
@@ -833,7 +833,7 @@ Following a Test-Driven Development (TDD) methodology, the protocol core (e.g., 
 \end{itemize}
 
 \subsection{Physical Benchmarking Setup}
-Physical tests were conducted using two Heltec Wi-Fi LoRa~32~V3 development boards. The transmitter node was connected to a console runner to sweep payload sizes, while the receiver node operated as a standalone listener. The transceivers were configured with the following parameters:
+Physical tests were conducted using two Heltec Wi-Fi \ac{LoRa}~32~V3 development boards. The transmitter node was connected to a console runner to sweep payload sizes, while the receiver node operated as a standalone listener. The transceivers were configured with the following parameters:
 \begin{itemize}
   \item \textbf{Carrier Frequency}: 868.0~MHz
   \item \textbf{Spreading Factor (SF)}: 7
@@ -920,7 +920,7 @@ These benchmarks will allow us to evaluate the efficiency of the SACK retransmis
 % Once the sender receives the \texttt{CONN\_ACK}, it starts streaming the data chunks. This handshake synchronizes the transceivers' half-duplex states and prevents wasteful Time-on-Air and battery consumption.
 
 \section{Conclusion and Architectural Roadmap}
-This paper presented the design, implementation, and hardware validation of \texttt{LAMP}, a lightweight and reliable transport-layer architecture optimized for transmitting segmented large payloads over point-to-point LoRa links. By replacing traditional Stop-and-Wait per-packet acknowledgments with selective retransmissions requested via cumulative binary bitmaps, and eliminating redundant SOM/EOM markers in favor of implicit index derivation, the protocol achieves high reliability under lossy conditions with minimal airtime overhead and duty-cycle footprint.
+This paper presented the design, implementation, and hardware validation of \texttt{LAMP}, a lightweight and reliable transport-layer architecture optimized for transmitting segmented large payloads over point-to-point \ac{LoRa} links. By replacing traditional Stop-and-Wait per-packet acknowledgments with selective retransmissions requested via cumulative binary bitmaps, and eliminating redundant SOM/EOM markers in favor of implicit index derivation, the protocol achieves high reliability under lossy conditions with minimal airtime overhead and duty-cycle footprint.
 
 \subsection{Three-Level Architectural Evolution Roadmap}
 To guide the long-term progression of \texttt{LAMP} from point-to-point data links to decentralized multiagent mesh networks, we define a strategic three-level architectural roadmap:
