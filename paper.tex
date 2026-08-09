@@ -463,13 +463,14 @@
 \maketitle
 
 \begin{abstract}
-  This paper presents \ac{LAMP}, a lightweight transport architecture that enables the continuous transfer of large data blocks over point-to-point \ac{LoRa} networks. To overcome the severe Time-on-Air overhead and duty-cycle exhaustion typical of existing Stop-and-Wait solutions, the proposed architecture segments payloads into up to 255 chunks per transmission window. Each chunk is secured by a compact 9-byte Logical Header incorporating IPv6-ready node addressing and a \ac{CRC} checksum. The protocol provides four distinct operational modes combining connection state (connectionless vs. stateful) and reliability (best-effort vs. \ac{SACK}-\ac{ARQ} feedback). By requiring receiver feedback only at sequence boundaries rather than per-packet, the \ac{SACK} mechanism significantly reduces acknowledgment overhead without relying on heavy \ac{FEC}. We outline a comprehensive testing methodology to evaluate the protocol across variable distances (1--5000~m) under \ac{LoS} and \ac{NLoS} conditions. Initial short-range benchmarking demonstrates that the reliable mode introduces minimal latency and throughput overhead compared to the best-effort baseline, providing a flexible, high-capacity data link for resource-constrained embedded systems.
+  This paper presents \ac{LAMP}, a lightweight transport architecture that enables the continuous transfer of large data blocks over point-to-point \ac{LoRa} networks. To overcome the severe Time-on-Air overhead and duty-cycle exhaustion typical of existing Stop-and-Wait solutions, the proposed architecture segments payloads into up to 255 chunks per transmission window. Each chunk is secured by a compact 9-byte Logical Header incorporating IPv6-ready node addressing and a \ac{CRC} checksum. The protocol provides four distinct operational modes combining connection state (Connectionless / Stateful) and reliability (Best-effort / {SACK}-{ARQ} feedback). By requiring receiver feedback only at sequence boundaries rather than per-packet, the \ac{SACK} mechanism significantly reduces acknowledgment overhead without relying on heavy \ac{FEC}. %We outline a comprehensive testing methodology to evaluate the protocol across variable distances (1--5000~m) under \ac{LoS} and \ac{NLoS} conditions. 
+  %Initial short-range benchmarking demonstrates that the reliable mode introduces minimal latency and throughput overhead compared to the best-effort baseline, providing a flexible, high-capacity data link for resource-constrained embedded systems.
 \end{abstract}
 
 % Note that keywords are not normally used for peerreview papers.
-\begin{IEEEkeywords}
-\ac{LoRa}, \ac{SACK}, packet fragmentation, transport protocol, \ac{IoT}.
-\end{IEEEkeywords}
+% \begin{IEEEkeywords}
+% \ac{LoRa}, \ac{SACK}, packet fragmentation, transport protocol, \ac{IoT}.
+% \end{IEEEkeywords}
 
 
 
@@ -506,29 +507,29 @@
 % and "HIS" in caps to complete the first word.
 \IEEEPARstart{L}{ow-power}, low-cost and long-range wireless communication technologies
 are becoming increasingly important in the context of the \ac{IoT}. Applications
-such as environmental monitoring, precision agriculture or \acp{UAV}, require
+such as environmental monitoring, precision agriculture, \acp{UAV} or drone swarms require
 reliable data transmission over extended distances with strict power and hardware
 constraints~\cite{10807074}.
 
-A range of different communication standards, including ZigBee, Sigfox and \ac{LoRa}
+Different communication standards, including ZigBee, Sigfox and \ac{LoRa}
 have been adopted to address these needs, and \ac{LoRa}, in particular, has
 emerged as the leading choice for low-power and long-range deployments thanks to
 its robust modulation technique and open network architecture~\cite{8424846}.
 However, conventional solutions based on \ac{LoRa} (particularly those following
 the \ac{LoRaWAN} specifications) are optimized for small, non-frequent payloads~\cite{8016141}.
 
-This layout limitation poses severe restrictions on modern \ac{IoT} applications, such as drone telemetry, environmental log collections, or remote imaging, which demand the continuous transfer of large data blocks~\cite{multimedia-lora-survey, dare-lorawan}. Standard \ac{LoRaWAN} links require substantial transmission overhead, restrictive duty-cycle limitations~\cite{etsi300220}, and lack optimized mechanisms for handling large, multi-packet payloads in point-to-point configurations.
+This limitation poses severe restrictions on data-intensive \ac{IoT} applications---such as firmware-over-the-air (FOTA) updates, \ac{SLAM} map transfers in autonomous robotics, or bulk sensor log collection---which demand the continuous transfer of large data blocks~\cite{multimedia-lora-survey, dare-lorawan}. Standard \ac{LoRaWAN} links require substantial transmission overhead, restrictive duty-cycle limitations~\cite{etsi300220}, and lack optimized mechanisms for handling large, multi-packet payloads in point-to-point configurations.
 
 This paper presents the design and implementation of a comprehensive, lightweight transport protocol for point-to-point \ac{LoRa} networks. While early iterations of this work primarily focused on payload segmentation, the introduction of a \ac{SACK} scheme, a \ac{HAL}, and dual reliable/best-effort transmission modes has evolved the architecture into a full-fledged transport solution. It is designed to support the transmission of large data payloads (up to 65.0~KB theoretically, and 62.2~KB on standard 255-byte \ac{FIFO} \ac{LoRa} transceivers) over point-to-point topologies, theoretically minimizing the radio duty-cycle footprint compared to traditional Stop-and-Wait approaches while operating entirely independently of higher-layer middleware (e.g., \ac{LoRaWAN}). 
 
 The key contributions of this work are three-fold:
 \begin{itemize}
   \item \textbf{High-Efficiency \ac{SACK} Protocol}: Unlike existing \ac{LPWAN} multimedia transmission protocols in literature that rely on Stop-and-Wait (S\&W) \ac{ARQ}, which requires an acknowledgment for every single packet and introduces severe latency and duty-cycle exhaustion, the proposed protocol implements a \ac{SACK} scheme. By utilizing a compact, cumulative binary bitmap inside a single feedback packet, the receiver reports the status of up to 255 chunks in a single round-trip, minimizing over-the-air overhead and transceivers' duty-cycle footprint.
-  \item \textbf{Lightweight Packet Segmentation and Abstraction}: The protocol introduces a 9-byte logical header (with 8-bit IPv6-ready node addressing) and a custom \ac{CRC} integrity check on partial payloads, allowing robust reassembly of out-of-order chunks on resource-constrained microcontrollers.
+  \item \textbf{Lightweight Packet Segmentation and Abstraction}: The protocol introduces a 9-byte logical header (with 8-bit IPv6-ready node addressing) and a custom \ac{CRC} integrity check on partial payloads, allowing robust reassembly of out-of-order chunks, even on resource-constrained microcontrollers.
   \item \textbf{Modular C++17 Implementation and \ac{TDD} Validation}: The core state machine is completely decoupled from the physical radio driver through a \ac{HAL}. This design enables both native host-based unit testing (using the Unity framework) and physical deployment on Semtech SX126x transceivers, bridging the gap between simulation and real-world embedded systems.
 \end{itemize}
 
-This approach is generalizable to a wide range of \ac{IoT} applications requiring extended data capacity over extended distances and high power efficiency, such as drone telemetry, marine biologging, or multiagent coordinated communications.
+
 
 \section{State of The Art}
 Reliable packet transmission and fragmentation over \acp{LPWAN} have been actively studied to support data-intensive \ac{IoT} applications. 
