@@ -581,7 +581,7 @@ While v1 achieved high spectral efficiency for isolated datagram bursts, real-wo
 \end{itemize}
 
 \subsubsection{Addressed Logical Header Specification}
-To resolve the limitations of v1, LAMP Version 2 introduces a complete, production-grade transport architecture. Version 2 expands the Logical Header to 9~bytes by embedding explicit 8-bit Source (\texttt{srcAddr}) and Destination (\texttt{dstAddr}) Node Identifiers, while incorporating an integrated \ac{3WHS} mechanism.
+To resolve the limitations of v1, LAMP Version 2 introduces an addressed, stateful transport architecture. Version 2 expands the Logical Header to 9~bytes by embedding explicit 8-bit Source (\texttt{srcAddr}) and Destination (\texttt{dstAddr}) Node Identifiers, while incorporating an integrated \ac{3WHS} mechanism.
 
 Although adding 2~bytes to the header increases over-the-air frame length by less than 0.8\% on a 244-byte payload, this trade-off delivers essential architectural guarantees:
 \begin{enumerate}
@@ -626,7 +626,7 @@ To support multi-node communication without incurring the prohibitive airtime ov
   \item \textbf{\texttt{0x01}--\texttt{0xFE}}: 254 unique individual node addresses (Unicast).
   \item \textbf{\texttt{0xFF} (\texttt{ADDRESS\_BROADCAST})}: Broadcast address processed by all active receiving nodes on the RF channel.
 \end{itemize}
-This 8-bit Node ID design is IPv6-ready: at an edge gateway or application layer, a local 8-bit Node ID (e.g., \texttt{0x42}) maps directly to an IPv6 link-local subnet suffix (e.g., \texttt{fe80::42}), enabling seamless IP-layer integration without transmitting heavy IPv6 headers over the constrained radio link.
+This 8-bit Node ID design is IPv6-ready: at an edge gateway or application layer, a local 8-bit Node ID (e.g., \texttt{0x42}) maps directly to an IPv6 link-local subnet suffix (e.g., \texttt{fe80::42}), enabling direct IP-layer mapping without transmitting heavy IPv6 headers over the constrained radio link.
 
 The exact byte alignment and offsets of the 9-byte header packet structure are presented in Table~\ref{tab:packet_offsets} and Figure~\ref{fig:header_layout}.
 
