@@ -113,6 +113,9 @@
 %
 \usepackage{graphicx}
 \usepackage{tabularx}
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 \usepackage{tikz}
 \usetikzlibrary{automata, positioning, arrows.meta}
 \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
@@ -754,6 +757,68 @@ where $T_{\min} = 1000$~ms is the minimum guard, $\alpha = 1.5$ is a safety fact
 12 &1484 & 2251 & 2251 \\ \hline
 \end{tabular}
 \end{table}
+
+\subsection{Formal Protocol Algorithms}
+To ensure complete specification clarity and system-level reproducibility across different hardware platforms, Algorithm~\ref{alg:segmentation} and Algorithm~\ref{alg:reassembly} formally detail the transmitter-side segmentation pipeline and the receiver-side out-of-order reassembly engine, respectively.
+
+\begin{algorithm}[htpb]
+\caption{LAMP Payload Segmentation and Framing (Transmitter)}
+\label{alg:segmentation}
+\small
+\begin{algorithmic}[1]
+\Require Payload $P$ (size $L$), $dstAddr$, Max Chunk Size $S$, Mode $M$
+\Ensure Sequence of frames $F_0, \dots, F_{N-1}$
+\State $N \gets \lceil L / S \rceil$
+\If{$N > 255$} \State \Return \texttt{ERR\_PAYLOAD\_TOO\_LARGE} \EndIf
+\State $msgId \gets \text{GetNextMsgId}()$
+\For{$i \gets 0$ \textbf{to} $N-1$}
+    \State $chunkLen \gets (i == N-1) ? (L - i \cdot S) : S$
+    \State $flags \gets \texttt{FLAG\_NONE}$
+    \If{$M \in \{\text{ReliableDatagram}, \text{ReliableStream}\} \textbf{ and } i == N-1$}
+        \State $flags \gets flags \mid \texttt{FLAG\_ACK\_REQ}$
+    \EndIf
+    \State $hdr \gets \text{BuildHeader}(srcAddr, dstAddr, msgId, N, i, chunkLen, flags)$
+    \State $crc \gets \text{CalcCRC16}(hdr, P[i\cdot S : i\cdot S + chunkLen])$
+    \State $F_i \gets \text{SerializeFrame}(hdr, P[i\cdot S : i\cdot S + chunkLen], crc)$
+    \State $\text{Transmit}(F_i)$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[htpb]
+\caption{Out-of-Order Reassembly \& Session Tracking (Receiver)}
+\label{alg:reassembly}
+\small
+\begin{algorithmic}[1]
+\Require Received Frame $F$
+\Ensure Reassembled Payload $P$ or Drop Status
+\State $(hdr, payload, crc) \gets \text{ParseFrame}(F)$
+\If{$\text{ValidateCRC}(hdr, payload, crc) == \text{FAIL}$} \State \text{Drop}($F$); \Return \EndIf
+\If{$hdr.dstAddr \neq myAddr \textbf{ and } hdr.dstAddr \neq \texttt{0xFF}$} \State \text{Drop}($F$); \Return \EndIf
+\State $session \gets \text{FindOrCreateSession}(hdr.srcAddr, hdr.msgId)$
+\If{$session == \text{NULL}$}
+    \If{$\text{AvailableMem}() < hdr.totalChunks \cdot hdr.payloadSize$} 
+        \State \text{SendNack}(hdr.srcAddr, \texttt{BUSY}); \Return 
+    \EndIf
+    \State $session \gets \text{AllocBuffer}(hdr.totalChunks, hdr.payloadSize)$
+\EndIf
+\State $idx \gets hdr.chunkIndex$
+\If{$\text{IsBitSet}(session.bitmap, idx)$}
+    \State \text{Drop}($F$) \Comment{Duplicate chunk, ignore write}
+\Else
+    \State $\text{WriteBuffer}(session.buffer[idx \cdot S], payload, hdr.payloadSize)$
+    \State $\text{SetBit}(session.bitmap, idx)$
+    \State $session.count \gets session.count + 1$
+\EndIf
+\If{$hdr.flags \ \& \ \texttt{FLAG\_ACK\_REQ}$}
+    \State $\text{SendSackFrame}(hdr.srcAddr, hdr.msgId, session.bitmap)$
+\EndIf
+\If{$session.count == hdr.totalChunks$}
+    \State $P \gets \text{ExtractPayload}(session.buffer)$
+    \State $\text{DeliverToApp}(P)$; \text{FreeSession}($session$)
+\EndIf
+\end{algorithmic}
+\end{algorithm}
 
 \begin{figure*}[htpb]
 \centering
