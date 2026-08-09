@@ -467,10 +467,9 @@
   %Initial short-range benchmarking demonstrates that the reliable mode introduces minimal latency and throughput overhead compared to the best-effort baseline, providing a flexible, high-capacity data link for resource-constrained embedded systems.
 \end{abstract}
 
-% Note that keywords are not normally used for peerreview papers.
-% \begin{IEEEkeywords}
-% \ac{LoRa}, \ac{SACK}, packet fragmentation, transport protocol, \ac{IoT}.
-% \end{IEEEkeywords}
+\begin{IEEEkeywords}
+\ac{LoRa}, \ac{SACK}, packet fragmentation, transport protocol, \ac{IoT}, embedded systems, 3-Way Handshake, point-to-point.
+\end{IEEEkeywords}
 
 
 
@@ -629,6 +628,8 @@ To support multi-node communication without incurring the prohibitive airtime ov
 \end{itemize}
 This 8-bit Node ID design is IPv6-ready: at an edge gateway or application layer, a local 8-bit Node ID (e.g., \texttt{0x42}) maps directly to an IPv6 link-local subnet suffix (e.g., \texttt{fe80::42}), enabling direct IP-layer mapping without transmitting heavy IPv6 headers over the constrained radio link.
 
+The 8-bit address space supports up to 254 unicast nodes per RF cluster, which is sufficient for the dense but bounded deployments targeted by this work (e.g., agricultural sensor arrays, \ac{UAV} swarm sub-clusters). For applications requiring broader network reach, Section~\ref{sec:conclusion} foresees integration of full IPv6 routing, where the 8-bit node identifier serves as a local cluster suffix rather than a global unique identifier.
+
 The exact byte alignment and offsets of the 9-byte header packet structure are presented in Table~\ref{tab:packet_offsets} and Figure~\ref{fig:header_layout}.
 
 \begin{table}[htpb]
@@ -686,7 +687,29 @@ The fields in the Logical Header are defined as follows:
   \item \textbf{\texttt{protocolVersion} (1 byte)}: Identifies protocol version (currently 2) to ensure backward compatibility.
 \end{itemize}
 
-After the payload, a 16-bit CRC-16 (Modbus CRC-16, polynomial \texttt{0xA001}, initialized to \texttt{0xFFFF}) is appended. The checksum covers the entire 9-byte header and valid payload bytes, reliably detecting transmission corruptions.
+After the payload, a 16-bit CRC-16 (Modbus CRC-16, polynomial \texttt{0xA001}, initialized to \texttt{0xFFFF}) is appended. The checksum is computed over the concatenation of the 9-byte Logical Header and exactly \texttt{payloadSize} application-layer bytes; any trailing buffer bytes beyond \texttt{payloadSize} are excluded, so that partial final chunks are validated identically to full-size chunks and inter-implementation interoperability is preserved.
+
+Table~\ref{tab:flag_combinations} summarises all defined flag combinations and the behaviour of the packet parser upon receipt of an undefined value.
+
+\begin{table}[htpb]
+\centering
+\caption{LAMP Flag Field: Valid Combinations and Parser Behaviour}
+\label{tab:flag_combinations}
+\renewcommand{\arraystretch}{1.15}
+\scriptsize
+\begin{tabularx}{\columnwidth}{|c|l|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Value} & \textbf{Semantic} & \textbf{Notes} \\ \hline
+\texttt{0x00} & Data chunk & Unreliable/reliable chunk, no ACK \\ \hline
+\texttt{0x04} & Final chunk (ACK\_REQ) & Receiver replies with SACK \\ \hline
+\texttt{0x08} & SACK feedback & Payload = received-chunk bitmap \\ \hline
+\texttt{0x10} & SYN & 3WHS Step~1 (SynMetadata) \\ \hline
+\texttt{0x30} & SYN-ACK & 3WHS Step~2 (SynAckMetadata) \\ \hline
+\texttt{0x20} & ACK & 3WHS Step~3, no payload \\ \hline
+\texttt{0x40} & CONN-NACK & Payload = rejection reason code \\ \hline
+\textit{other} & \textit{Undefined} & Silently discarded \\ \hline
+\end{tabularx}
+\end{table}
 
 \subsection{Selective Acknowledgment and Retransmission}
 In reliable mode, the protocol implements a \ac{SACK} mechanism~\cite{lora-arq-sar} to recover lost fragments with minimal additional airtime.
@@ -705,7 +728,32 @@ When a transmission is executed in reliable mode:
 Because \ac{LoRa} transceivers are half-duplex, a hardware transition period is required for the transmitter to switch from transmit (TX) mode to receive (RX) mode after sending a packet. If the receiver replies instantly, the transmitter will miss the \ac{SACK} preamble. To guarantee correct reception, the receiver introduces a configurable hardware guard delay (e.g., 25~ms) before transmitting the \ac{SACK} packet.
 
 \subsubsection{Timeout and Fallback Recovery}
-If the transmitter does not receive a \ac{SACK} packet within a dynamic timeout threshold based on estimated ToA, it assumes that either the query or the response was lost. The transmitter falls back to retransmitting the final chunk of the sequence marked with \texttt{FLAG\_ACK\_REQ} to trigger a new status report. Up to 5 consecutive timeouts are allowed before the transmission is aborted as failed.
+If the transmitter does not receive a \ac{SACK} packet within the dynamic timeout window, it assumes the query or response was lost and retransmits the last \texttt{FLAG\_ACK\_REQ}-marked chunk. Up to 5 consecutive timeouts are allowed before the transmission is aborted.
+
+The timeout is computed adaptively as:
+\begin{equation}
+T_{\mathrm{timeout}} = \max\!\left(T_{\min},\;\alpha\cdot\widehat{T}_{\mathrm{oA}} + \delta\right)
+\label{eq:timeout}
+\end{equation}
+where $T_{\min} = 1000$~ms is the minimum guard, $\alpha = 1.5$ is a safety factor, $\widehat{T}_{\mathrm{oA}}$ is the Time-on-Air for the current packet length queried from the radio driver~\cite{semtech-an1200}, and $\delta = 25$~ms is the half-duplex switching guard delay. Table~\ref{tab:timeouts} reports representative timeout values across spreading factors.
+
+\begin{table}[htpb]
+\centering
+\caption{Adaptive SACK Timeout Values (BW~500~kHz, CR~4/5, 253-byte frame)}
+\label{tab:timeouts}
+\renewcommand{\arraystretch}{1.15}
+\footnotesize
+\begin{tabular}{|c|r|r|r|}
+\hline
+\textbf{SF} & \textbf{$\widehat{T}_{\mathrm{oA}}$ (ms)} & \textbf{$\alpha\cdot\widehat{T}_{\mathrm{oA}}+\delta$ (ms)} & \textbf{$T_{\mathrm{timeout}}$ (ms)} \\ \hline
+7  &  92 &  163 & 1000 \\ \hline
+8  & 128 &  217 & 1000 \\ \hline
+9  & 215 &  348 & 1000 \\ \hline
+10 & 371 &  582 & 1000 \\ \hline
+11 & 742 & 1138 & 1138 \\ \hline
+12 &1484 & 2251 & 2251 \\ \hline
+\end{tabular}
+\end{table}
 
 \begin{figure*}[htpb]
 \centering
@@ -919,6 +967,7 @@ These benchmarks will allow us to evaluate the efficiency of the \ac{SACK} retra
 \end{table*}
 
 \section{Conclusion and Architectural Roadmap}
+\label{sec:conclusion}
 This paper presented the design, implementation, and hardware validation of LAMP, a lightweight and reliable transport-layer architecture optimized for transmitting segmented large payloads over point-to-point \ac{LoRa} links. By replacing traditional Stop-and-Wait per-packet acknowledgments with selective retransmissions requested via cumulative binary bitmaps, and eliminating redundant SOM/EOM markers in favor of implicit index derivation, the protocol achieves high reliability under lossy conditions with minimal airtime overhead and duty-cycle footprint.
 
 \subsection{Architectural Roadmap}
