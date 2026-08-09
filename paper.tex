@@ -730,6 +730,8 @@ When a transmission is executed in reliable mode:
 \subsubsection{Half-Duplex Hardware Switching Guard}
 Because \ac{LoRa} transceivers are half-duplex, a hardware transition period is required for the transmitter to switch from transmit (TX) mode to receive (RX) mode after sending a packet. While physical SX1262 transceiver state transitions take $<100\,\mu\text{s}$, the 25~ms guard delay accounts for software-level Real-Time Operating System (RTOS) task scheduling jitter, Serial Peripheral Interface (SPI) bus transaction queuing, and microcontroller wake-up latencies on embedded targets.
 
+It is important to emphasize that all protocol timing parameters, guard delays (e.g., \texttt{SACK\_PREAMBLE\_GUARD\_DELAY\_MS}), and retry limits are fully decoupled into a centralized configuration namespace (\texttt{LoRaMultiPacketConfig}) and can be customized by integrators for any MCU/radio target. The default parameters presented in this study were specifically tuned around the Heltec Wi-Fi \ac{LoRa}~32~V3 (ESP32-S3) hardware platform.
+
 \subsubsection{Timeout and Fallback Recovery}
 If the transmitter does not receive a \ac{SACK} packet within the dynamic timeout window, it assumes the query or response was lost and retransmits the last \texttt{FLAG\_ACK\_REQ}-marked chunk. Up to 5 consecutive timeouts are allowed before the transmission is aborted.
 
