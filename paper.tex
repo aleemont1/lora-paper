@@ -842,13 +842,20 @@ Following a \ac{TDD} methodology, the protocol core (e.g., packet parsing, reass
 \subsection{Physical Benchmarking Setup}
 Physical tests were conducted using two Heltec Wi-Fi \ac{LoRa}~32~V3 development boards. The transmitter node was connected to a console runner to sweep payload sizes, while the receiver node operated as a standalone listener. The transceivers were configured with the following parameters:
 \begin{itemize}
-  \item \textbf{Carrier Frequency}: 868.0~MHz
+  \item \textbf{Carrier Frequency}: 869.525~MHz
   \item \textbf{Spreading Factor (SF)}: 7
   \item \textbf{Bandwidth (BW)}: 500.0~kHz
   \item \textbf{Coding Rate (CR)}: 4/5
   \item \textbf{Output Power}: 10~dBm
   \item \textbf{Preamble Length}: 8 symbols
 \end{itemize}
+
+\subsubsection{Regulatory Compliance and Reproducibility}
+It is important to clarify the relationship between the LAMP transport protocol and RF regulatory constraints. LAMP operates strictly at the \textit{transport layer} and is entirely agnostic to duty-cycle regulations, carrier frequency, and RF power limits; compliance with these constraints is the responsibility of the MAC/PHY layer or the integrating application.
+
+For the experimental validation reported in this work, the 869.400--869.650~MHz sub-band was selected~\cite{etsi300220}. Under ETSI~EN~300~220-1, this sub-band permits a maximum duty cycle of 10\% and an output power of up to 500~mW (27~dBm), providing ample margin for the multi-chunk burst transfers required by the LAMP reliable delivery modes without incurring the restrictive 1\% hourly airtime cap of the primary 868~MHz sub-band.
+
+Additionally, in the reference implementation validated on Heltec~V3 hardware, the optional MAC-layer helpers provided by the LAMP library---namely \ac{SX1262}-native Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) and duty-cycle pacing---were enabled to prevent collisions and further reduce channel occupancy. These features are opt-in and disabled by default; they are not part of the LAMP transport specification but are offered as convenience primitives for integrators targeting shared ISM bands. All experimental results are therefore fully reproducible in any deployment targeting the 869.4--869.65~MHz sub-band with the same radio configuration.
 
 \section{Proposed Experimental Methodology}
 To validate the reliability, latency, and throughput of the LAMP protocol, we outline a series of physical field experiments to be conducted under representative operational scenarios.
@@ -923,7 +930,7 @@ To guide the long-term progression of LAMP from point-to-point data links to dec
   Extending the link layer to support local multi-node clusters sharing the same RF channel. Key features will include:
   \begin{itemize}
     \item \textit{Broadcast and Multicast Messaging}: Utilizing \texttt{0xFF} for unacknowledged broadcast telemetry and group addressing for multiagent synchronization.
-    \item \textit{Shared Channel Access Control}: Implementing Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) or Time Division Multiplexing (TDM)~\cite{wei2020tdm} to prevent collisions during bulk packet bursts in multi-node environments.
+    \item \textit{MAC-Layer Channel Access}: Standardizing the optional CAD/CSMA-CA and \ac{AFA} primitives currently provided as opt-in library helpers into a formally specified MAC sub-layer, enabling full \textit{Polite Spectrum Access} (Listen-Before-Talk + Adaptive Frequency Agility) as defined in ETSI~EN~300~220-1~\cite{etsi300220} for deployments requiring compliance beyond the 10\% duty-cycle sub-band. This removes the duty-cycle percentage constraint entirely, replacing it with per-packet burst duration limits and minimum backoff windows, and supports Time Division Multiplexing (TDM)-scheduled channels for dense deployments~\cite{wei2020tdm}.
     \item \textit{Adaptive Data Rate (\ac{ADR})}: Dynamically tuning Spreading Factor (SF7--SF12) and Coding Rate (CR) based on RSSI/SNR metrics embedded in \ac{SACK} bitmaps.
   \end{itemize}
   
