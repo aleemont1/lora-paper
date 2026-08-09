@@ -520,10 +520,10 @@ For custom peer-to-peer LoRa networks, early efforts focused on overcoming the s
 
 While \texttt{LoRaMultiPacket} draws foundational inspiration from the bit-vector SACK mechanism introduced in MPLR~\cite{mplr-chen2019}, our architecture introduces major engineering and protocol-level advancements that generalize and optimize the concept for modern embedded IoT applications:
 \begin{itemize}
-  \item \textbf{Header Overhead Optimization}: MPLR relies on a 16-byte header per fragment (carrying 4-byte Destination EUI, 4-byte Source EUI, Service Number, Sequence Number, Flags, Payload Size, Batch Size, and Checksum). In contrast, \texttt{LoRaMultiPacket} reduces header overhead to a 9-byte Logical Header (1-byte \texttt{srcAddr}, 1-byte \texttt{dstAddr}, 2-byte \texttt{messageId}, 1-byte \texttt{totalChunks}, 1-byte \texttt{chunkIndex}, 1-byte \texttt{payloadSize}, 1-byte \texttt{flags}, and 1-byte \texttt{protocolVersion}). This saves 7~bytes of over-the-air overhead per chunk.
-  \item \textbf{Use cases}: MPLR was engineered specifically as an application-level image transmission protocol for agricultural uplink nodes to a central gateway. \texttt{LoRaMultiPacket} is designed as a domain-agnostic, general-purpose transport layer capable of segmenting any arbitrary data payload up to 62.7~KB (ranging from high-frequency sensor telemetry arrays and robotic SLAM keyframes to firmware binaries and multi-agent state matrices).
-  \item \textbf{Architectural Taxonomy}: MPLR operates under a single stateful batch delivery model. \texttt{LoRaMultiPacket} defines a 2x2 operational taxonomy spanning \textit{Unreliable Connectionless} (best-effort datagrams), \textit{Unreliable Connected} (session-tracked streaming), \textit{Reliable Connectionless} (stateless SACK-ARQ), and \textit{Reliable Connected} (stateful negotiated streams).
-  \item \textbf{Dynamic Parameter Negotiation}: MPLR utilizes a fixed batch size and requires a 4-way handshake tear-down (\texttt{FIN}/\texttt{ACK}). \texttt{LoRaMultiPacket} implements a lightweight 3-Way Handshake (3WHS) embedded with dynamic parameter negotiation (\texttt{SynMetadata} and \texttt{SynAckMetadata} negotiating chunk size, sliding window, and inactivity timeout) and replaces explicit tear-down overhead with automatic idle session pruning.
+  \item \textbf{Header Overhead Optimization}: MPLR relies on a 16-byte header per fragment (carrying 4-byte Destination EUI, 4-byte Source EUI, Service Number, Sequence Number, Flags, Payload Size, Batch Size, and Checksum). In contrast, \texttt{LoRa\-Multi\-Packet} reduces header overhead to a 9-byte Logical Header (1-byte~\texttt{srcAddr}, 1-byte~\texttt{dstAddr}, 2-byte~\texttt{messageId}, 1-byte~\texttt{totalChunks}, 1-byte~\texttt{chunkIndex}, 1-byte~\texttt{payloadSize}, 1-byte~\texttt{flags}, and 1-byte~\texttt{protocolVersion}). This saves 7~bytes of over-the-air overhead per chunk.
+  \item \textbf{Target Scope}: MPLR was engineered specifically as an application-level image transmission protocol for agricultural uplink nodes to a central gateway. \texttt{LoRa\-Multi\-Packet} is designed as a domain-agnostic, general-purpose transport layer capable of segmenting any arbitrary data payload up to 62.7~KB (ranging from high-frequency sensor telemetry arrays and robotic SLAM keyframes to firmware binaries and multi-agent state matrices).
+  \item \textbf{Architectural Taxonomy}: MPLR operates under a single stateful batch delivery model. \texttt{LoRa\-Multi\-Packet} defines a 2x2 operational taxonomy spanning \textit{Unreliable Connectionless} (best-effort datagrams), \textit{Unreliable Connected} (session-tracked streaming), \textit{Reliable Connectionless} (stateless SACK-ARQ), and \textit{Reliable Connected} (stateful negotiated streams).
+  \item \textbf{Dynamic Parameter Negotiation}: MPLR utilizes a fixed batch size and requires a 4-way handshake tear-down (\texttt{FIN}/\texttt{ACK}). \texttt{LoRa\-Multi\-Packet} implements a lightweight 3-Way Handshake (3WHS) embedded with dynamic parameter negotiation (\texttt{SynMetadata} and \texttt{SynAckMetadata} negotiating chunk size, sliding window, and inactivity timeout) and replaces explicit tear-down overhead with automatic idle session pruning.
 \end{itemize}
 
 To clearly position the proposed protocol within the current technological landscape, Table~\ref{tab:arch_comparison} provides an architectural comparison with other prominent fragmentation and transport solutions over LoRa, including MPLR.
@@ -590,11 +590,12 @@ This 8-bit Node ID design is IPv6-ready: at an edge gateway or application layer
 
 The exact byte alignment and offsets of the 9-byte header packet structure are presented in Table~\ref{tab:packet_offsets} and Figure~\ref{fig:header_layout}.
 
-\begin{table}[t]
+\begin{table}[htpb]
 \centering
 \caption{LoRaMultiPacket OTA Packet Layout and Byte Offsets}
 \label{tab:packet_offsets}
 \renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4pt}
 \footnotesize
 \begin{tabular}{|c|c|l|c|}
 \hline
@@ -668,11 +669,11 @@ If the transmitter does not receive a SACK packet within a dynamic timeout thres
 \begin{figure*}[htpb]
 \centering
 \subfloat[Connection Session Lifecycle FSM (Stateful vs. Stateless)]{%
-  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, every node/.style={align=center}]
-    \node[draw, circle, fill=gray!10, minimum size=1.6cm, text width=1.4cm] (closed) at (0,0) {CLOSED};
-    \node[draw, circle, fill=blue!10, minimum size=1.6cm, text width=1.4cm] (synsent) at (4.5,0) {SYN\_SENT};
-    \node[draw, circle, fill=red!10, minimum size=1.6cm, text width=1.4cm] (synrcvd) at (0,-4.5) {SYN\_RCVD};
-    \node[draw, circle, fill=green!15, minimum size=1.6cm, text width=1.4cm] (established) at (4.5,-4.5) {ESTABLISHED};
+  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, scale=0.86, transform shape, every node/.style={align=center}]
+    \node[draw, circle, fill=gray!10, minimum size=1.5cm, text width=1.5cm] (closed) at (0,0) {CLOSED};
+    \node[draw, circle, fill=blue!10, minimum size=1.5cm, text width=1.5cm] (synsent) at (3.8,0) {SYN\_SENT};
+    \node[draw, circle, fill=red!10, minimum size=1.5cm, text width=1.5cm] (synrcvd) at (0,-3.8) {SYN\_RCVD};
+    \node[draw, circle, fill=green!15, minimum size=1.5cm, text width=1.7cm] (established) at (3.8,-3.8) {ESTABLISHED};
 
     \path
       (closed) edge node[above, font=\tiny] {Send SYN} (synsent)
@@ -686,12 +687,12 @@ If the transmitter does not receive a SACK packet within a dynamic timeout thres
   \label{fig:fsm_connection}%
 }\hfill
 \subfloat[Data Transfer \& SACK-ARQ FSM (Reliable vs. Unreliable)]{%
-  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, every node/.style={align=center}]
-    \node[draw, circle, fill=gray!10, minimum size=1.6cm, text width=1.4cm] (idle) at (0,0) {IDLE};
-    \node[draw, circle, fill=blue!10, minimum size=1.6cm, text width=1.4cm] (send) at (3.8,0) {TX\_CHUNKS};
-    \node[draw, circle, fill=orange!10, minimum size=1.6cm, text width=1.4cm] (wait) at (7.6,0) {WAIT\_SACK};
-    \node[draw, circle, fill=red!10, minimum size=1.6cm, text width=1.4cm] (retransmit) at (7.6,-4.5) {RETX};
-    \node[draw, circle, fill=green!15, minimum size=1.6cm, text width=1.4cm] (completed) at (3.8,-4.5) {DONE};
+  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, scale=0.86, transform shape, every node/.style={align=center}]
+    \node[draw, circle, fill=gray!10, minimum size=1.5cm, text width=1.5cm] (idle) at (0,0) {IDLE};
+    \node[draw, circle, fill=blue!10, minimum size=1.5cm, text width=1.5cm] (send) at (3.2,0) {TX\_CHUNKS};
+    \node[draw, circle, fill=orange!10, minimum size=1.5cm, text width=1.5cm] (wait) at (6.4,0) {WAIT\_SACK};
+    \node[draw, circle, fill=red!10, minimum size=1.5cm, text width=1.5cm] (retransmit) at (6.4,-3.8) {RETX};
+    \node[draw, circle, fill=green!15, minimum size=1.5cm, text width=1.5cm] (completed) at (3.2,-3.8) {DONE};
 
     \path
       (idle) edge node[above, font=\tiny] {Tx Req} (send)
