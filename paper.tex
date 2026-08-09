@@ -509,7 +509,7 @@ The key contributions of this work are three-fold:
   \item \textbf{Modular C++17 Implementation and TDD Validation}: The core state machine is completely decoupled from the physical radio driver through a Hardware Abstraction Layer (HAL). This design enables both native host-based unit testing (using the Unity framework) and physical deployment on Semtech SX126x transceivers, bridging the gap between simulation and real-world embedded systems.
 \end{itemize}
 
-This approach is generalizable to a wide range of \ac{IoT} applications requiring extended data capacity over extended distances and high power efficiency, such as drone telemetry, marine biologging, or multi-agent coordinated communications.
+This approach is generalizable to a wide range of \ac{IoT} applications requiring extended data capacity over extended distances and high power efficiency, such as drone telemetry, marine biologging, or multiagent coordinated communications.
 
 \section{State of The Art}
 Reliable packet transmission and fragmentation over Low-Power Wide-Area Networks (LPWANs) have been actively studied to support data-intensive IoT applications. 
@@ -521,7 +521,7 @@ For custom peer-to-peer LoRa networks, early efforts focused on overcoming the s
 While \texttt{LoRaMultiPacket} draws foundational inspiration from the bit-vector SACK mechanism introduced in MPLR~\cite{mplr-chen2019}, our architecture introduces major engineering and protocol-level advancements that generalize and optimize the concept for modern embedded IoT applications:
 \begin{itemize}
   \item \textbf{Header Overhead Optimization}: MPLR relies on a 16-byte header per fragment (carrying 4-byte Destination EUI, 4-byte Source EUI, Service Number, Sequence Number, Flags, Payload Size, Batch Size, and Checksum). In contrast, \texttt{LoRa\-Multi\-Packet} reduces header overhead to a 9-byte Logical Header (1-byte~\texttt{srcAddr}, 1-byte~\texttt{dstAddr}, 2-byte~\texttt{messageId}, 1-byte~\texttt{totalChunks}, 1-byte~\texttt{chunkIndex}, 1-byte~\texttt{payloadSize}, 1-byte~\texttt{flags}, and 1-byte~\texttt{protocolVersion}). This saves 7~bytes of over-the-air overhead per chunk.
-  \item \textbf{Target Scope}: MPLR was engineered specifically as an application-level image transmission protocol for agricultural uplink nodes to a central gateway. \texttt{LoRa\-Multi\-Packet} is designed as a domain-agnostic, general-purpose transport layer capable of segmenting any arbitrary data payload up to 62.7~KB (ranging from high-frequency sensor telemetry arrays and robotic SLAM keyframes to firmware binaries and multi-agent state matrices).
+  \item \textbf{Target Scope}: MPLR was engineered specifically as an application-level image transmission protocol for agricultural uplink nodes to a central gateway. \texttt{LoRa\-Multi\-Packet} is designed as a domain-agnostic, general-purpose transport layer capable of segmenting any arbitrary data payload up to 62.7~KB (ranging from high-frequency sensor telemetry arrays and robotic SLAM keyframes to firmware binaries and multiagent state matrices).
   \item \textbf{Architectural Taxonomy}: MPLR operates under a single stateful batch delivery model. \texttt{LoRa\-Multi\-Packet} defines a 2x2 operational taxonomy spanning \textit{Unreliable Connectionless} (best-effort datagrams), \textit{Unreliable Connected} (session-tracked streaming), \textit{Reliable Connectionless} (stateless SACK-ARQ), and \textit{Reliable Connected} (stateful negotiated streams).
   \item \textbf{Dynamic Parameter Negotiation}: MPLR utilizes a fixed batch size and requires a 4-way handshake tear-down (\texttt{FIN}/\texttt{ACK}). \texttt{LoRa\-Multi\-Packet} implements a lightweight 3-Way Handshake (3WHS) embedded with dynamic parameter negotiation (\texttt{SynMetadata} and \texttt{SynAckMetadata} negotiating chunk size, sliding window, and inactivity timeout) and replaces explicit tear-down overhead with automatic idle session pruning.
 \end{itemize}
@@ -548,6 +548,29 @@ To clearly position the proposed protocol within the current technological lands
 
 \section{Proposed System Architecture}
 The proposed protocol, \texttt{LoRaMultiPacket}, operates as a custom transport-layer architecture running directly over \ac{LoRa} physical layers. It aims to segment arbitrarily large payloads at the transmitter and reliably reconstruct them at the receiver, while keeping Logical Header and over-the-air (OTA) overhead minimal.
+
+\subsection{Protocol Evolution: From v1 Baseline to v2 Stateful Architecture}
+The development of \texttt{LoRaMultiPacket} followed an iterative engineering trajectory, progressing from an initial stateless baseline (v1) to a full-fledged, stateful, and addressed transport framework (v2).
+
+\subsubsection{Baseline Architecture (v1: Stateless 7-Byte Header)}
+The initial protocol version (v1) was engineered for maximum header compression during periodic sensor telemetry transfers over point-to-point links. It utilized a compact 7-byte Logical Header containing only sequence tracking and payload bounds (\texttt{messageId} [2~B], \texttt{totalChunks} [1~B], \texttt{chunkIndex} [1~B], \texttt{payloadSize} [1~B], \texttt{flags} [1~B], and \texttt{protocolVersion} [1~B]). 
+
+While v1 achieved high spectral efficiency for isolated datagram bursts, real-world deployment on embedded hardware exposed three critical architectural vulnerabilities:
+\begin{itemize}
+  \item \textbf{Unchecked Buffer Pre-allocation}: Receivers were forced to allocate reassembly memory speculatively upon receiving the first fragment of an unannounced stream. When receiving large payloads (e.g., image tiles or firmware blocks), memory-constrained microcontrollers frequently suffered heap exhaustion or buffer overflows.
+  \item \textbf{Session Collision and Hijacking}: Lacking explicit source and destination identifiers, multiple unaddressed transmitters sharing the same RF channel risked interleaving fragments with identical sequence numbers, leading to corrupted reassembly buffers.
+  \item \textbf{Static Transport Parameters}: Fixed chunk sizes and static timeout thresholds prevented dynamic adaptation to link quality degradation or variable receiver memory limits.
+\end{itemize}
+
+\subsubsection{Complete Architecture (v2: Stateful 9-Byte Header with 3WHS)}
+To resolve the limitations of v1, \texttt{LoRaMultiPacket} Version 2 introduces a complete, production-grade transport architecture. Version 2 expands the Logical Header to 9~bytes by embedding explicit 8-bit Source (\texttt{srcAddr}) and Destination (\texttt{dstAddr}) Node Identifiers, while incorporating an integrated 3-Way Handshake (3WHS) mechanism.
+
+Although adding 2~bytes to the header increases over-the-air frame length by less than 0.8\% on a 244-byte payload, this trade-off delivers essential architectural guarantees:
+\begin{enumerate}
+  \item \textbf{Guaranteed Memory Safety}: The 3WHS exchange allows nodes to negotiate reassembly buffer limits (\texttt{SynMetadata}) prior to payload transmission, guaranteeing zero buffer overflows.
+  \item \textbf{Session Isolation}: Explicit node addressing completely prevents promiscuous packet hijacking and session corruption in multi-node wireless topologies.
+  \item \textbf{IPv6 Readiness}: The 8-bit address space maps natively to local IPv6 link-local subnet suffixes without the overhead of full 128-bit IP headers over the air.
+\end{enumerate}
 
 \subsection{Operational Modes and Architectural Taxonomy}
 To accommodate diverse IoT workload requirements—ranging from ultra-fast periodic telemetry streams to critical high-capacity firmware or imaging transfers—\texttt{LoRaMultiPacket} defines four distinct operational modes across two primary dimensions: \textit{Reliability} (Unreliable Best-Effort vs. SACK-Reliable ARQ) and \textit{Connection State} (Connectionless Stateless vs. Connection-Oriented Stateful).
@@ -768,7 +791,7 @@ As illustrated in Figure~\ref{fig:3whs_sequence}(a), the connection lifecycle fo
 \end{figure*}
 
 \subsection{Robustness and Edge-Case Protections}
-To ensure protocol stability in multi-agent and lossy environments, \texttt{LoRaMultiPacket} incorporates strict edge-case resolution mechanics:
+To ensure protocol stability in multiagent and lossy environments, \texttt{LoRaMultiPacket} incorporates strict edge-case resolution mechanics:
 \begin{itemize}
   \item \textbf{Deterministic \texttt{BUSY} Rejection}: If a receiver currently in an active session (\texttt{SYN\_RCVD} or \texttt{ESTABLISHED}) receives a concurrent \texttt{SYN} from a different transmitter, it immediately responds with a \texttt{CONN\_NACK} frame containing reason code \texttt{BUSY} (\texttt{1}). This prevents buffer corruption and informs the second sender without delay.
   \item \textbf{Source Address Matching}: Initiators in \texttt{waitForSynAck} and \texttt{waitForSack} validate that the received feedback frame originates from the exact target node (\texttt{srcAddr == targetAddress}). Responses from un-targeted nodes are ignored to prevent session hijacking.
@@ -780,7 +803,7 @@ To ensure protocol stability in multi-agent and lossy environments, \texttt{LoRa
 \section{Preliminary Proof of Concept}
 An initial prototype used commercial Ebyte E220-series modules and validated the segmentation concept. That prototype demonstrated feasibility during preliminary field trials but highlighted three important limitations: (1) the modules exposed a proprietary network layer without full control of physical/link layer parameters, (2) an unoptimized, heavy application header in every chunk introduced excessive airtime overhead, and (3) there was no lightweight acknowledgment or retransmission mechanism.
 
-To address these shortcomings, we designed the \texttt{LoRaMultiPacket} library on Semtech SX126x-class transceivers (demonstrated on a Heltec WiFi LoRa 32 V3 development board). The new implementation keeps the protocol independent of vendor-specific APIs and focuses on the primitives described above: a 7-byte header, a per-packet CRC-16 covering header and payload, and SACK-based reliable delivery. Receivers reassemble messages by matching the \texttt{messageId} and collecting fragments indexed from 0 to \texttt{totalChunks} - 1. Duplicate fragments are ignored by checking the received bitmap in the session.
+To address these shortcomings, we designed the \texttt{LoRaMultiPacket} library on Semtech SX126x-class transceivers (demonstrated on a Heltec Wi-Fi LoRa 32 V3 development board). The new implementation keeps the protocol independent of vendor-specific APIs and focuses on the primitives described above: a 7-byte header, a per-packet CRC-16 covering header and payload, and SACK-based reliable delivery. Receivers reassemble messages by matching the \texttt{messageId} and collecting fragments indexed from 0 to \texttt{totalChunks} - 1. Duplicate fragments are ignored by checking the received bitmap in the session.
 \section{Hardware Level Implementation}
 To validate the proposed protocol, a complete implementation of the \texttt{LoRaMultiPacket} library was developed in C++17. The design is modular, separating the transport state machine from physical hardware dependencies.
 
@@ -801,7 +824,7 @@ Following a Test-Driven Development (TDD) methodology, the protocol core (e.g., 
 \end{itemize}
 
 \subsection{Physical Benchmarking Setup}
-Physical tests were conducted using two Heltec WiFi LoRa~32~V3 development boards. The transmitter node was connected to a console runner to sweep payload sizes, while the receiver node operated as a standalone listener. The transceivers were configured with the following parameters:
+Physical tests were conducted using two Heltec Wi-Fi LoRa~32~V3 development boards. The transmitter node was connected to a console runner to sweep payload sizes, while the receiver node operated as a standalone listener. The transceivers were configured with the following parameters:
 \begin{itemize}
   \item \textbf{Carrier Frequency}: 868.0~MHz
   \item \textbf{Spreading Factor (SF)}: 7
@@ -891,7 +914,7 @@ These benchmarks will allow us to evaluate the efficiency of the SACK retransmis
 This paper presented the design, implementation, and hardware validation of \texttt{LoRaMultiPacket}, a lightweight and reliable transport-layer architecture optimized for transmitting segmented large payloads over point-to-point LoRa links. By replacing traditional Stop-and-Wait per-packet acknowledgments with selective retransmissions requested via cumulative binary bitmaps, and eliminating redundant SOM/EOM markers in favor of implicit index derivation, the protocol achieves high reliability under lossy conditions with minimal airtime overhead and duty-cycle footprint.
 
 \subsection{Three-Level Architectural Evolution Roadmap}
-To guide the long-term progression of \texttt{LoRaMultiPacket} from point-to-point data links to decentralized multi-agent mesh networks, we define a strategic three-level architectural roadmap:
+To guide the long-term progression of \texttt{LoRaMultiPacket} from point-to-point data links to decentralized multiagent mesh networks, we define a strategic three-level architectural roadmap:
 
 \begin{itemize}
   \item \textbf{Level 1: Point-to-Point Addressed Communication (Implemented \& Validated)}: 
@@ -900,7 +923,7 @@ To guide the long-term progression of \texttt{LoRaMultiPacket} from point-to-poi
   \item \textbf{Level 2: Multi-Node Local Area Communication (Near Future Extension)}: 
   Extending the link layer to support local multi-node clusters sharing the same RF channel. Key features will include:
   \begin{itemize}
-    \item \textit{Broadcast and Multicast Messaging}: Utilizing \texttt{0xFF} for unacknowledged broadcast telemetry and group addressing for multi-agent synchronization.
+    \item \textit{Broadcast and Multicast Messaging}: Utilizing \texttt{0xFF} for unacknowledged broadcast telemetry and group addressing for multiagent synchronization.
     \item \textit{Shared Channel Access Control}: Implementing Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) or Time Division Multiplexing (TDM)~\cite{wei2020tdm} to prevent collisions during bulk packet bursts in multi-node environments.
     \item \textit{Adaptive Data Rate (ADR)}: Dynamically tuning Spreading Factor (SF7--SF12) and Coding Rate (CR) based on RSSI/SNR metrics embedded in SACK bitmaps.
   \end{itemize}
@@ -910,7 +933,7 @@ To guide the long-term progression of \texttt{LoRaMultiPacket} from point-to-poi
   \begin{itemize}
     \item \textit{Mesh Routing Protocol}: Integrating dynamic routing (e.g., AODV-Light or RPL adaptation) with hop-by-hop vs. end-to-end SACK reliability options to limit retransmission overhead over multi-hop links~\cite{wong2024mesh}.
     \item \textit{IPv6 Network Layer Integration}: Leveraging the 8-bit Node ID mapping to establish full IPv6 link-local capability (\texttt{fe80::/64}), connecting micro-drones directly to global IP infrastructure.
-    \item \textit{TDMA / Scheduled Time-Slotted Access}: Incorporating microsecond time synchronization for collision-free multi-agent payload transfers in high-density networks.
+    \item \textit{TDMA / Scheduled Time-Slotted Access}: Incorporating microsecond time synchronization for collision-free multiagent payload transfers in high-density networks.
   \end{itemize}
 \end{itemize}
 % An example of a floating figure using the graphicx package.
