@@ -792,14 +792,14 @@ To ensure complete specification clarity and system-level reproducibility across
 \If{$N > 255$} \State \Return \texttt{ERR\_PAYLOAD\_TOO\_LARGE} \EndIf
 \State $msgId \gets \text{GetNextMsgId}()$
 \For{$i \gets 0$ \textbf{to} $N-1$}
-    \State $chunkLen \gets (i == N-1) ? (L - i \cdot S) : S$
+    \State $cLen \gets (i == N-1) ? (L - i \cdot S) : S$
     \State $flags \gets \texttt{FLAG\_NONE}$
     \If{$M \in \{\text{ReliableDatagram}, \text{ReliableStream}\} \textbf{ and } i == N-1$}
         \State $flags \gets flags \mid \texttt{FLAG\_ACK\_REQ}$
     \EndIf
-    \State $hdr \gets \text{BuildHdr}(srcAddr, dstAddr, msgId, N, i, chunkLen, flags)$
-    \State $crc \gets \text{CalcCRC16}(hdr, P[i\cdot S : i\cdot S + chunkLen])$
-    \State $F_i \gets \text{SerializeFrame}(hdr, P[i\cdot S : i\cdot S + chunkLen], crc)$
+    \State $hdr \gets \text{BuildHdr}(src, dst, msgId, N, i, cLen, flags)$
+    \State $crc \gets \text{CalcCRC16}(hdr, P[i\cdot S : i\cdot S + cLen])$
+    \State $F_i \gets \text{SerializeFrame}(hdr, P[i\cdot S : i\cdot S + cLen], crc)$
     \State $\text{Transmit}(F_i)$
 \EndFor
 \end{algorithmic}
@@ -820,7 +820,7 @@ To ensure complete specification clarity and system-level reproducibility across
     \If{$\text{AvailMem}() < hdr.totalChunks \cdot hdr.payloadSize$} 
         \State \text{SendNack}(hdr.srcAddr, \texttt{BUSY}); \Return 
     \EndIf
-    \State $session \gets \text{AllocBuf}(hdr.totalChunks, hdr.payloadSize)$
+    \State $session \gets \text{AllocBuf}(hdr.totalChunks, hdr.payloadLen)$
 \EndIf
 \State $idx \gets hdr.chunkIndex$
 \If{$\text{IsBitSet}(session.bitmap, idx)$}
@@ -843,7 +843,7 @@ To ensure complete specification clarity and system-level reproducibility across
 \begin{figure*}[htpb]
 \centering
 \subfloat[Connection Session Lifecycle FSM (Stateful vs. Stateless)]{%
-  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, scale=0.86, transform shape, every node/.style={align=center}]
+  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, transform shape, every node/.style={align=center}]
     \node[draw, circle, fill=gray!10, minimum size=1.5cm, text width=1.5cm] (closed) at (0,0) {CLOSED};
     \node[draw, circle, fill=blue!10, minimum size=1.5cm, text width=1.5cm] (synsent) at (3.8,0) {SYN\_SENT};
     \node[draw, circle, fill=red!10, minimum size=1.5cm, text width=1.5cm] (synrcvd) at (0,-3.8) {SYN\_RCVD};
@@ -861,7 +861,7 @@ To ensure complete specification clarity and system-level reproducibility across
   \label{fig:fsm_connection}%
 }\hfill
 \subfloat[Data Transfer \& SACK-ARQ FSM (Reliable vs. Unreliable)]{%
-  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, scale=0.86, transform shape, every node/.style={align=center}]
+  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, transform shape, every node/.style={align=center}]
     \node[draw, circle, fill=gray!10, minimum size=1.5cm, text width=1.5cm] (idle) at (0,0) {IDLE};
     \node[draw, circle, fill=blue!10, minimum size=1.5cm, text width=1.5cm] (send) at (3.2,0) {TX\_CHUNKS};
     \node[draw, circle, fill=orange!10, minimum size=1.5cm, text width=1.5cm] (wait) at (6.4,0) {WAIT\_SACK};
@@ -1036,14 +1036,14 @@ To achieve statistical convergence, an adaptive Monte Carlo campaign comprising 
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.98\textwidth, height=3.8cm]{img/pdr_ns3_subplots_LOS.png}
+\includegraphics[width=0.98\textwidth]{img/pdr_ns3_subplots_LOS.png}
 \caption{Packet Delivery Ratio (PDR \%) as a function of distance across Spreading Factors (SF7, SF9, SF10) in Line-of-Sight (\ac{LoS}) propagation. Solid lines denote mean delivery rates across 50 Monte Carlo trials; shaded ribbons represent 95\% confidence intervals.}
 \label{fig:ns3_pdr}
 \end{figure*}
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.98\textwidth, height=3.8cm]{img/goodput_ns3_subplots_LOS.png}
+\includegraphics[width=0.98\textwidth]{img/goodput_ns3_subplots_LOS.png}
 \caption{Effective application-layer throughput (Goodput in bps) across Spreading Factors and LAMP operational modes in \ac{LoS}. Shaded ribbons denote 95\% confidence intervals across 50 Monte Carlo trials.}
 \label{fig:ns3_goodput}
 \end{figure*}
@@ -1065,15 +1065,8 @@ The physical validation strategy follows established LPWAN characterization meth
   \item \textbf{Radio Configuration}: Nodes will maintain standard settings (SF7, BW 500~kHz, CR 4/5, 10~dBm TX power) using the integrated Semtech transceivers.
 \end{itemize}
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=\columnwidth]{img/experimental-map.jpg}
-\caption{Satellite view of the experimental testbed showing the transmitter node location, the circular spatial sampling points ($\le 100$~meters), and the linear range checkpoints ($> 100$~meters) under \ac{LoS} and \ac{NLoS} profiles.}
-\label{fig:experimental_map}
-\end{figure}
-
 \subsection{Evaluation Metrics}
-For each combination of distance, environment, and payload size, 15 independent iterations will be performed. The following metrics will be collected and analyzed:
+For each combination of distance, environment, and payload size, 5 independent iterations will be performed. The following metrics will be collected and analyzed:
 \begin{enumerate}
   \item \textbf{\ac{PDR}}: The percentage of successfully reconstructed payloads at the receiver.
   \item \textbf{End-to-End Latency}: The total duration elapsed from the initiation of split-packet serialization at the transmitter to the final payload reassembly callback at the receiver.
