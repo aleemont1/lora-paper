@@ -1115,7 +1115,7 @@ To guide the long-term progression of LAMP from point-to-point data links to dec
 
 \begin{itemize}
   \item \textit{Level 1 -- Addressed Transport \& Polite Spectrum Access (Current Implemented Stack)}: 
-  The core architecture established in this work. It features 8-bit source and destination node addressing (\texttt{srcAddr}, \texttt{dstAddr}) with broadcast support (\texttt{0xFF}), dynamic 9-byte header packing, four operational modes (unreliable best-effort datagrams to stateful \ac{SACK}-\ac{ARQ} streams), a \ac{3WHS} for parameter negotiation, and an opt-in \ac{HAL} helper implementing \ac{CAD}/CSMA-CA with exponential backoff for \textit{Polite Spectrum Access} as specified by ETSI~EN~300~220-1~\cite{etsi300220}.
+  The core architecture established in this work. It features 8-bit source and destination node addressing (\texttt{srcAddr}, \texttt{dstAddr}) with broadcast support (\texttt{0xFF}), dynamic 9-byte header packing, four operational modes (unreliable best-effort datagrams to stateful \ac{SACK}-\ac{ARQ} streams), a \ac{3WHS} for parameter negotiation, and an opt-in \ac{HAL} helper implementing Channel Activity Detection (CAD)/CSMA-CA with exponential backoff for \textit{Polite Spectrum Access} as specified by ETSI~EN~300~220-1~\cite{etsi300220}.
   
   \item \textit{Level 2 -- Adaptive Spectrum \& Link Optimization (Near-Term Enhancement)}: 
   Extending the link layer to support dynamic channel adaptation in multi-node clusters sharing the same RF channel:
