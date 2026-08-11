@@ -782,8 +782,11 @@ For a representative 20-chunk payload (4.88~KB data size), a complete reassembly
 \subsection{Formal Protocol Algorithms}
 To ensure complete specification clarity and system-level reproducibility across different hardware platforms, Algorithm~\ref{alg:segmentation} and Algorithm~\ref{alg:reassembly} formally detail the transmitter-side segmentation pipeline and the receiver-side out-of-order reassembly engine, respectively.
 
-\begin{algorithm}[htpb]
-\caption{LAMP Payload Segmentation and Framing (Transmitter)}
+\begin{figure*}[t]
+\centering
+\begin{minipage}[t]{0.48\textwidth}
+\begin{algorithm}[H]
+\caption{LAMP Payload Segmentation (Transmitter)}
 \label{alg:segmentation}
 \small
 \begin{algorithmic}[1]
@@ -805,9 +808,10 @@ To ensure complete specification clarity and system-level reproducibility across
 \EndFor
 \end{algorithmic}
 \end{algorithm}
-
-\begin{algorithm}[htpb]
-\caption{Out-of-Order Reassembly \& Session Tracking (Receiver)}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\textwidth}
+\begin{algorithm}[H]
+\caption{Out-of-Order Reassembly (Receiver)}
 \label{alg:reassembly}
 \small
 \begin{algorithmic}[1]
@@ -840,6 +844,8 @@ To ensure complete specification clarity and system-level reproducibility across
 \EndIf
 \end{algorithmic}
 \end{algorithm}
+\end{minipage}
+\end{figure*}
 
 \begin{figure*}[htpb]
 \centering
