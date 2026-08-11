@@ -825,13 +825,13 @@ To ensure complete specification clarity and system-level reproducibility across
     \If{$\text{AvailMem}() < hdr.totalChunks \cdot hdr.payloadSize$} 
         \State \text{SendNack}(hdr.srcAddr, \texttt{BUSY}); \Return 
     \EndIf
-    \State $session \gets \text{AllocBuf}(hdr.totalChunks, hdr.payloadLen)$
+    \State $session \gets \text{AllocBuf}(hdr.totalChunks, hdr.payloadSize)$
 \EndIf
 \State $idx \gets hdr.chunkIndex$
 \If{$\text{IsBitSet}(session.bitmap, idx)$}
     \State \text{Drop}($F$) \Comment{Duplicate chunk, ignore write}
 \Else
-    \State $\text{WriteBuf}(session.buffer[idx \cdot S], payload, hdr.payloadSize)$
+    \State $\text{WriteChunk}(session.buffer, idx, payload)$
     \State $\text{SetBit}(session.bitmap, idx)$
     \State $session.count \gets session.count + 1$
 \EndIf
