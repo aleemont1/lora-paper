@@ -1128,6 +1128,8 @@ To guide the long-term progression of LAMP from point-to-point data links to dec
   \begin{itemize}
     \item \textit{Adaptive Data Rate (\ac{ADR})}: Dynamically tuning Spreading Factor (SF7--SF12) and Coding Rate (CR) based on real-time RSSI/SNR link quality metrics embedded in \ac{SACK} feedback frames.
     \item \textit{Scheduled Time-Slotted Access}: Incorporating Time Division Multiplexing (TDM) and microsecond time synchronization for collision-free multiagent payload transfers in high-density deployments~\cite{wei2020tdm}.
+    % NOTE FOR SUPERVISOR / FUTURE WORK IDEA:
+    % \item \textit{Application-Layer Schema Negotiation}: Extending the 3WHS payload with an optional Type-Length-Value (TLV) extension to negotiate application data schemas (e.g., CBOR or Protocol Buffer identifiers) prior to stream initiation, enabling pre-allocated application deserialization contexts alongside transport buffer limits.
   \end{itemize}
   
   \item \textit{Level 3 -- Multi-Hop Mesh Extension (Long-Term Vision)}: 
