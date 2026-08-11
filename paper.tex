@@ -851,10 +851,10 @@ To ensure complete specification clarity and system-level reproducibility across
 \centering
 \subfloat[Connection Session Lifecycle FSM (Stateful vs. Stateless)]{%
   \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, transform shape, every node/.style={align=center}]
-    \node[draw, circle, fill=gray!10, minimum size=1.5cm, text width=1.5cm] (closed) at (0,0) {CLOSED};
-    \node[draw, circle, fill=blue!10, minimum size=1.5cm, text width=1.5cm] (synsent) at (3.8,0) {SYN\_SENT};
-    \node[draw, circle, fill=red!10, minimum size=1.5cm, text width=1.5cm] (synrcvd) at (0,-3.8) {SYN\_RCVD};
-    \node[draw, circle, fill=green!15, minimum size=1.5cm, text width=1.7cm] (established) at (3.8,-3.8) {ESTABLISHED};
+    \node[draw, circle, fill=gray!10, minimum size=1.7cm, text width=1.7cm] (closed) at (0,0) {CLOSED};
+    \node[draw, circle, fill=blue!10, minimum size=1.7cm, text width=1.7cm] (synsent) at (3.8,0) {SYN\_SENT};
+    \node[draw, circle, fill=red!10, minimum size=1.7cm, text width=1.7cm] (synrcvd) at (0,-3.8) {SYN\_RCVD};
+    \node[draw, circle, fill=green!15, minimum size=1.7cm, text width=1.7cm] (established) at (3.8,-3.8) {ESTABLISHED};
 
     \path
       (closed) edge node[above, font=\tiny] {Send SYN} (synsent)
@@ -869,11 +869,11 @@ To ensure complete specification clarity and system-level reproducibility across
 }\hfill
 \subfloat[Data Transfer \& SACK-ARQ FSM (Reliable vs. Unreliable)]{%
   \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, transform shape, every node/.style={align=center}]
-    \node[draw, circle, fill=gray!10, minimum size=1.5cm, text width=1.5cm] (idle) at (0,0) {IDLE};
-    \node[draw, circle, fill=blue!10, minimum size=1.5cm, text width=1.5cm] (send) at (3.2,0) {TX\_CHUNKS};
-    \node[draw, circle, fill=orange!10, minimum size=1.5cm, text width=1.5cm] (wait) at (6.4,0) {WAIT\_SACK};
-    \node[draw, circle, fill=red!10, minimum size=1.5cm, text width=1.5cm] (retransmit) at (6.4,-3.8) {RETX};
-    \node[draw, circle, fill=green!15, minimum size=1.5cm, text width=1.5cm] (completed) at (3.2,-3.8) {DONE};
+    \node[draw, circle, fill=gray!10, minimum size=1.7cm, text width=1.7cm] (idle) at (0,0) {IDLE};
+    \node[draw, circle, fill=blue!10, minimum size=1.7cm, text width=1.7cm] (send) at (3.2,0) {TX\_CHUNKS};
+    \node[draw, circle, fill=orange!10, minimum size=1.7cm, text width=1.7cm] (wait) at (6.4,0) {WAIT\_SACK};
+    \node[draw, circle, fill=red!10, minimum size=1.7cm, text width=1.7cm] (retransmit) at (6.4,-3.8) {RETX};
+    \node[draw, circle, fill=green!15, minimum size=1.7cm, text width=1.7cm] (completed) at (3.2,-3.8) {DONE};
 
     \path
       (idle) edge node[above, font=\tiny] {Tx Req} (send)
