@@ -1043,14 +1043,14 @@ To achieve statistical convergence, an adaptive Monte Carlo campaign comprising 
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.98\textwidth, height=3.8cm]{img/pdr_ns3_subplots_LOS.png}
+\includegraphics[width=0.98\textwidth]{img/pdr_ns3_subplots_LOS.png}
 \caption{Packet Delivery Ratio (PDR \%) as a function of distance across Spreading Factors (SF7, SF9, SF10) in Line-of-Sight (\ac{LoS}) propagation. Solid lines denote mean delivery rates across 50 Monte Carlo trials; shaded ribbons represent 95\% confidence intervals.}
 \label{fig:ns3_pdr}
 \end{figure*}
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.98\textwidth, height=3.8cm]{img/goodput_ns3_subplots_LOS.png}
+\includegraphics[width=0.98\textwidth]{img/goodput_ns3_subplots_LOS.png}
 \caption{Effective application-layer throughput (Goodput in bps) across Spreading Factors and LAMP operational modes in \ac{LoS}. Shaded ribbons denote 95\% confidence intervals across 50 Monte Carlo trials.}
 \label{fig:ns3_goodput}
 \end{figure*}
@@ -1085,30 +1085,38 @@ These benchmarks will allow us to evaluate the efficiency of the \ac{SACK} retra
 
 \begin{table*}[t]
 \centering
-\caption{LAMP Planned Experimental Benchmarking Results Template}
+\caption{LAMP Planned Hardware Experimental Benchmarking Matrix across Operational Modes}
 \label{tab:empty_benchmark}
-\renewcommand{\arraystretch}{1.2}
-\footnotesize
-\begin{tabular}{|r|c|c|c|c|c|c|c|c|c|c|}
+\renewcommand{\arraystretch}{0.88}
+\scriptsize
+\begin{tabular}{|r|c|l|c|c|c|c|c|}
 \hline
-\textbf{Distance} & \textbf{Path} & \textbf{Payload} & \multicolumn{2}{c|}{\textbf{\ac{PDR} (\%)}} & \multicolumn{2}{c|}{\textbf{Avg Latency (ms)}} & \multicolumn{2}{c|}{\textbf{Avg Goodput (Kbps)}} & \multicolumn{2}{c|}{\textbf{Retransmission Overhead}} \\ \cline{4-11} 
-\textbf{(m)} & \textbf{Type} & \textbf{Chunks} & \textbf{Case A} & \textbf{Case B} & \textbf{Case A} & \textbf{Case B} & \textbf{Case A} & \textbf{Case B} & \textbf{Chunks Sent} & \textbf{Retries} \\ \hline
-1 & \ac{LoS} & 1--100 & & & & & & & & \\ \cline{2-11} 
- & \ac{NLoS} & 1--100 & & & & & & & & \\ \hline
-10 & \ac{LoS} & 1--100 & & & & & & & & \\ \cline{2-11} 
- & \ac{NLoS} & 1--100 & & & & & & & & \\ \hline
-100 & \ac{LoS} & 1--100 & & & & & & & & \\ \cline{2-11} 
- & \ac{NLoS} & 1--100 & & & & & & & & \\ \hline
-250 & \ac{LoS} & 1--100 & & & & & & & & \\ \cline{2-11} 
- & \ac{NLoS} & 1--100 & & & & & & & & \\ \hline
-500 & \ac{LoS} & 1--100 & & & & & & & & \\ \cline{2-11} 
- & \ac{NLoS} & 1--100 & & & & & & & & \\ \hline
-1000 & \ac{LoS} & 1--100 & & & & & & & & \\ \cline{2-11} 
- & \ac{NLoS} & 1--100 & & & & & & & & \\ \hline
-2500 & \ac{LoS} & 1--100 & & & & & & & & \\ \cline{2-11} 
- & \ac{NLoS} & 1--100 & & & & & & & & \\ \hline
-5000 & \ac{LoS} & 1--100 & & & & & & & & \\ \cline{2-11} 
- & \ac{NLoS} & 1--100 & & & & & & & & \\ \hline
+\textbf{Distance} & \textbf{Path} & \textbf{LAMP Operational Mode} & \textbf{Payload} & \textbf{\ac{PDR}} & \textbf{Avg Latency} & \textbf{Avg Goodput} & \textbf{Retransmission Overhead} \\
+\textbf{(m)} & \textbf{Type} & \textbf{Evaluated} & \textbf{(Chunks)} & \textbf{(\%)} & \textbf{(ms)} & \textbf{(kbps)} & \textbf{(Chunks Sent / Retries)} \\ \hline
+1 & \ac{LoS} & Mode 1 (Unreliable Datagram) & 1--100 & & & & N/A \\ \cline{3-8}
+  &          & Mode 2 (Unreliable Stream)   & 1--100 & & & & N/A \\ \cline{3-8}
+  &          & Mode 3 (Reliable Datagram)   & 1--100 & & & & \\ \cline{3-8}
+  &          & Mode 4 (Reliable Stream)     & 1--100 & & & & \\ \hline
+100 & \ac{LoS} & Mode 1 (Unreliable Datagram) & 1--100 & & & & N/A \\ \cline{3-8}
+    &          & Mode 2 (Unreliable Stream)   & 1--100 & & & & N/A \\ \cline{3-8}
+    &          & Mode 3 (Reliable Datagram)   & 1--100 & & & & \\ \cline{3-8}
+    &          & Mode 4 (Reliable Stream)     & 1--100 & & & & \\ \hline
+500 & \ac{LoS} & Mode 1 (Unreliable Datagram) & 1--100 & & & & N/A \\ \cline{3-8}
+    &          & Mode 2 (Unreliable Stream)   & 1--100 & & & & N/A \\ \cline{3-8}
+    &          & Mode 3 (Reliable Datagram)   & 1--100 & & & & \\ \cline{3-8}
+    &          & Mode 4 (Reliable Stream)     & 1--100 & & & & \\ \hline
+1000 & \ac{LoS} / \ac{NLoS} & Mode 1 (Unreliable Datagram) & 1--100 & & & & N/A \\ \cline{3-8}
+     &                     & Mode 2 (Unreliable Stream)   & 1--100 & & & & N/A \\ \cline{3-8}
+     &                     & Mode 3 (Reliable Datagram)   & 1--100 & & & & \\ \cline{3-8}
+     &                     & Mode 4 (Reliable Stream)     & 1--100 & & & & \\ \hline
+2500 & \ac{LoS} / \ac{NLoS} & Mode 1 (Unreliable Datagram) & 1--100 & & & & N/A \\ \cline{3-8}
+     &                     & Mode 2 (Unreliable Stream)   & 1--100 & & & & N/A \\ \cline{3-8}
+     &                     & Mode 3 (Reliable Datagram)   & 1--100 & & & & \\ \cline{3-8}
+     &                     & Mode 4 (Reliable Stream)     & 1--100 & & & & \\ \hline
+5000 & \ac{LoS} / \ac{NLoS} & Mode 1 (Unreliable Datagram) & 1--100 & & & & N/A \\ \cline{3-8}
+     &                     & Mode 2 (Unreliable Stream)   & 1--100 & & & & N/A \\ \cline{3-8}
+     &                     & Mode 3 (Reliable Datagram)   & 1--100 & & & & \\ \cline{3-8}
+     &                     & Mode 4 (Reliable Stream)     & 1--100 & & & & \\ \hline
 \end{tabular}
 \end{table*}
 
@@ -1120,12 +1128,16 @@ This paper presented the design, implementation, network simulation, and hardwar
 To guide the long-term progression of LAMP from point-to-point data links to decentralized multiagent mesh networks, we define a strategic three-level architectural roadmap:
 
 \begin{itemize}
+  \setlength{\itemsep}{1pt}
+  \setlength{\parskip}{0pt}
   \item \textit{Level 1 -- Addressed Transport \& Polite Spectrum Access (Current Implemented Stack)}: 
   The core architecture established in this work. It features 8-bit source and destination node addressing (\texttt{srcAddr}, \texttt{dstAddr}) with broadcast support (\texttt{0xFF}), dynamic 9-byte header packing, four operational modes (unreliable best-effort datagrams to stateful \ac{SACK}-\ac{ARQ} streams), a \ac{3WHS} for parameter negotiation, and an opt-in \ac{HAL} helper implementing Channel Activity Detection (CAD)/CSMA-CA with exponential backoff for \textit{Polite Spectrum Access} as specified by ETSI~EN~300~220-1~\cite{etsi300220}.
   
   \item \textit{Level 2 -- Adaptive Spectrum \& Link Optimization (Near-Term Enhancement)}: 
   Extending the link layer to support dynamic channel adaptation in multi-node clusters sharing the same RF channel:
   \begin{itemize}
+    \setlength{\itemsep}{1pt}
+    \setlength{\parskip}{0pt}
     \item \textit{Adaptive Data Rate (\ac{ADR})}: Dynamically tuning Spreading Factor (SF7--SF12) and Coding Rate (CR) based on real-time RSSI/SNR link quality metrics embedded in \ac{SACK} feedback frames.
     \item \textit{Scheduled Time-Slotted Access}: Incorporating Time Division Multiplexing (TDM) and microsecond time synchronization for collision-free multiagent payload transfers in high-density deployments~\cite{wei2020tdm}.
     % NOTE FOR SUPERVISOR / FUTURE WORK IDEA:
@@ -1135,136 +1147,22 @@ To guide the long-term progression of LAMP from point-to-point data links to dec
   \item \textit{Level 3 -- Multi-Hop Mesh Extension (Long-Term Vision)}: 
   Scaling the architecture to autonomous multi-hop networks, such as \ac{UAV} swarms, distributed sensor meshes, and relay networks~\cite{kim2022multihop, wong2024mesh}:
   \begin{itemize}
+    \setlength{\itemsep}{1pt}
+    \setlength{\parskip}{0pt}
     \item \textit{Mesh Routing Protocol Integration}: Combining dynamic routing (e.g., AODV-Light or RPL adaptation) with hop-by-hop vs. end-to-end \ac{SACK} reliability options to limit retransmission overhead over multi-hop links~\cite{wong2024mesh}.
     \item \textit{IPv6 Network Layer Bridging}: Leveraging the 8-bit Node ID mapping to establish full IPv6 link-local capability (\texttt{fe80::/64}), connecting edge nodes directly to global IP infrastructure.
   \end{itemize}
 \end{itemize}
-% An example of a floating figure using the graphicx package.
-% Note that \label must occur AFTER (or within) \caption.
-% For figures, \caption should occur after the \includegraphics.
-% Note that IEEEtran v1.7 and later has special internal code that
-% is designed to preserve the operation of \label within \caption
-% even when the captionsoff option is in effect. However, because
-% of issues like this, it may be the safest practice to put all your
-% \label just after \caption rather than within \caption{}.
-%
-% Reminder: the "draftcls" or "draftclsnofoot", not "draft", class
-% option should be used if it is desired that the figures are to be
-% displayed while in draft mode.
-%
-%\begin{figure}[!t]
-%\centering
-%\includegraphics[width=2.5in]{myfigure}
-% where an .eps filename suffix will be assumed under latex, 
-% and a .pdf suffix will be assumed for pdflatex; or what has been declared
-% via \DeclareGraphicsExtensions.
-%\caption{Simulation results for the network.}
-%\label{fig_sim}
-%\end{figure}
-
-% Note that the IEEE typically puts floats only at the top, even when this
-% results in a large percentage of a column being occupied by floats.
-
-
-% An example of a double column floating figure using two subfigures.
-% (The subfig.sty package must be loaded for this to work.)
-% The subfigure \label commands are set within each subfloat command,
-% and the \label for the overall figure must come after \caption.
-% \hfil is used as a separator to get equal spacing.
-% Watch out that the combined width of all the subfigures on a 
-% line do not exceed the text width or a line break will occur.
-%
-%\begin{figure*}[!t]
-%\centering
-%\subfloat[Case I]{\includegraphics[width=2.5in]{box}%
-%\label{fig_first_case}}
-%\hfil
-%\subfloat[Case II]{\includegraphics[width=2.5in]{box}%
-%\label{fig_second_case}}
-%\caption{Simulation results for the network.}
-%\label{fig_sim}
-%\end{figure*}
-%
-% Note that often IEEE papers with subfigures do not employ subfigure
-% captions (using the optional argument to \subfloat[]), but instead will
-% reference/describe all of them (a), (b), etc., within the main caption.
-% Be aware that for subfig.sty to generate the (a), (b), etc., subfigure
-% labels, the optional argument to \subfloat must be present. If a
-% subcaption is not desired, just leave its contents blank,
-% e.g., \subfloat[].
-
-
-% An example of a floating table. Note that, for IEEE style tables, the
-% \caption command should come BEFORE the table and, given that table
-% captions serve much like titles, are usually capitalized except for words
-% such as a, an, and, as, at, but, by, for, in, nor, of, on, or, the, to
-% and up, which are usually not capitalized unless they are the first or
-% last word of the caption. Table text will default to \footnotesize as
-% the IEEE normally uses this smaller font for tables.
-% The \label must come after \caption as always.
-%
-%\begin{table}[!t]
-%% increase table row spacing, adjust to taste
-%\renewcommand{\arraystretch}{1.3}
-% if using array.sty, it might be a good idea to tweak the value of
-% \extrarowheight as needed to properly center the text within the cells
-%\caption{An Example of a Table}
-%\label{table_example}
-%\centering
-%% Some packages, such as MDW tools, offer better commands for making tables
-%% than the plain LaTeX2e tabular which is used here.
-%\begin{tabular}{|c||c|}
-%\hline
-%One & Two\\
-%\hline
-%Three & Four\\
-%\hline
-%\end{tabular}
-%\end{table}
-
-
-% Note that the IEEE does not put floats in the very first column
-% - or typically anywhere on the first page for that matter. Also,
-% in-text middle ("here") positioning is typically not used, but it
-% is allowed and encouraged for Computer Society conferences (but
-% not Computer Society journals). Most IEEE journals/conferences use
-% top floats exclusively. 
-% Note that, LaTeX2e, unlike IEEE journals/conferences, places
-% footnotes above bottom floats. This can be corrected via the
-% \fnbelowfloat command of the stfloats package.
-
-
-
-
-
-
-% if have a single appendix:
-%\appendix[Proof of the Zonklar Equations]
-% or
-%\appendix  % for no appendix heading
-% do not use \section anymore after \appendix, only \section*
-% is possibly needed
-
-% use appendices with more than one appendix
-% then use \section to start each appendix
-% you must declare a \section before using any
-% \subsection or using \label (\appendices by itself
-% starts a section numbered zero.)
-%
 
 \section*{Declarations}
-\subsection*{Data Availability Statement}
-All firmware implementations, C++17 library source code, host unit testing suites, and benchmarking scripts are available in the public project repository.
+\noindent\textbf{Data Availability}: All firmware implementations, C++17 library source code, host unit testing suites, and benchmarking scripts are available in the public project repository.
 
-\subsection*{Ethical Statement and AI Tool Usage Disclosure}
-This study did not involve human participants or animal subjects. AI assistant tools were utilized strictly for code formatting, micro-typography auditing, and manuscript style calibration in compliance with IEEE publication ethics guidelines.
+\noindent\textbf{Ethical Statement \& AI Tool Usage}: This study did not involve human or animal subjects. AI assistant tools were utilized strictly for code formatting, micro-typography auditing, and manuscript style calibration in compliance with IEEE publication ethics guidelines.
 
-\subsection*{Conflict of Interest Statement}
-The authors declare that they have no competing financial or personal interests that could influence the work reported in this paper.
+\noindent\textbf{Conflict of Interest}: The authors declare that they have no competing financial or personal interests that could influence the work reported in this paper.
 
 % references section
 \bibliographystyle{IEEEtran}
 \bibliography{paper}
 
 \end{document}
-
