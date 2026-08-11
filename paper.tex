@@ -798,7 +798,7 @@ To ensure complete specification clarity and system-level reproducibility across
 \For{$i \gets 0$ \textbf{to} $N-1$}
     \State $cLen \gets (i == N-1) ? (L - i \cdot S) : S$
     \State $flags \gets \texttt{FLAG\_NONE}$
-    \If{$M \in \{\text{ReliableDatagram}, \text{ReliableStream}\} \textbf{ and } i == N-1$}
+    \If{$M \in \{\text{Mode 3}, \text{Mode 4}\} \textbf{ and } i == N-1$}
         \State $flags \gets flags \mid \texttt{FLAG\_ACK\_REQ}$
     \EndIf
     \State $hdr \gets \text{BuildHdr}(src, dst, msgId, N, i, cLen, flags)$
