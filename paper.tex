@@ -549,23 +549,34 @@ Building on the bit-vector \ac{SACK} concept, LAMP extends and generalizes this 
   \item \textbf{Dynamic Parameter Negotiation}: \ac{MPLR} utilizes a fixed batch size and requires a 4-way handshake tear-down (\texttt{FIN}/\texttt{ACK}). LAMP implements a lightweight \ac{3WHS} embedded with dynamic parameter negotiation (\texttt{SynMetadata} and \texttt{SynAckMetadata} negotiating chunk size, sliding window, and inactivity timeout) and replaces explicit tear-down overhead with automatic idle session pruning.
 \end{itemize}
 
-To clearly position the proposed protocol within the current technological landscape, Table~\ref{tab:arch_comparison} provides an architectural comparison with other prominent fragmentation and transport solutions over \ac{LoRa}, including \ac{MPLR}. As highlighted in the comparison, LAMP does not aim to replace SCHC or LoRaWAN, but fills a distinct architectural design space: providing a lightweight, highly configurable transport layer for raw \ac{LoRa} links (supporting point-to-point and local multi-node topologies, 4 operational modes, 8-bit addressing, dynamic \ac{3WHS}, and selective \ac{SACK}-\ac{ARQ}) without requiring a full LoRaWAN Network Server stack or static SCHC gateway context rules.
+To clearly position the proposed protocol within the current technological landscape and define the precise design space in which LAMP operates, Table~\ref{tab:arch_comparison} provides an architectural comparison with other prominent fragmentation and transport solutions over \ac{LoRa}, including Stop-and-Wait \ac{ARQ}, \ac{SCHC}~\cite{dare-lorawan}, \ac{LoRaWAN} Fragmented Data Block Transport, and \ac{MPLR}~\cite{mplr-chen2019}. 
+
+As highlighted in the comparative analysis, LAMP does not attempt to replace established industrial stacks like SCHC or LoRaWAN, but fills a distinct architectural design space: providing a \textit{lightweight and configurable transport layer for raw \ac{LoRa} links}. The protocol is characterized by five key architectural trade-offs:
+\begin{enumerate}
+  \item \textbf{Raw \ac{LoRa} Independence}: Operates directly over raw \ac{LoRa} PHY links without requiring full LoRaWAN Network Server infrastructure or static SCHC gateway context rules.
+  \item \textbf{Arbitrarily Segmentable Payloads}: Supports dynamic fragmentation and reassembly of large data blocks (up to 62.2~KB on 255-byte FIFO transceivers).
+  \item \textbf{Four Operational Modes}: Offers flexible trade-offs across Reliability (Unreliable vs. \ac{SACK}-\ac{ARQ}) and Connection State (Connectionless Datagram vs. Connection-Oriented Stream).
+  \item \textbf{Lightweight Node Addressing}: Introduces a 8-bit Node Identifier space (\texttt{srcAddr}, \texttt{dstAddr}) with native unicast and broadcast (\texttt{0xFF}) support.
+  \item \textbf{Transport Layer Purity}: Strict decoupling of transport reliability logic from underlying channel access mechanisms, keeping media access primitives (e.g., CAD/CSMA-CA) as opt-in HAL services.
+\end{enumerate}
 
 \begin{table*}[htpb]
 \centering
-\caption{Architectural Comparison of LoRa Transport Solutions}
+\caption{Architectural Comparison and Trade-Off Matrix of LoRa Transport Solutions}
 \label{tab:arch_comparison}
-\renewcommand{\arraystretch}{1.15}
-\small
-\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
+\renewcommand{\arraystretch}{1.25}
+\scriptsize
+\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{2.2cm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
 \hline
-\textbf{Feature} & \textbf{Stop-and-Wait} & \textbf{\ac{SCHC}~\cite{dare-lorawan}} & \textbf{\ac{LoRaWAN} Frag.} & \textbf{\ac{MPLR}~\cite{mplr-chen2019}} & \textbf{Proposed (LAMP)} \\ \hline
-\textbf{ACK / Retransmission} & Per-Packet ACK & ACK-on-Error Bitmap & None (\ac{FEC} Code) & Bit-Vector \ac{SACK} & Bit-Vector \ac{SACK} \\ \hline
-\textbf{Header Size} & 2--4 Bytes & 1--2 Bytes & 2 Bytes & 16 Bytes & 9 Bytes (11B total w/ CRC) \\ \hline
-\textbf{Max Frame Payload} & 240+ Bytes & Variable & Variable & 239 Bytes & 244 Bytes \\ \hline
-\textbf{Operational Modes} & 1 (Reliable S\&W) & 2 (ACK / No-ACK) & 1 (Unreliable \ac{FEC}) & 1 (Reliable Batch) & 4 Operational Modes \\ \hline
-\textbf{Handshake / Setup} & None & Static Rules & Session Setup & \ac{3WHS} + 4WHS Teardown & \ac{3WHS} Dynamic Negotiation \\ \hline
-\textbf{Target Scope} & Simple P2P & IP Star Network & Gateway \ac{FUOTA} & Image Upload & General-Purpose P2P / Multi-Node \\ \hline
+\textbf{Architectural Dimension} & \textbf{Stop-and-Wait ARQ} & \textbf{\ac{SCHC}~\cite{dare-lorawan}} & \textbf{\ac{LoRaWAN} Fragmented} & \textbf{\ac{MPLR}~\cite{mplr-chen2019}} & \textbf{Proposed (LAMP)} \\ \hline
+\textbf{Stack Dependency} & Raw \ac{LoRa} PHY & Full \ac{LoRaWAN} / IP Stack & Full \ac{LoRaWAN} Stack & Raw \ac{LoRa} PHY & Raw \ac{LoRa} PHY (Standalone) \\ \hline
+\textbf{ACK Mechanism} & Per-Packet ACK & ACK-on-Error Bitmap & None (\ac{FEC} Code) & Bit-Vector \ac{SACK} & Bit-Vector \ac{SACK} \\ \hline
+\textbf{Header Overhead} & 2--4 Bytes & 1--2 Bytes (Compressed) & 2 Bytes & 16 Bytes & 9 Bytes (11B total w/ CRC) \\ \hline
+\textbf{Max Payload Size} & Unbounded & Variable & Variable & 239 Bytes & 62.2~KB (255 Chunks) \\ \hline
+\textbf{Operational Modes} & 1 (Reliable S\&W) & 2 (ACK / No-ACK) & 1 (Unreliable \ac{FEC}) & 1 (Reliable Batch) & 4 Configurable Modes \\ \hline
+\textbf{Node Addressing} & None / Application & IPv6 128-bit (Compressed) & DevAddr (32-bit) & EUI (64-bit) & 8-bit Unicast + Broadcast \\ \hline
+\textbf{Key Advantages} & Minimal header size, trivial implementation & Extreme header compression for IP traffic & No feedback channel required (pure \ac{FEC}) & High-volume image uplink batching & 4 flexible modes, dynamic \ac{3WHS} buffer safety, raw \ac{LoRa} autonomy \\ \hline
+\textbf{Key Limitations \& Trade-offs} & Severe airtime latency, duty-cycle exhaustion & Requires static gateway rules \& IP core infrastructure & High \ac{FEC} compute cost, constant airtime overhead & Heavy 16-byte header, single mode, 4WHS teardown & Requires 9-byte header (+2B CRC) for session state tracking \\ \hline
 \end{tabularx}
 \end{table*}
 
