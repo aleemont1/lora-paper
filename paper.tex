@@ -549,7 +549,7 @@ Building on the bit-vector \ac{SACK} concept, LAMP extends and generalizes this 
   \item \textbf{Dynamic Parameter Negotiation}: \ac{MPLR} utilizes a fixed batch size and requires a 4-way handshake tear-down (\texttt{FIN}/\texttt{ACK}). LAMP implements a lightweight \ac{3WHS} embedded with dynamic parameter negotiation (\texttt{SynMetadata} and \texttt{SynAckMetadata} negotiating chunk size, sliding window, and inactivity timeout) and replaces explicit tear-down overhead with automatic idle session pruning.
 \end{itemize}
 
-To clearly position the proposed protocol within the current technological landscape, Table~\ref{tab:arch_comparison} provides an architectural comparison with other prominent fragmentation and transport solutions over \ac{LoRa}, including \ac{MPLR}.
+To clearly position the proposed protocol within the current technological landscape, Table~\ref{tab:arch_comparison} provides an architectural comparison with other prominent fragmentation and transport solutions over \ac{LoRa}, including \ac{MPLR}. As highlighted in the comparison, LAMP does not aim to replace SCHC or LoRaWAN, but fills a distinct architectural design space: providing a lightweight, highly configurable transport layer for raw \ac{LoRa} links (supporting point-to-point and local multi-node topologies, 4 operational modes, 8-bit addressing, dynamic \ac{3WHS}, and selective \ac{SACK}-\ac{ARQ}) without requiring a full LoRaWAN Network Server stack or static SCHC gateway context rules.
 
 \begin{table*}[htpb]
 \centering
@@ -591,7 +591,7 @@ Although adding 2~bytes to the header increases over-the-air frame length by les
 \begin{enumerate}
   \item \textit{Buffer Memory Safety}: The \ac{3WHS} exchange allows nodes to negotiate reassembly buffer limits (\texttt{SynMetadata}) prior to payload transmission, preventing allocation failures on memory-constrained receivers.
   \item \textit{Channel Session Isolation}: Explicit node addressing prevents session crosstalk and frame interleaving in multi-node wireless topologies.
-  \item \textit{IPv6 Addressing Compatibility}: The 8-bit address space maps natively to local IPv6 link-local subnet suffixes without the overhead of full 128-bit IP headers over the air.
+  \item \textit{IPv6 Integration Readiness}: The 8-bit Node ID introduces a lightweight local addressing namespace that can be integrated with or mapped to an IPv6 addressing layer at an edge gateway, without transmitting 128-bit IPv6 headers over raw \ac{LoRa} radio links.
 \end{enumerate}
 
 \subsection{Operational Modes and Sequence Management}
@@ -630,7 +630,7 @@ To support multi-node communication without incurring the prohibitive airtime ov
   \item \textbf{\texttt{0x01}--\texttt{0xFE}}: 254 unique individual node addresses (Unicast).
   \item \textbf{\texttt{0xFF} (\texttt{ADDRESS\_BROADCAST})}: Broadcast address processed by all active receiving nodes on the RF channel.
 \end{itemize}
-This 8-bit Node ID design is IPv6-ready: at an edge gateway or application layer, a local 8-bit Node ID (e.g., \texttt{0x42}) maps directly to an IPv6 link-local subnet suffix (e.g., \texttt{fe80::42}), enabling direct IP-layer mapping without transmitting heavy IPv6 headers over the constrained radio link.
+This 8-bit Node ID provides a lightweight local namespace: at an edge gateway or application-layer bridge, a local 8-bit Node ID (e.g., \texttt{0x42}) can be mapped to an IPv6 link-local subnet suffix (e.g., \texttt{fe80::42}), enabling seamless IP-layer integration without transmitting heavy IPv6 headers over the constrained radio link.
 
 The 8-bit address space supports up to 254 unicast nodes per RF cluster, which is sufficient for the dense but bounded deployments targeted by this work (e.g., agricultural sensor arrays, \ac{UAV} swarm sub-clusters). For applications requiring broader network reach, Section~\ref{sec:conclusion} foresees integration of full IPv6 routing, where the 8-bit node identifier serves as a local cluster suffix rather than a global unique identifier.
 
@@ -1033,55 +1033,66 @@ For the experimental validation reported in this work, the 869.400--869.650~MHz 
 Additionally, in the reference implementation validated on Heltec~V3 hardware, the optional MAC-layer helpers provided by the LAMP library, namely SX1262-native Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) and duty-cycle pacing, were enabled to prevent collisions and further reduce channel occupancy. These features are opt-in and disabled by default; they are not part of the LAMP transport specification but are offered as convenience primitives for integrators targeting shared ISM bands. All experimental results are therefore fully reproducible in any deployment targeting the 869.4--869.65~MHz sub-band with the same radio configuration.
 
 \section{Performance Evaluation and Experimental Methodology}
-To evaluate the reliability, throughput, and communication limits of LAMP, we adopt a two-stage benchmarking approach: a large-scale stochastic network simulation campaign executed in ns-3, followed by a physical field testbed setup for real-world empirical validation.
+To evaluate the reliability, throughput, and communication limits of LAMP, we adopt a two-stage evaluation methodology: a large-scale stochastic network simulation campaign executed in ns-3, complemented by functional hardware testbed validation on microcontroller nodes and a planned outdoor field benchmarking campaign.
 
 \subsection{Network Simulation Benchmarking (ns-3)}
 \label{sec:ns3_eval}
 To characterize protocol performance under controlled fading channels across extensive distance ranges, we developed a full C++ simulator integrated into the ns-3 framework (\texttt{ns3-lorawan}). The simulator reproduces the exact LAMPv2 frame structure (9-byte Logical Header + 2-byte \ac{CRC}-16), all four operational modes, the \ac{3WHS} handshake, and selective bit-vector \ac{SACK} retransmissions over a Nakagami-$m$ fast-fading propagation loss model calibrated for the Semtech SX1262 transceiver (+24.2~dBm EIRP, 869.525~MHz).
 
-To achieve statistical convergence, an adaptive Monte Carlo campaign comprising 117,050 independent simulation runs was conducted. Parameter sweeps covered Spreading Factors (SF7, SF9, SF10), three RF propagation environments (\ac{LoS}, Urban, and Rural), and physical node distances extending dynamically up to 23.5~km with an adaptive early-stopping threshold (triggered when PDR drops to 0\% across consecutive steps).
+\subsubsection{Simulation Campaign Hierarchy}
+To achieve statistical convergence, a comprehensive stochastic simulation campaign comprising 117,050 total independent simulation runs was conducted. The experimental space spans 3 RF environments (\ac{LoS}, Urban, Rural), 3 Spreading Factors (SF7, SF9, SF10), 4 operational modes (Mode 1 to Mode 4), 5 random seeds per parameter set, and 10 payload size steps (scaling from 1 to 100 chunks) across dynamic distance steps extending up to 23.5~km. Each curve point plotted in Figs.~\ref{fig:ns3_pdr} and~\ref{fig:ns3_goodput} represents the sample mean over 50 Monte Carlo trials (combining 5 random seeds across 10 payload size iterations per distance step), with shaded ribbons denoting 95\% confidence intervals.
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.98\textwidth]{img/pdr_ns3_subplots_LOS.png}
-\caption{Packet Delivery Ratio (PDR \%) as a function of distance across Spreading Factors (SF7, SF9, SF10) in Line-of-Sight (\ac{LoS}) propagation. Solid lines denote mean delivery rates across 50 Monte Carlo trials; shaded ribbons represent 95\% confidence intervals.}
+\caption{Packet Delivery Ratio ($PDR_{\mathrm{app}}$ \%) as a function of distance across Spreading Factors (SF7, SF9, SF10) in Line-of-Sight (\ac{LoS}) propagation. Solid lines denote mean delivery rates across 50 Monte Carlo trials; shaded ribbons represent 95\% confidence intervals.}
 \label{fig:ns3_pdr}
 \end{figure*}
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.98\textwidth]{img/goodput_ns3_subplots_LOS.png}
 \caption{Effective application-layer throughput (Goodput in bps) across Spreading Factors and LAMP operational modes in \ac{LoS}. Shaded ribbons denote 95\% confidence intervals across 50 Monte Carlo trials.}
 \label{fig:ns3_goodput}
 \end{figure*}
 
-As illustrated in Fig.~\ref{fig:ns3_pdr}, the reliable delivery modes (Mode 3 \textit{Reliable Datagram} and Mode 4 \textit{Reliable Stream}) maintain a 100\% \ac{PDR} over extended operating ranges, eliminating fragment loss through bit-vector \ac{SACK} recovery until physical receiver sensitivity limits are reached. In \ac{LoS} conditions, SF10 sustains complete payload reassembly up to 19.1~km, exhibiting a steep drop-off between 20.0~km and 23.1~km. Conversely, best-effort unreliable modes (Mode 1 and Mode 2) experience progressive packet drop rates as spatial fading degrades the signal-to-noise ratio.
+\subsubsection{Analytical Reliability Bound under Stated Assumptions}
+To model payload completion probabilities analytically, we define a theoretical bound under stated hypotheses:
+\begin{enumerate}
+  \item \textit{Independent Loss Model}: Channel frame loss follows an independent and identically distributed (i.i.d.) Bernoulli error process with packet error rate $p \in [0, 1)$.
+  \item \textit{Bounded Retransmissions}: Selective \ac{SACK} retransmission retries are bounded by a maximum retry limit $R_{\mathrm{max}} = 3$.
+\end{enumerate}
+Under these stated assumptions, the analytical upper bound for successfully reassembling an $N$-fragment payload across $R_{\mathrm{max}}$ retries is given by:
+\begin{equation}
+P_{\mathrm{complete}}(N, p, R_{\mathrm{max}}) = \prod_{i=0}^{N-1} \left( 1 - p^{R_{\mathrm{max}} + 1} \right)
+\end{equation}
+It is crucial to clarify that when reliable modes (Mode 3 and Mode 4) sustain a 100\% Application Payload Delivery Ratio ($PDR_{\mathrm{app}}$) in Fig.~\ref{fig:ns3_pdr}, this does not indicate physical channel reliability or zero-loss propagation. Rather, it demonstrates that the selective bit-vector \ac{SACK}-\ac{ARQ} mechanism successfully recovers lost fragments within the $R_{\mathrm{max}}$ retry budget prior to session timeout.
 
-Fig.~\ref{fig:ns3_goodput} depicts the effective application-layer Goodput (bps). While best-effort streaming (Mode 2) achieves the highest peak throughput in pristine channel conditions by omitting acknowledgment overhead, Mode 4 (\textit{Reliable Stream}) preserves sustained throughput near physical channel capacity across the entire operational range, degrading only near the physical receiver sensitivity limit.
+In \ac{LoS} conditions, SF10 sustains complete payload reassembly up to 19.1~km, exhibiting a steep drop-off between 20.0~km and 23.1~km as frame loss probability exceeds retransmission recovery budgets. Conversely, best-effort unreliable modes (Mode 1 and Mode 2) experience progressive packet drop rates as spatial fading degrades signal-to-noise ratios.
 
-\subsection{Planned Real-World Field Benchmarking}
+Fig.~\ref{fig:ns3_goodput} depicts effective application-layer Goodput (bps). While best-effort streaming (Mode 2) achieves peak throughput in pristine channels by omitting acknowledgment latency, Mode 4 (\textit{Reliable Stream}) preserves sustained throughput near physical channel capacity across the operational range, degrading only near receiver sensitivity thresholds.
+
+\subsection{Planned Real-World Field Benchmarking Campaign}
 \label{sec:field_benchmarking}
-Complementing the stochastic simulation campaign, physical field experiments will be conducted using two Heltec Wi-Fi \ac{LoRa}~32~V3 hardware nodes to benchmark real-world link behavior under environmental interference, multipath reflections, and temperature-induced frequency drift.
+While hardware testbed experiments on two Heltec Wi-Fi \ac{LoRa}~32~V3 nodes have validated the functional correctness, C++ memory safety, \ac{3WHS} state machine transitions, and out-of-order reassembly of LAMPv2, a systematic outdoor field campaign is planned to record real-world empirical performance under environmental interference, multipath reflections, and temperature-induced frequency drift.
 
-\subsubsection{Experimental Parameters}
-The physical validation strategy follows established LPWAN characterization methodologies~\cite{cattani2017} and will sweep the following parameters:
+\subsubsection{Planned Experimental Matrix}
+The planned outdoor physical validation strategy follows established \ac{LPWAN} characterization methodologies~\cite{cattani2017} and will sweep the following parameters:
 \begin{itemize}
-  \item \textbf{Transmission Distance and Spatial Geometry}: Tests will be carried out at physical distances of 1, 10, 100, 250, 500, 1000, 2500, and 5000~meters. To account for spatial fading, antenna polarization discrepancies, and localized multi-path fading, testing in the short range (from 0 to 100~meters) will utilize a circular spatial sampling strategy, gathering data points at multiple angular offsets around the transmitting antenna. For long-range setups (greater than 100~meters) where circular navigation is impractical, data collection will follow a linear path.
-  \item \textbf{Propagation Conditions}: All distance steps will be benchmarked under both \ac{LoS} and \ac{NLoS} environments to test protocol performance under varying noise and packet corruption conditions~\cite{cattani2017}.
-  \item \textbf{Payload Sequence Size}: Payloads will scale from 1 chunk (representing the boundary condition) up to 100 chunks (approximately 24.6~KB total data size).
-  \item \textbf{Radio Configuration}: Nodes will maintain standard settings (SF7, BW 500~kHz, CR 4/5, 10~dBm TX power) using the integrated Semtech transceivers.
+  \item \textbf{Transmission Distance and Spatial Geometry}: Planned tests span physical distances of 1, 10, 100, 250, 500, 1000, 2500, and 5000~meters. Short-range setups (0 to 100~meters) will employ circular spatial sampling at multiple angular offsets to evaluate localized multipath fading, while long-range steps (above 100~meters) will use linear paths.
+  \item \textbf{Propagation Conditions}: Tests will evaluate both \ac{LoS} and \ac{NLoS} conditions~\cite{cattani2017}.
+  \item \textbf{Payload Sequence Size}: Payloads will scale from 1 chunk up to 100 chunks ($\approx 24.6$~KB total data size).
+  \item \textbf{Radio Configuration}: Nodes will maintain standard settings (SF7, BW 500~kHz, CR 4/5, 10~dBm TX power) using integrated Semtech transceivers.
 \end{itemize}
 
 \subsection{Evaluation Metrics}
-For each combination of distance, environment, and payload size, 5 independent iterations will be performed. The following metrics will be collected and analyzed:
+For each combination of distance, environment, and payload size, 5 independent iterations will be performed. The following metrics will be collected during the planned field campaign:
 \begin{enumerate}
-  \item \textbf{\ac{PDR}}: The percentage of successfully reconstructed payloads at the receiver.
-  \item \textbf{End-to-End Latency}: The total duration elapsed from the initiation of split-packet serialization at the transmitter to the final payload reassembly callback at the receiver.
-  \item \textbf{Throughput (Goodput)}: The effective rate of application-level payload data delivered, calculated as $\mathrm{PayloadSize\ (bits)} / \mathrm{Latency\ (seconds)}$.
-  \item \textbf{Retransmission Overhead}: The count of extra chunks transmitted in reliable mode compared to the baseline case, representing the cost of \ac{SACK}-driven error correction.
+  \item \textbf{Application Payload Delivery Ratio ($PDR_{\mathrm{app}}$)}: The percentage of application-level payloads successfully reconstructed at the receiver.
+  \item \textbf{End-to-End Latency}: Total elapsed duration from initial fragment serialization at the transmitter to final reassembly callback at the receiver.
+  \item \textbf{Effective Throughput (Goodput)}: The delivery rate of application payload data, calculated as $\mathrm{PayloadSize\ (bits)} / \mathrm{Latency\ (seconds)}$.
+  \item \textbf{Retransmission Overhead}: Count of extra fragments and \ac{SACK} frames transmitted in reliable modes compared to unreliable baselines.
 \end{enumerate}
 
-These benchmarks will allow us to evaluate the efficiency of the \ac{SACK} retransmission handshake compared to best-effort unreliable streaming in lossy physical channels. The empty template for recording these empirical results is structured in Table~\ref{tab:empty_benchmark}.
+The template for recording these empirical field benchmarking results is structured in Table~\ref{tab:empty_benchmark}.
 
 \begin{table*}[t]
 \centering
@@ -1140,8 +1151,7 @@ To guide the long-term progression of LAMP from point-to-point data links to dec
     \setlength{\parskip}{0pt}
     \item \textit{Adaptive Data Rate (\ac{ADR})}: Dynamically tuning Spreading Factor (SF7--SF12) and Coding Rate (CR) based on real-time RSSI/SNR link quality metrics embedded in \ac{SACK} feedback frames.
     \item \textit{Scheduled Time-Slotted Access}: Incorporating Time Division Multiplexing (TDM) and microsecond time synchronization for collision-free multiagent payload transfers in high-density deployments~\cite{wei2020tdm}.
-    % NOTE FOR SUPERVISOR / FUTURE WORK IDEA:
-    % \item \textit{Application-Layer Schema Negotiation}: Extending the 3WHS payload with an optional Type-Length-Value (TLV) extension to negotiate application data schemas (e.g., CBOR or Protocol Buffer identifiers) prior to stream initiation, enabling pre-allocated application deserialization contexts alongside transport buffer limits.
+    \item \textit{Optional Security Profile (Future Work Extension)}: For raw-LoRa multi-node and multi-agent links requiring data privacy, LAMP can be extended with an opt-in Security Profile providing AES-128-GCM or HMAC-SHA256 authentication, payload encryption, and 32-bit sequence replay protection at the transport header level, evaluating byte, latency, and energy overhead in multi-node configurations.
   \end{itemize}
   
   \item \textit{Level 3 -- Multi-Hop Mesh Extension (Long-Term Vision)}: 
