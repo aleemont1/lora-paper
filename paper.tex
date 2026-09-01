@@ -1087,7 +1087,7 @@ To evaluate the reliability, throughput, and communication limits of LAMP, we ad
 
 \subsection{Network Simulation Benchmarking (ns-3)}
 \label{sec:ns3_eval}
-To characterize protocol performance under controlled fading channels across extensive distance ranges, we developed a full C++ simulator integrated into the ns-3 framework (\texttt{ns3-lorawan}). The simulator reproduces the exact LAMPv2 frame structure (9-byte Logical Header + 2-byte \ac{CRC}-16), all four operational modes, the \ac{3WHS} handshake, and selective bit-vector \ac{SACK} retransmissions over a Nakagami-$m$ fast-fading propagation loss model calibrated for the Semtech SX1262 transceiver (+24.2~dBm EIRP, 869.525~MHz).
+To characterize protocol performance under controlled fading channels across extensive distance ranges, we developed a full C++ simulator integrated into the ns-3 framework (\texttt{ns3-lorawan}). The simulator reproduces the exact LAMPv2 frame structure (9-byte Logical Header + 2-byte \ac{CRC}-16), all four operational modes, the \ac{3WHS} handshake, and selective bit-vector \ac{SACK} retransmissions over a Nakagami-$m$ fast-fading propagation loss model calibrated for the Semtech SX1262 transceiver (+24.2~dBm EIRP, 869.525~MHz), with shape factors: $m = 3.0$ for \ac{LoS} (strong specular component), $m = 1.5$ for Urban (moderate multipath), and $m = 1.0$ for Rural (Rayleigh fading).
 
 \subsubsection{Simulation Campaign Hierarchy}
 To achieve statistical convergence, an extensive Monte Carlo campaign comprising 117,050 total independent simulation runs was conducted. The experimental space spans 3 RF propagation environments (\ac{LoS}, Urban, Rural), 3 Spreading Factors (SF7, SF9, SF10), 4 operational modes (Mode 1 to Mode 4), and 50 independent random seeds per parameter configuration across an adaptive distance grid extending dynamically up to 23.5~km with early-stopping thresholds once reception falls to 0\% across consecutive steps. Each curve point plotted in Figs.~\ref{fig:ns3_pdr} and~\ref{fig:ns3_goodput} represents the sample mean over 50 independent Monte Carlo seed replications for a representative $N=20$-chunk payload (4.88~KB data size), with shaded ribbons denoting 95\% confidence intervals.
@@ -1117,13 +1117,7 @@ While hardware testbed experiments on two Heltec Wi-Fi \ac{LoRa}~32~V3 nodes hav
 \subsubsection{Planned Experimental Matrix and Evaluation Metrics}
 The planned outdoor physical validation strategy follows established \ac{LPWAN} characterization methodologies~\cite{cattani2017}. It will sweep transmission distances (1 to 5000~meters across \ac{LoS} and \ac{NLoS} conditions) and payload sequence sizes (1 to 100 chunks, $\approx 24.6$~KB) under standard radio configurations (SF7, BW 500~kHz, CR 4/5, 10~dBm TX power).
 
-During the planned outdoor campaign, four core performance metrics will be recorded across 5 independent trials per operational mode:
-\begin{itemize}
-  \item \textbf{Application Payload Delivery Ratio ($PDR_{\mathrm{app}}$)}: The percentage of application-level payloads successfully reconstructed at the receiver.
-  \item \textbf{End-to-End Latency}: Total elapsed duration from initial fragment serialization at the transmitter to final reassembly callback at the receiver.
-  \item \textbf{Effective Throughput (Goodput)}: The delivery rate of application payload data, calculated as $\mathrm{PayloadSize\ (bits)} / \mathrm{Latency\ (seconds)}$.
-  \item \textbf{Retransmission Overhead}: Count of extra fragments and \ac{SACK} frames transmitted in reliable modes compared to unreliable baselines.
-\end{itemize}
+During the planned outdoor campaign, four core performance metrics will be recorded across 5 independent trials per operational mode: (i)~\textbf{Application Payload Delivery Ratio ($PDR_{\mathrm{app}}$)}, measuring successful reassembly rate; (ii)~\textbf{End-to-End Latency}, from initial serialization to reassembly completion; (iii)~\textbf{Effective Throughput (Goodput)}, calculated as delivered payload bits over elapsed duration; and (iv)~\textbf{Retransmission Overhead}, tracking extra frames and \ac{SACK} packets relative to unreliable baselines.
 
 \section{Conclusion and Architectural Roadmap}
 \label{sec:conclusion}
