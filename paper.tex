@@ -822,12 +822,12 @@ To ensure complete specification clarity and system-level reproducibility across
     \State $\text{Transmit}(F_i)$
 \EndFor
 \If{$M \in \{\text{Mode 1}, \text{Mode 2}\}$} \State \Return \texttt{OK} \Comment{Unreliable delivery complete} \EndIf
-\State $retries \gets 0$
+\State $retries \gets 0$; $lastIdx \gets N - 1$
 \While{$retries \le R_{\mathrm{max}}$}
     \State $sack \gets \text{WaitForSack}(T_{\mathrm{timeout}})$
     \If{$sack == \text{TIMEOUT}$}
         \If{$retries == R_{\mathrm{max}}$} \State \textbf{break} \EndIf
-        \State $\text{Transmit}(F_{N-1})$; $retries \gets retries + 1$
+        \State $\text{Transmit}(F_{lastIdx})$; $retries \gets retries + 1$
     \ElsIf{$\text{IsAllAcked}(sack.bitmap)$}
         \State \Return \texttt{OK} \Comment{Full payload delivery confirmed}
     \Else
@@ -838,9 +838,10 @@ To ensure complete specification clarity and system-level reproducibility across
             \State $flags \gets (idx == \text{Last}(missing)) ? \texttt{FLAG\_ACK\_REQ} : \texttt{0x00}$
             \State $hdr \gets \text{BuildHdr}(src, dst, msgId, N, idx, cLen, flags)$
             \State $crc \gets \text{CalcCRC16}(hdr, P[idx\cdot S : idx\cdot S + cLen])$
-            \State $\text{Transmit}(\text{SerializeFrame}(hdr, P[idx\cdot S : idx\cdot S + cLen], crc))$
+            \State $F_{idx} \gets \text{SerializeFrame}(hdr, P[idx\cdot S : idx\cdot S + cLen], crc)$
+            \State $\text{Transmit}(F_{idx})$
         \EndFor
-        \State $retries \gets retries + 1$
+        \State $lastIdx \gets \text{Last}(missing)$; $retries \gets retries + 1$
     \EndIf
 \EndWhile
 \State \Return \texttt{ERR\_MAX\_RETRIES\_EXCEEDED}
@@ -1106,19 +1107,20 @@ To evaluate the reliability, throughput, and communication limits of LAMP, we ad
 To characterize protocol performance under controlled fading channels across extensive distance ranges, we developed a full C++ simulator integrated into the ns-3 framework (\texttt{ns3-lorawan}). The simulator reproduces the exact LAMPv2 frame structure (9-byte Logical Header + 2-byte \ac{CRC}-16), all four operational modes, the \ac{3WHS} handshake, and selective bit-vector \ac{SACK} retransmissions over a Nakagami-$m$ fast-fading propagation loss model calibrated for the Semtech SX1262 transceiver (+24.2~dBm EIRP, 869.525~MHz).
 
 \subsubsection{Simulation Campaign Hierarchy}
-To achieve statistical convergence, an extensive Monte Carlo campaign comprising 117,050 total independent simulation runs was conducted. The experimental space spans 3 RF propagation environments (\ac{LoS}, Urban, Rural), 3 Spreading Factors (SF7, SF9, SF10), 4 operational modes (Mode 1 to Mode 4), 5 random seeds per parameter set, and 10 payload size steps (scaling from 1 to 100 chunks) across an adaptive distance grid extending dynamically up to 23.5~km with early-stopping thresholds once reception falls to 0\% across consecutive steps. Each curve point plotted in Figs.~\ref{fig:ns3_pdr} and~\ref{fig:ns3_goodput} represents the sample mean over 50 Monte Carlo trials (combining 5 random seeds across 10 payload size iterations per distance step), with shaded ribbons denoting 95\% confidence intervals.
+To achieve statistical convergence, an extensive Monte Carlo campaign comprising 117,050 total independent simulation runs was conducted. The experimental space spans 3 RF propagation environments (\ac{LoS}, Urban, Rural), 3 Spreading Factors (SF7, SF9, SF10), 4 operational modes (Mode 1 to Mode 4), and 50 independent random seeds per parameter configuration across an adaptive distance grid extending dynamically up to 23.5~km with early-stopping thresholds once reception falls to 0\% across consecutive steps. Each curve point plotted in Figs.~\ref{fig:ns3_pdr} and~\ref{fig:ns3_goodput} represents the sample mean over 50 independent Monte Carlo seed replications, with shaded ribbons denoting 95\% confidence intervals.
 
 \subsubsection{Analytical Reliability Bound under Stated Assumptions}
-To model payload completion probabilities analytically, we define a theoretical bound under stated hypotheses:
+To model payload completion probabilities analytically, we define a theoretical baseline under stated hypotheses:
 \begin{enumerate}
-  \item \textit{Independent Loss Model}: Channel frame loss is modeled as an independent and identically distributed (i.i.d.) Bernoulli error process with packet error rate $p \in [0, 1)$. While the i.i.d. Bernoulli model provides a tractable analytical baseline, physical \ac{LPWAN} channels typically exhibit temporally correlated fading; the stochastic ns-3 simulations evaluated in this work capture these fading dynamics directly without relying on the i.i.d. simplification.
-  \item \textit{Bounded Retransmissions}: Selective \ac{SACK} retransmission retries are bounded by the protocol's maximum retry limit $R_{\mathrm{max}} = 5$ (matching \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}).
+  \item \textit{Independent Loss Model}: Channel frame loss is modeled as an independent and identically distributed (i.i.d.) Bernoulli error process with packet error rate $p \in [0, 1)$ and error-free control feedback ($p_{\mathrm{SACK}} = 0$). While the i.i.d. Bernoulli model provides a tractable analytical baseline, physical \ac{LPWAN} channels typically exhibit temporally correlated fading.
+  \item \textit{Bounded Repair Rounds}: Selective \ac{SACK} retransmissions are bounded by the protocol's maximum repair round budget $R_{\mathrm{max}} = 5$ (matching \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}).
 \end{enumerate}
-Under these stated assumptions, the analytical upper bound for successfully reassembling an $N$-fragment payload across $R_{\mathrm{max}}$ retries directly matches the burst reliability model derived in Eq.~(\ref{eq:burst_fail}):
+Under these idealized assumptions, the analytical upper bound for successfully reassembling an $N$-fragment payload across $R_{\mathrm{max}}$ retries matches Eq.~(\ref{eq:burst_fail}):
 \begin{equation}
 P_{\mathrm{complete}}(N, p, R_{\mathrm{max}}) = \left( 1 - p^{R_{\mathrm{max}} + 1} \right)^N
 \label{eq:analytical_bound}
 \end{equation}
+Because Algorithm~\ref{alg:segmentation} enforces a global session repair round budget ($R_{\mathrm{max}} = 5$) across all missing fragments rather than independent per-chunk retries, Eq.~(\ref{eq:analytical_bound}) serves as an optimistic theoretical baseline. Empirical multi-chunk delivery dynamics under correlated channel fading and joint forward-reverse link losses are directly evaluated via the stochastic ns-3 campaign.
 It is crucial to clarify that when reliable modes (Mode 3 and Mode 4) sustain a 100\% Application Payload Delivery Ratio ($PDR_{\mathrm{app}}$) in Fig.~\ref{fig:ns3_pdr}, this does not indicate physical channel reliability or zero-loss propagation. Rather, it demonstrates that the selective bit-vector \ac{SACK}-\ac{ARQ} mechanism successfully recovers lost fragments within the $R_{\mathrm{max}} = 5$ retry budget prior to session timeout.
 
 In \ac{LoS} conditions, SF10 sustains complete payload reassembly up to 19.1~km, exhibiting a steep drop-off between 20.0~km and 23.1~km as frame loss probability exceeds retransmission recovery budgets. Conversely, best-effort unreliable modes (Mode 1 and Mode 2) experience progressive packet drop rates as spatial fading degrades signal-to-noise ratios.
