@@ -1015,7 +1015,16 @@ These findings motivated the redesign on Semtech SX126x-class transceivers via t
 
 \section{Hardware Level Implementation}
 \label{sec:implementation}
-To validate the proposed protocol, a complete implementation of the LAMP library was developed in C++17. The design is modular, separating the transport state machine from physical hardware dependencies.
+To validate the proposed protocol, a complete implementation of the LAMP library was developed in C++17. The design is modular, separating the transport state machine from physical hardware dependencies and parameter policies.
+
+\subsection{Centralized Configuration and Parameter Decoupling}
+To eliminate hardcoded constants and enable deterministic tuning across heterogeneous embedded targets, all protocol operational parameters are centralized within a dedicated compile-time configuration namespace (\texttt{LoRaMultiPacketConfig}). This design encapsulates three primary domains:
+\begin{itemize}
+  \item \textbf{Memory and Concurrency Limits}: Governs maximum concurrent reassembly sessions (\texttt{MAX\_CONCURRENT\_SESSIONS} = 10, reducible to 1--2 on memory-constrained Cortex-M0/AVR devices), physical FIFO buffer bounds (\texttt{PHY\_BUFFER\_SIZE} = 256~bytes), and completed sequence deduplication depth (\texttt{MAX\_COMPLETED\_HISTORY} = 16).
+  \item \textbf{Timing and Retransmission Policies}: Configures the default retry ceiling ($R_{\mathrm{max}} = 5$), minimum SACK timeout floor ($T_{\min} = 1000$~ms, tunable for low-latency P2P links), safety multiplier ($\alpha = 1.5$), and half-duplex switching guard ($\delta = 25$~ms).
+  \item \textbf{Session Lifecycle Thresholds}: Defines handshake initiation timeouts (\texttt{DEFAULT\_SYN\_TIMEOUT\_MS} = 3000~ms), connection inactivity teardown periods (\texttt{DEFAULT\_CONN\_INACTIVITY\_TIMEOUT\_MS} = 15000~ms), and stale session pruning timers (\texttt{PRUNE\_TIMEOUT\_MS} = 15000~ms).
+\end{itemize}
+Complementing the compile-time configuration, the \ac{3WHS} mechanism enables dynamic run-time parameter negotiation (\texttt{SynMetadata}), providing a two-tier flexibility model that adapts to variable channel conditions and peer memory capabilities.
 
 \subsection{Hardware Abstraction Layer (\ac{HAL})}
 To keep the protocol core hardware-agnostic, a clean \ac{HAL} interface (\texttt{RadioLibHal}) was implemented. On the physical nodes, the concrete class \texttt{EspHal} wraps the ESP32-S3 hardware resources:
@@ -1064,14 +1073,14 @@ To achieve statistical convergence, an extensive Monte Carlo campaign comprising
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.98\textwidth, height=3.8cm]{img/pdr_ns3_subplots_LOS.png}
+\includegraphics[width=0.98\textwidth, height=3.5cm]{img/pdr_ns3_subplots_LOS.png}
 \caption{Packet Delivery Ratio ($PDR_{\mathrm{app}}$ \%) as a function of distance across Spreading Factors (SF7, SF9, SF10) in Line-of-Sight (\ac{LoS}) propagation. Solid lines denote mean delivery rates across 50 Monte Carlo trials; shaded ribbons represent 95\% confidence intervals.}
 \label{fig:ns3_pdr}
 \end{figure*}
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.98\textwidth, height=3.8cm]{img/goodput_ns3_subplots_LOS.png}
+\includegraphics[width=0.98\textwidth, height=3.5cm]{img/goodput_ns3_subplots_LOS.png}
 \caption{Effective application-layer throughput (Goodput in bps) across Spreading Factors and LAMP operational modes in \ac{LoS}. Shaded ribbons denote 95\% confidence intervals across 50 Monte Carlo trials.}
 \label{fig:ns3_goodput}
 \end{figure*}
