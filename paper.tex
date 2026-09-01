@@ -106,6 +106,7 @@
 
 
 \usepackage{acronym}
+\usepackage{url}
 
 
 
@@ -1054,47 +1055,29 @@ To eliminate hardcoded constants and enable deterministic tuning across heteroge
 Complementing the compile-time configuration, the \ac{3WHS} mechanism enables dynamic run-time parameter negotiation (\texttt{SynMetadata}), providing a two-tier flexibility model that adapts to variable channel conditions and peer memory capabilities.
 
 \subsection{Hardware Abstraction Layer (\ac{HAL})}
-To keep the protocol core hardware-agnostic, a clean \ac{HAL} interface (\texttt{RadioLibHal}) was implemented. On the physical nodes, the concrete class \texttt{EspHal} wraps the ESP32-S3 hardware resources:
-\begin{itemize}
-  \item \textbf{\ac{SPI} Communication}: Manages registers configuration and \ac{FIFO} buffers transfer for the Semtech SX1262 transceiver.
-  \item \textbf{\ac{GPIO} Interrupts}: Maps physical pins, including Chip Select (NSS), Reset (RST), Busy status indicator (BUSY), and the hardware interrupt pin (DIO1) used to trigger RX/TX completion interrupts.
-  \item \textbf{Timing Primitives}: Implements millisecond counters (\texttt{millis()}) and microsecond/millisecond delays (\texttt{delay()}).
-\end{itemize}
+To keep the protocol core hardware-agnostic, a clean \ac{HAL} interface (\texttt{RadioLibHal}) was implemented. On the physical nodes, the concrete class \texttt{EspHal} wraps ESP32-S3 hardware resources: \ac{SPI} Communication (register configuration and \ac{FIFO} buffer transfers for the Semtech SX1262), \ac{GPIO} Interrupts (NSS, RST, BUSY, and the DIO1 RX/TX completion interrupt pin), and Timing Primitives (\texttt{millis()} and \texttt{delay()}).
 
 \subsection{Host-Based Unit Testing}
-Following a \ac{TDD} methodology, the protocol core (e.g., packet parsing, reassembler sessions, and \ac{CRC} checksums) was validated in isolation on a desktop host (Linux/macOS). The tests compile and run natively using the \textbf{Unity} testing framework integrated into PlatformIO:
-\begin{itemize}
-  \item \textbf{Integrity Tests}: Confirmed the Modbus \ac{CRC}-16 computation on headers and partial/padded payloads.
-  \item \textbf{Reassembly State Machine}: Validated reassembly handling of out-of-order and duplicate chunks.
-  \item \textbf{Stale Session Pruning}: Confirmed that incomplete reassembly buffers are correctly pruned after exceeding the timeout threshold.
-\end{itemize}
+Following a \ac{TDD} methodology, the protocol core was validated in isolation on a desktop host using the \textbf{Unity} framework in PlatformIO, verifying: (i) Modbus \ac{CRC}-16 calculation on headers and partial/padded payloads, (ii) reassembler state transitions under out-of-order and duplicate chunk arrivals, and (iii) deterministic pruning of stale session descriptors.
 
 \subsection{Physical Benchmarking Setup}
-Physical tests were conducted using two Heltec Wi-Fi \ac{LoRa}~32~V3 development boards. The transmitter node was connected to a console runner to sweep payload sizes, while the receiver node operated as a standalone listener. The transceivers were configured with the following parameters:
-\begin{itemize}
-  \item \textbf{Carrier Frequency}: 869.525~MHz
-  \item \textbf{Spreading Factor (SF)}: 7
-  \item \textbf{Bandwidth (BW)}: 500.0~kHz
-  \item \textbf{Coding Rate (CR)}: 4/5
-  \item \textbf{Output Power}: 10~dBm
-  \item \textbf{Preamble Length}: 8 symbols
-\end{itemize}
+Physical validation was conducted using two Heltec Wi-Fi \ac{LoRa}~32~V3 development boards (ESP32-S3 + Semtech SX1262) configured with: Carrier Frequency 869.525~MHz, SF7, BW 500.0~kHz, CR 4/5, TX Power +10~dBm, and 8-symbol preamble.
 
 \subsubsection{Regulatory Compliance and Regional Deployment}
-It is important to clarify the relationship between the LAMP transport protocol and RF regulatory constraints. LAMP operates strictly at the \textit{transport layer} and is agnostic to regional duty-cycle regulations, carrier frequency, and RF power limits; compliance with these constraints is the responsibility of the underlying MAC/PHY layer and application policy.
+It is important to clarify the relationship between the LAMP transport protocol and RF regulatory constraints. LAMP operates strictly at the \textit{transport layer} and is agnostic to regional carrier frequency, channel width, and RF power limits; compliance with these constraints is the responsibility of the underlying MAC/PHY layer.
 
-Under European ETSI~EN~300~220-2 regulations~\cite{etsi300220}, the 869.400--869.650~MHz sub-band (Band P) allocates a 250~kHz frequency block permitting up to 10\% duty cycle and an output power up to 500~mW ERP (27~dBm), providing operational headroom for multi-chunk burst transfers without incurring the restrictive 1\% hourly airtime cap of the primary 868~MHz sub-band. For standard field deployments strictly adhering to this sub-band, channel bandwidths of 125~kHz or 250~kHz centered at 869.525~MHz are selected. In our laboratory testbed and simulation campaign, a wideband configuration ($BW = 500.0$~kHz, matching standard US915 500~kHz channels) was evaluated to characterize upper throughput limits.
+Under European ETSI~EN~300~220-2 regulations~\cite{etsi300220}, the 869.400--869.650~MHz sub-band (Band P) allocates a 250~kHz total frequency block permitting up to 10\% duty cycle and an output power up to 500~mW ERP (27~dBm). For field deployments strictly adhering to this sub-band, channel bandwidths of $\le 250$~kHz (specifically 125~kHz or 250~kHz raster centered at 869.525~MHz) are selected. To characterize the protocol's upper theoretical throughput limits under maximum channel stress, our simulation campaign and laboratory benchmarks evaluated a wideband configuration ($BW = 500.0$~kHz, matching standard US915 / AU915 wideband LoRa allocations) on an experimental carrier.
 
 Additionally, the reference C++ library provides opt-in MAC-layer helpers, including SX1262-native Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) and duty-cycle pacing to mitigate channel contention. These features are decoupled from the transport core and offered as convenience primitives for integrators targeting shared ISM spectrum.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.42\textwidth]{img/pdr_ns3_subplots_LOS.png}
-\caption{Packet Delivery Ratio ($PDR_{\mathrm{app}}$ \%) as a function of distance across Spreading Factors (SF7, SF9, SF10) in Line-of-Sight (\ac{LoS}) propagation. Solid lines denote mean delivery rates across 50 Monte Carlo trials; shaded ribbons represent 95\% confidence intervals.}
+\caption{Packet Delivery Ratio ($PDR_{\mathrm{app}}$ \%) for a fixed $N=20$-chunk payload transfer (4.88~KB application data) as a function of distance across Spreading Factors (SF7, SF9, SF10) in Line-of-Sight (\ac{LoS}) propagation. Solid lines denote mean delivery rates across 50 independent Monte Carlo random seeds; shaded ribbons represent 95\% confidence intervals.}
 \label{fig:ns3_pdr}
 \vspace{4pt}
 \includegraphics[width=0.42\textwidth]{img/goodput_ns3_subplots_LOS.png}
-\caption{Effective application-layer throughput (Goodput in bps) across Spreading Factors and LAMP operational modes in \ac{LoS}. Shaded ribbons denote 95\% confidence intervals across 50 Monte Carlo trials.}
+\caption{Effective application-layer throughput (Goodput in bps) for an $N=20$-chunk payload transfer across Spreading Factors and LAMP operational modes in \ac{LoS}. Shaded ribbons denote 95\% confidence intervals across 50 Monte Carlo seeds.}
 \label{fig:ns3_goodput}
 \end{figure*}
 
@@ -1107,7 +1090,7 @@ To evaluate the reliability, throughput, and communication limits of LAMP, we ad
 To characterize protocol performance under controlled fading channels across extensive distance ranges, we developed a full C++ simulator integrated into the ns-3 framework (\texttt{ns3-lorawan}). The simulator reproduces the exact LAMPv2 frame structure (9-byte Logical Header + 2-byte \ac{CRC}-16), all four operational modes, the \ac{3WHS} handshake, and selective bit-vector \ac{SACK} retransmissions over a Nakagami-$m$ fast-fading propagation loss model calibrated for the Semtech SX1262 transceiver (+24.2~dBm EIRP, 869.525~MHz).
 
 \subsubsection{Simulation Campaign Hierarchy}
-To achieve statistical convergence, an extensive Monte Carlo campaign comprising 117,050 total independent simulation runs was conducted. The experimental space spans 3 RF propagation environments (\ac{LoS}, Urban, Rural), 3 Spreading Factors (SF7, SF9, SF10), 4 operational modes (Mode 1 to Mode 4), and 50 independent random seeds per parameter configuration across an adaptive distance grid extending dynamically up to 23.5~km with early-stopping thresholds once reception falls to 0\% across consecutive steps. Each curve point plotted in Figs.~\ref{fig:ns3_pdr} and~\ref{fig:ns3_goodput} represents the sample mean over 50 independent Monte Carlo seed replications, with shaded ribbons denoting 95\% confidence intervals.
+To achieve statistical convergence, an extensive Monte Carlo campaign comprising 117,050 total independent simulation runs was conducted. The experimental space spans 3 RF propagation environments (\ac{LoS}, Urban, Rural), 3 Spreading Factors (SF7, SF9, SF10), 4 operational modes (Mode 1 to Mode 4), and 50 independent random seeds per parameter configuration across an adaptive distance grid extending dynamically up to 23.5~km with early-stopping thresholds once reception falls to 0\% across consecutive steps. Each curve point plotted in Figs.~\ref{fig:ns3_pdr} and~\ref{fig:ns3_goodput} represents the sample mean over 50 independent Monte Carlo seed replications for a representative $N=20$-chunk payload (4.88~KB data size), with shaded ribbons denoting 95\% confidence intervals.
 
 \subsubsection{Analytical Reliability Bound under Stated Assumptions}
 To model payload completion probabilities analytically, we define a theoretical baseline under stated hypotheses:
@@ -1146,18 +1129,28 @@ During the planned outdoor campaign, four core performance metrics will be recor
 \label{sec:conclusion}
 This paper presents the design, implementation, network simulation, and hardware validation of LAMP, a lightweight and reliable transport-layer architecture optimized for transmitting segmented large payloads over point-to-point and local multi-node \ac{LoRa} networks. By replacing traditional Stop-and-Wait per-packet acknowledgments with selective retransmissions requested via cumulative binary bitmaps, and eliminating redundant SOM/EOM markers in favor of implicit index derivation, the protocol achieves high reliability under lossy conditions with minimal airtime overhead and duty-cycle footprint.
 
-\subsection{Architectural Roadmap}
-To guide the long-term progression of LAMP from point-to-point data links to decentralized multiagent mesh networks, we define a strategic three-level architectural roadmap:
-\begin{itemize}
-  \setlength{\itemsep}{2pt}
+\subsection{Protocol Scope and Limitations}
+To provide a transparent systems assessment, three inherent architectural boundaries of baseline LAMPv2 are identified:
+\begin{enumerate}
+  \setlength{\itemsep}{1.5pt}
   \setlength{\parskip}{0pt}
-  \item \textbf{Level 1 -- Addressed Transport \& Polite Spectrum Access (Current Implemented Stack)}: Establishes 8-bit addressing (\texttt{srcAddr}, \texttt{dstAddr}), dynamic 9-byte header packing, four operational modes, dynamic \ac{3WHS} negotiation, and opt-in CAD/CSMA-CA for polite spectrum access under ETSI~EN~300~220-1~\cite{etsi300220}.
-  \item \textbf{Level 2 -- Adaptive Spectrum, Scheduling \& Security (Near-Term Enhancement)}: Incorporates dynamic Adaptive Data Rate (ADR) tuning via RSSI/SNR metrics in \ac{SACK} feedback, scheduled time-slotted channel access (TDM)~\cite{wei2020tdm}, and an optional transport-layer security profile (AES-128-GCM / HMAC-SHA256 authenticated encryption with 32-bit replay counters).
-  \item \textbf{Level 3 -- Multi-Hop Mesh \& IPv6 Extension (Long-Term Vision)}: Integrates dynamic multi-hop routing (e.g., AODV-Light or RPL adaptation) with hop-by-hop vs. end-to-end \ac{SACK} reliability options~\cite{kim2022multihop, wong2024mesh}, and leverages 8-bit node ID mapping for IPv6 link-local bridging (\texttt{fe80::/64}).
+  \item \textit{Session Capacity Boundary}: A single transport session is bounded to 255 chunks $\times$ 244~B = 62,220~bytes ($\approx 62.2$~KB). Larger files require application-layer multi-session chunking.
+  \item \textit{Pessimistic Buffer Pre-allocation}: To guarantee memory safety against out-of-order partial tail chunks arriving first, the receiver allocates contiguous memory based on $N \times S_{\max}$ upfront. On RAM-constrained microcontrollers ($\le 32$~KB SRAM), the concurrency pool ($\texttt{MAX\_CONCURRENT\_SESSIONS}$) must be set to 1--2 sessions.
+  \item \textit{Unauthenticated Baseline 3WHS}: Baseline LAMPv2 incorporates CRC-16 for physical frame integrity but omits cryptographic nonces. Consequently, adversarial replays of stale \texttt{SYN} frames could exhaust active session descriptors. This is mitigated via the opt-in Level-2 Security Profile (AES-128-GCM / HMAC) detailed below.
+\end{enumerate}
+
+\subsection{Architectural Roadmap}
+To guide the long-term progression of LAMP from point-to-point data links to decentralized multiagent mesh networks, we define a three-level architectural roadmap:
+\begin{itemize}
+  \setlength{\itemsep}{1.5pt}
+  \setlength{\parskip}{0pt}
+  \item \textbf{Level 1 -- Addressed Transport \& Polite Spectrum Access (Current Stack)}: 8-bit addressing (\texttt{srcAddr}, \texttt{dstAddr}), 9-byte header, four operational modes, dynamic \ac{3WHS}, and opt-in CAD/CSMA-CA under ETSI~EN~300~220-1~\cite{etsi300220}.
+  \item \textbf{Level 2 -- Adaptive Spectrum, Scheduling \& Security (Near-Term)}: Dynamic ADR tuning via RSSI/SNR metrics in \ac{SACK} feedback, time-slotted channel access (TDM)~\cite{wei2020tdm}, and an optional transport security profile (AES-128-GCM / HMAC-SHA256 with 32-bit replay counters).
+  \item \textbf{Level 3 -- Multi-Hop Mesh \& IPv6 Extension (Long-Term Vision)}: Dynamic multi-hop routing (AODV-Light / RPL adaptation) with hop-by-hop vs. end-to-end \ac{SACK} reliability~\cite{kim2022multihop, wong2024mesh}, and 8-bit node ID mapping for IPv6 link-local bridging (\texttt{fe80::/64}).
 \end{itemize}
 
 \section*{Declarations}
-\noindent\textbf{Data Availability}: All firmware implementations, C++17 library source code, host unit testing suites, and benchmarking scripts are available in the public project repository.
+\noindent\textbf{Data and Code Availability}: The complete C++17 library source code, HAL drivers, Unity test suites, and ns-3 simulation scripts are publicly available on GitHub at \url{https://github.com/aleemont/LoRaMultiPacket} under the MIT license.
 
 \noindent\textbf{Ethical Statement \& AI Tool Usage}: This study did not involve human or animal subjects. AI assistant tools were utilized strictly for code formatting, micro-typography auditing, and manuscript style calibration in compliance with IEEE publication ethics guidelines.
 
