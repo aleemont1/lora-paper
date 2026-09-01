@@ -759,28 +759,28 @@ T_{\mathrm{timeout}} = \max\!\left(T_{\min},\;\alpha\cdot\widehat{T}_{\mathrm{oA
 where $T_{\min} = 1000$~ms is the minimum guard, $\alpha = 1.5$ is a safety factor, $\widehat{T}_{\mathrm{oA}}$ is the Time-on-Air for the current packet length queried from the radio driver~\cite{semtech-an1200}, and $\delta = 25$~ms is the half-duplex switching guard delay. Table~\ref{tab:timeouts} reports representative timeout values across spreading factors.
 
 \subsubsection{Analytical Burst Reliability Bounding}
-Under a frame loss probability $p$, the probability that a specific chunk or \ac{SACK} query fails after $R_{\mathrm{max}}$ retransmission retries is $p^{R_{\mathrm{max}} + 1}$. Consequently, for a data payload segmented into $N$ chunks, the overall burst delivery success probability $P_{\mathrm{success}}$ and overall burst failure probability $P_{\mathrm{burst\_fail}}$ under \ac{SACK}-\ac{ARQ} are analytically bounded by:
+Under a frame loss probability $p$, the probability that a specific chunk or \ac{SACK} query fails after $R_{\mathrm{max}}$ retransmission retries is $p^{R_{\mathrm{max}} + 1}$. Consequently, for a data payload segmented into $N$ chunks, the overall burst delivery success probability $P_{\mathrm{success}}$ and overall burst failure probability $P_{\mathrm{fail}}$ under \ac{SACK}-\ac{ARQ} are analytically bounded by:
 \begin{equation}
 P_{\mathrm{success}} = \left(1 - p^{R_{\mathrm{max}} + 1}\right)^N, \qquad P_{\mathrm{fail}} = 1 - P_{\mathrm{success}}
 \label{eq:burst_fail}
 \end{equation}
-For a lossy wireless channel with a 20\% frame error rate ($p = 0.20$) and the default retry limit $R_{\mathrm{max}} = 5$ (configured via \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}), the individual chunk failure probability drops to $p^6 = 0.000064$, yielding an overall burst delivery success probability $P_{\mathrm{success}} > 99.998\%$ for a standard 20-chunk payload transfer.
+For a lossy wireless channel with a 20\% frame error rate ($p = 0.20$) and the default retry limit $R_{\mathrm{max}} = 5$ (configured via \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}), the individual chunk failure probability drops to $p^6 = 0.000064$, yielding an overall burst delivery success probability $P_{\mathrm{success}} = (1 - 0.000064)^{20} \approx 99.87\%$ for a standard 20-chunk payload transfer.
 
 \begin{table}[htpb]
 \centering
-\caption{Adaptive SACK Timeout Values (BW~500~kHz, CR~4/5, 253-byte frame)}
+\caption{Adaptive SACK Timeout Values (BW~500~kHz, CR~4/5, 255-byte max frame)}
 \label{tab:timeouts}
 \renewcommand{\arraystretch}{1.15}
 \footnotesize
 \begin{tabular}{|c|r|r|r|}
 \hline
 \textbf{SF} & \textbf{$\widehat{T}_{\mathrm{oA}}$ (ms)} & \textbf{$\alpha\cdot\widehat{T}_{\mathrm{oA}}+\delta$ (ms)} & \textbf{$T_{\mathrm{timeout}}$ (ms)} \\ \hline
-7  &  92 &  163 & 1000 \\ \hline
-8  & 128 &  217 & 1000 \\ \hline
-9  & 215 &  348 & 1000 \\ \hline
-10 & 371 &  582 & 1000 \\ \hline
-11 & 742 & 1138 & 1138 \\ \hline
-12 &1484 & 2251 & 2251 \\ \hline
+7  &   99 &  174 & 1000 \\ \hline
+8  &  174 &  286 & 1000 \\ \hline
+9  &  313 &  494 & 1000 \\ \hline
+10 &  564 &  871 & 1000 \\ \hline
+11 & 1025 & 1563 & 1563 \\ \hline
+12 & 1886 & 2854 & 2854 \\ \hline
 \end{tabular}
 \end{table}
 
@@ -1055,7 +1055,7 @@ To evaluate the reliability, throughput, and communication limits of LAMP, we ad
 To characterize protocol performance under controlled fading channels across extensive distance ranges, we developed a full C++ simulator integrated into the ns-3 framework (\texttt{ns3-lorawan}). The simulator reproduces the exact LAMPv2 frame structure (9-byte Logical Header + 2-byte \ac{CRC}-16), all four operational modes, the \ac{3WHS} handshake, and selective bit-vector \ac{SACK} retransmissions over a Nakagami-$m$ fast-fading propagation loss model calibrated for the Semtech SX1262 transceiver (+24.2~dBm EIRP, 869.525~MHz).
 
 \subsubsection{Simulation Campaign Hierarchy}
-To achieve statistical convergence, a comprehensive stochastic simulation campaign comprising 117,050 total independent simulation runs was conducted. The experimental space spans 3 RF environments (\ac{LoS}, Urban, Rural), 3 Spreading Factors (SF7, SF9, SF10), 4 operational modes (Mode 1 to Mode 4), 5 random seeds per parameter set, and 10 payload size steps (scaling from 1 to 100 chunks) across dynamic distance steps extending up to 23.5~km. Each curve point plotted in Figs.~\ref{fig:ns3_pdr} and~\ref{fig:ns3_goodput} represents the sample mean over 50 Monte Carlo trials (combining 5 random seeds across 10 payload size iterations per distance step), with shaded ribbons denoting 95\% confidence intervals.
+To achieve statistical convergence, an extensive Monte Carlo campaign comprising 117,050 total independent simulation runs was conducted. The experimental space spans 3 RF propagation environments (\ac{LoS}, Urban, Rural), 3 Spreading Factors (SF7, SF9, SF10), 4 operational modes (Mode 1 to Mode 4), 5 random seeds per parameter set, and 10 payload size steps (scaling from 1 to 100 chunks) across an adaptive distance grid extending dynamically up to 23.5~km with early-stopping thresholds once reception falls to 0\% across consecutive steps. Each curve point plotted in Figs.~\ref{fig:ns3_pdr} and~\ref{fig:ns3_goodput} represents the sample mean over 50 Monte Carlo trials (combining 5 random seeds across 10 payload size iterations per distance step), with shaded ribbons denoting 95\% confidence intervals.
 
 \begin{figure*}[t]
 \centering
@@ -1074,7 +1074,7 @@ To achieve statistical convergence, a comprehensive stochastic simulation campai
 \subsubsection{Analytical Reliability Bound under Stated Assumptions}
 To model payload completion probabilities analytically, we define a theoretical bound under stated hypotheses:
 \begin{enumerate}
-  \item \textit{Independent Loss Model}: Channel frame loss follows an independent and identically distributed (i.i.d.) Bernoulli error process with packet error rate $p \in [0, 1)$.
+  \item \textit{Independent Loss Model}: Channel frame loss is modeled as an independent and identically distributed (i.i.d.) Bernoulli error process with packet error rate $p \in [0, 1)$. While the i.i.d. Bernoulli model provides a tractable analytical baseline, physical \ac{LPWAN} channels typically exhibit temporally correlated fading; the stochastic ns-3 simulations evaluated in this work capture these fading dynamics directly without relying on the i.i.d. simplification.
   \item \textit{Bounded Retransmissions}: Selective \ac{SACK} retransmission retries are bounded by the protocol's maximum retry limit $R_{\mathrm{max}} = 5$ (matching \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}).
 \end{enumerate}
 Under these stated assumptions, the analytical upper bound for successfully reassembling an $N$-fragment payload across $R_{\mathrm{max}}$ retries is given by:
