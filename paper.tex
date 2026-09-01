@@ -798,32 +798,48 @@ For a representative 20-chunk payload (4.88~KB data size), a complete reassembly
 \subsection{Formal Protocol Algorithms}
 To ensure complete specification clarity and system-level reproducibility across different hardware platforms, Algorithm~\ref{alg:segmentation} and Algorithm~\ref{alg:reassembly} formally detail the transmitter-side segmentation pipeline and the receiver-side out-of-order reassembly engine, respectively.
 
-\begin{algorithm}[htpb]
-\caption{LAMP Payload Segmentation (Transmitter)}
+\begin{figure*}[t]
+\centering
+\begin{minipage}[t]{0.485\textwidth}
+\begin{algorithm}[H]
+\caption{LAMP Payload Transmission and SACK-ARQ (Transmitter)}
 \label{alg:segmentation}
 \footnotesize
 \begin{algorithmic}[1]
 \Require Payload $P$ (size $L$), $dstAddr$, Max Chunk Size $S$, Mode $M$
-\Ensure Sequence of frames $F_0, \dots, F_{N-1}$
+\Ensure Delivery Status (\texttt{OK} or \texttt{FAIL})
 \State $N \gets \lceil L / S \rceil$
 \If{$N > 255$} \State \Return \texttt{ERR\_PAYLOAD\_TOO\_LARGE} \EndIf
 \State $msgId \gets \text{GetNextMsgId}()$
 \For{$i \gets 0$ \textbf{to} $N-1$}
     \State $cLen \gets (i == N-1) ? (L - i \cdot S) : S$
-    \State $flags \gets \texttt{FLAG\_NONE}$
-    \If{$M \in \{\text{Mode 3}, \text{Mode 4}\} \textbf{ and } i == N-1$}
-        \State $flags \gets flags \mid \texttt{FLAG\_ACK\_REQ}$
-    \EndIf
+    \State $flags \gets (M \in \{\text{M3}, \text{M4}\} \textbf{ and } i == N-1) ? \texttt{FLAG\_ACK\_REQ} : \texttt{0x00}$
     \State $hdr \gets \text{BuildHdr}(src, dst, msgId, N, i, cLen, flags)$
     \State $crc \gets \text{CalcCRC16}(hdr, P[i\cdot S : i\cdot S + cLen])$
     \State $F_i \gets \text{SerializeFrame}(hdr, P[i\cdot S : i\cdot S + cLen], crc)$
     \State $\text{Transmit}(F_i)$
 \EndFor
+\If{$M \in \{\text{Mode 1}, \text{Mode 2}\}$} \State \Return \texttt{OK} \Comment{Best-effort datagram/stream} \EndIf
+\State $retries \gets 0$
+\While{$retries < R_{\mathrm{max}}$}
+    \State $sack \gets \text{WaitForSack}(T_{\mathrm{timeout}})$
+    \If{$sack == \text{TIMEOUT}$}
+        \State $\text{Transmit}(F_{N-1})$; $retries \gets retries + 1$
+    \ElsIf{$\text{IsAllAcked}(sack.bitmap)$}
+        \State \Return \texttt{OK} \Comment{Complete payload delivery confirmed}
+    \Else
+        \For{$idx \in \text{MissingChunks}(sack.bitmap)$}
+            \State $\text{Transmit}(F_{idx})$
+        \EndFor
+    \EndIf
+\EndWhile
+\State \Return \texttt{ERR\_MAX\_RETRIES\_EXCEEDED}
 \end{algorithmic}
 \end{algorithm}
-
-\begin{algorithm}[htpb]
-\caption{Out-of-Order Reassembly (Receiver)}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\textwidth}
+\begin{algorithm}[H]
+\caption{Out-of-Order Reassembly and SACK Generation (Receiver)}
 \label{alg:reassembly}
 \footnotesize
 \begin{algorithmic}[1]
@@ -835,7 +851,7 @@ To ensure complete specification clarity and system-level reproducibility across
 \If{$hdr.totalChunks == 0 \textbf{ or } hdr.chunkIndex \ge hdr.totalChunks$} \State \text{Drop}($F$); \Return \EndIf
 \State $session \gets \text{FindSession}(hdr.srcAddr, hdr.msgId)$
 \If{$session == \text{NULL}$}
-    \If{$\text{AvailMem}() < hdr.totalChunks \cdot hdr.payloadSize$} \Comment{Conservative check}
+    \If{$\text{AvailMem}() < hdr.totalChunks \cdot hdr.payloadSize$} \Comment{Safety check}
         \State \text{SendNack}(hdr.srcAddr, \texttt{BUSY}); \Return 
     \EndIf
     \State $session \gets \text{AllocBuf}(hdr.totalChunks, hdr.payloadSize)$
@@ -857,6 +873,8 @@ To ensure complete specification clarity and system-level reproducibility across
 \EndIf
 \end{algorithmic}
 \end{algorithm}
+\end{minipage}
+\end{figure*}
 
 \begin{figure*}[htpb]
 \centering
@@ -1067,14 +1085,14 @@ To achieve statistical convergence, an extensive Monte Carlo campaign comprising
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.98\textwidth]{img/pdr_ns3_subplots_LOS.png}
+\includegraphics[width=0.98\textwidth, height=3.3cm]{img/pdr_ns3_subplots_LOS.png}
 \caption{Packet Delivery Ratio ($PDR_{\mathrm{app}}$ \%) as a function of distance across Spreading Factors (SF7, SF9, SF10) in Line-of-Sight (\ac{LoS}) propagation. Solid lines denote mean delivery rates across 50 Monte Carlo trials; shaded ribbons represent 95\% confidence intervals.}
 \label{fig:ns3_pdr}
 \end{figure*}
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.98\textwidth]{img/goodput_ns3_subplots_LOS.png}
+\includegraphics[width=0.98\textwidth, height=3.3cm]{img/goodput_ns3_subplots_LOS.png}
 \caption{Effective application-layer throughput (Goodput in bps) across Spreading Factors and LAMP operational modes in \ac{LoS}. Shaded ribbons denote 95\% confidence intervals across 50 Monte Carlo trials.}
 \label{fig:ns3_goodput}
 \end{figure*}
