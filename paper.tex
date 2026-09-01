@@ -1087,64 +1087,18 @@ Fig.~\ref{fig:ns3_goodput} depicts effective application-layer Goodput (bps). Wh
 
 \subsection{Planned Real-World Field Benchmarking Campaign}
 \label{sec:field_benchmarking}
-While hardware testbed experiments on two Heltec Wi-Fi \ac{LoRa}~32~V3 nodes have validated the functional correctness, C++ memory safety, \ac{3WHS} state machine transitions, and out-of-order reassembly of LAMPv2, a systematic outdoor field campaign is planned to record real-world empirical performance under environmental interference, multipath reflections, and temperature-induced frequency drift.
+While hardware testbed experiments on two Heltec Wi-Fi \ac{LoRa}~32~V3 nodes have validated the functional correctness, C++ memory safety, \ac{3WHS} state machine transitions, and out-of-order reassembly of LAMP, a systematic outdoor field campaign is planned as future experimental work to record real-world empirical performance under environmental interference, multipath reflections, and temperature-induced frequency drift.
 
-\subsubsection{Planned Experimental Matrix}
-The planned outdoor physical validation strategy follows established \ac{LPWAN} characterization methodologies~\cite{cattani2017} and will sweep the following parameters:
+\subsubsection{Planned Experimental Matrix and Evaluation Metrics}
+The planned outdoor physical validation strategy follows established \ac{LPWAN} characterization methodologies~\cite{cattani2017}. It will sweep transmission distances (1 to 5000~meters across \ac{LoS} and \ac{NLoS} conditions) and payload sequence sizes (1 to 100 chunks, $\approx 24.6$~KB) under standard radio configurations (SF7, BW 500~kHz, CR 4/5, 10~dBm TX power).
+
+During the planned outdoor campaign, four core performance metrics will be recorded across 5 independent trials per operational mode:
 \begin{itemize}
-  \item \textbf{Transmission Distance and Spatial Geometry}: Planned tests span physical distances of 1, 10, 100, 250, 500, 1000, 2500, and 5000~meters. Short-range setups (0 to 100~meters) will employ circular spatial sampling at multiple angular offsets to evaluate localized multipath fading, while long-range steps (above 100~meters) will use linear paths.
-  \item \textbf{Propagation Conditions}: Tests will evaluate both \ac{LoS} and \ac{NLoS} conditions~\cite{cattani2017}.
-  \item \textbf{Payload Sequence Size}: Payloads will scale from 1 chunk up to 100 chunks ($\approx 24.6$~KB total data size).
-  \item \textbf{Radio Configuration}: Nodes will maintain standard settings (SF7, BW 500~kHz, CR 4/5, 10~dBm TX power) using integrated Semtech transceivers.
-\end{itemize}
-
-\subsection{Evaluation Metrics}
-For each combination of distance, environment, and payload size, 5 independent iterations will be performed. The following metrics will be collected during the planned field campaign:
-\begin{enumerate}
   \item \textbf{Application Payload Delivery Ratio ($PDR_{\mathrm{app}}$)}: The percentage of application-level payloads successfully reconstructed at the receiver.
   \item \textbf{End-to-End Latency}: Total elapsed duration from initial fragment serialization at the transmitter to final reassembly callback at the receiver.
   \item \textbf{Effective Throughput (Goodput)}: The delivery rate of application payload data, calculated as $\mathrm{PayloadSize\ (bits)} / \mathrm{Latency\ (seconds)}$.
   \item \textbf{Retransmission Overhead}: Count of extra fragments and \ac{SACK} frames transmitted in reliable modes compared to unreliable baselines.
-\end{enumerate}
-
-The template for recording these empirical field benchmarking results is structured in Table~\ref{tab:empty_benchmark}.
-
-\begin{table*}[t]
-\centering
-\caption{LAMP Planned Hardware Experimental Benchmarking Matrix across Operational Modes}
-\label{tab:empty_benchmark}
-\renewcommand{\arraystretch}{0.88}
-\scriptsize
-\begin{tabular}{|r|c|l|c|c|c|c|c|}
-\hline
-\textbf{Distance} & \textbf{Path} & \textbf{LAMP Operational Mode} & \textbf{Payload} & \textbf{\ac{PDR}} & \textbf{Avg Latency} & \textbf{Avg Goodput} & \textbf{Retransmission Overhead} \\
-\textbf{(m)} & \textbf{Type} & \textbf{Evaluated} & \textbf{(Chunks)} & \textbf{(\%)} & \textbf{(ms)} & \textbf{(kbps)} & \textbf{(Chunks Sent / Retries)} \\ \hline
-1 & \ac{LoS} & Mode 1 (Unreliable Datagram) & 1--100 & & & & N/A \\ \cline{3-8}
-  &          & Mode 2 (Unreliable Stream)   & 1--100 & & & & N/A \\ \cline{3-8}
-  &          & Mode 3 (Reliable Datagram)   & 1--100 & & & & \\ \cline{3-8}
-  &          & Mode 4 (Reliable Stream)     & 1--100 & & & & \\ \hline
-100 & \ac{LoS} & Mode 1 (Unreliable Datagram) & 1--100 & & & & N/A \\ \cline{3-8}
-    &          & Mode 2 (Unreliable Stream)   & 1--100 & & & & N/A \\ \cline{3-8}
-    &          & Mode 3 (Reliable Datagram)   & 1--100 & & & & \\ \cline{3-8}
-    &          & Mode 4 (Reliable Stream)     & 1--100 & & & & \\ \hline
-500 & \ac{LoS} & Mode 1 (Unreliable Datagram) & 1--100 & & & & N/A \\ \cline{3-8}
-    &          & Mode 2 (Unreliable Stream)   & 1--100 & & & & N/A \\ \cline{3-8}
-    &          & Mode 3 (Reliable Datagram)   & 1--100 & & & & \\ \cline{3-8}
-    &          & Mode 4 (Reliable Stream)     & 1--100 & & & & \\ \hline
-1000 & \ac{LoS} / \ac{NLoS} & Mode 1 (Unreliable Datagram) & 1--100 & & & & N/A \\ \cline{3-8}
-     &                     & Mode 2 (Unreliable Stream)   & 1--100 & & & & N/A \\ \cline{3-8}
-     &                     & Mode 3 (Reliable Datagram)   & 1--100 & & & & \\ \cline{3-8}
-     &                     & Mode 4 (Reliable Stream)     & 1--100 & & & & \\ \hline
-2500 & \ac{LoS} / \ac{NLoS} & Mode 1 (Unreliable Datagram) & 1--100 & & & & N/A \\ \cline{3-8}
-     &                     & Mode 2 (Unreliable Stream)   & 1--100 & & & & N/A \\ \cline{3-8}
-     &                     & Mode 3 (Reliable Datagram)   & 1--100 & & & & \\ \cline{3-8}
-     &                     & Mode 4 (Reliable Stream)     & 1--100 & & & & \\ \hline
-5000 & \ac{LoS} / \ac{NLoS} & Mode 1 (Unreliable Datagram) & 1--100 & & & & N/A \\ \cline{3-8}
-     &                     & Mode 2 (Unreliable Stream)   & 1--100 & & & & N/A \\ \cline{3-8}
-     &                     & Mode 3 (Reliable Datagram)   & 1--100 & & & & \\ \cline{3-8}
-     &                     & Mode 4 (Reliable Stream)     & 1--100 & & & & \\ \hline
-\end{tabular}
-\end{table*}
+\end{itemize}
 
 \section{Conclusion and Architectural Roadmap}
 \label{sec:conclusion}
