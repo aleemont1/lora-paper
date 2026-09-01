@@ -467,7 +467,7 @@
 \maketitle
 
 \begin{abstract}
-  This paper presents \ac{LAMP}, a lightweight transport architecture that enables the continuous transfer of large data blocks over point-to-point Long-Range (LoRa\textsuperscript{\textregistered}) networks. To overcome the prohibitive Time-on-Air overhead and duty-cycle saturation typical of existing Stop-and-Wait solutions, the proposed architecture segments payloads into up to 255 chunks per transmission window. Each chunk is protected by a 9-byte Logical Header with IPv6-ready node addressing and a 2-byte \ac{CRC}-16 checksum suffix. The protocol provides four distinct operational modes combining connection state (Connectionless / Stateful) and reliability (Best-effort / {SACK}-{ARQ} feedback). By requiring receiver feedback only at sequence boundaries rather than per-packet, the \ac{SACK} mechanism significantly reduces acknowledgment overhead without incurring the constant over-the-air encoding overhead of pure \ac{FEC}.
+  This paper presents \ac{LAMP}, a lightweight transport architecture that enables the continuous transfer of large data blocks over point-to-point Long-Range (LoRa\textsuperscript{\textregistered}) networks. To overcome the prohibitive Time-on-Air overhead and duty-cycle saturation typical of existing Stop-and-Wait solutions, the proposed architecture segments payloads into up to 255 chunks per transmission window. Each chunk is protected by a 9-byte Logical Header with compact 8-bit node addressing (supporting downstream IPv6 link-local prefix mapping) and a 2-byte \ac{CRC}-16 checksum suffix. The protocol provides four distinct operational modes combining connection state (Connectionless / Stateful) and reliability (Best-effort / {SACK}-{ARQ} feedback). By requiring receiver feedback only at sequence boundaries rather than per-packet, the \ac{SACK} mechanism significantly reduces acknowledgment overhead without incurring the constant over-the-air encoding overhead of pure \ac{FEC}.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -527,7 +527,7 @@ This paper presents the design and implementation of \ac{LAMP}, a lightweight tr
 The main contributions of this work are:
 \begin{itemize}
   \item \textbf{Bitmap-Based \ac{SACK} Scheme}: Unlike existing \ac{LPWAN} fragmentation solutions that rely on Stop-and-Wait (S\&W) \ac{ARQ}, which requires one acknowledgment per packet and incurs substantial latency under duty-cycle constraints, the proposed protocol uses a compact binary bitmap carried in a single feedback frame. The receiver reports the delivery status of up to 255 chunks per round-trip, reducing retransmission overhead and over-the-air footprint.
-  \item \textbf{Lightweight Packet Segmentation and Abstraction}: The protocol introduces a 9-byte logical header (with 8-bit IPv6-ready node addressing) and a custom \ac{CRC} integrity check on partial payloads, enabling out-of-order chunk reassembly on resource-constrained microcontrollers.
+  \item \textbf{Lightweight Packet Segmentation and Abstraction}: The protocol introduces a 9-byte logical header (with 8-bit local node addressing) and a custom \ac{CRC} integrity check on partial payloads, enabling out-of-order chunk reassembly on resource-constrained microcontrollers.
   \item \textbf{Modular C++17 Implementation and \ac{TDD} Validation}: The core state machine is completely decoupled from the physical radio driver through a \ac{HAL}. This design enables both native host-based unit testing (using the Unity framework) and physical deployment on Semtech SX126x transceivers.
 \end{itemize}
 
@@ -752,22 +752,22 @@ Because \ac{LoRa} transceivers are half-duplex, a hardware transition period is 
 It is important to emphasize that all protocol timing parameters, guard delays (e.g., \texttt{SACK\_PREAMBLE\_GUARD\_DELAY\_MS}), and retry limits are fully decoupled into a centralized configuration namespace (\texttt{LoRaMultiPacketConfig}) and can be customized by integrators for any MCU/radio target. The default parameters presented in this study were specifically tuned around the Heltec Wi-Fi \ac{LoRa}~32~V3 (ESP32-S3) hardware platform.
 
 \subsubsection{Timeout and Fallback Recovery}
-If the transmitter does not receive a \ac{SACK} packet within the dynamic timeout window, it assumes the query or response was lost and retransmits the last \texttt{FLAG\_ACK\_REQ}-marked chunk. The transmitter permits up to $R_{\mathrm{max}} = 5$ consecutive timeout events before aborting the session.
+If the transmitter does not receive a \ac{SACK} packet within the dynamic timeout window, it assumes the query or response was lost and retransmits the last transmitted chunk with the \texttt{FLAG\_ACK\_REQ} flag. The transmitter permits up to $R_{\mathrm{max}} = 5$ consecutive timeout events before aborting the session.
 
-The timeout is computed adaptively as:
+The timeout is computed adaptively to account for forward data frame airtime, receiver turnaround, and reverse \ac{SACK} airtime:
 \begin{equation}
-T_{\mathrm{timeout}} = \max\!\left(T_{\min},\;\alpha\cdot\widehat{T}_{\mathrm{oA}} + \delta\right)
+T_{\mathrm{timeout}} = \max\!\left(T_{\min},\;\alpha\cdot\left(\widehat{T}_{\mathrm{oA, DATA}} + \widehat{T}_{\mathrm{oA, SACK}}\right) + \delta\right)
 \label{eq:timeout}
 \end{equation}
-where $T_{\min} = 1000$~ms is the minimum guard, $\alpha = 1.5$ is a safety factor, $\widehat{T}_{\mathrm{oA}}$ is the Time-on-Air for the current packet length queried from the radio driver~\cite{semtech-an1200}, and $\delta = 25$~ms is the half-duplex switching and scheduling guard delay. Table~\ref{tab:timeouts} reports representative timeout values across spreading factors.
+where $T_{\min} = 1000$~ms is the minimum guard, $\alpha = 1.5$ is a safety factor, $\widehat{T}_{\mathrm{oA, DATA}}$ and $\widehat{T}_{\mathrm{oA, SACK}}$ are the Times-on-Air for the data frame and reverse \ac{SACK} frame queried from the radio driver~\cite{semtech-an1200}, and $\delta = 25$~ms is the half-duplex switching and scheduling guard delay. Table~\ref{tab:timeouts} reports representative timeout values across spreading factors.
 
-\subsubsection{Analytical Burst Reliability Bounding}
-Under a frame loss probability $p$, the probability that a specific chunk or \ac{SACK} query fails after $R_{\mathrm{max}}$ retransmission retries is $p^{R_{\mathrm{max}} + 1}$. Consequently, for a data payload segmented into $N$ chunks, the overall burst delivery success probability $P_{\mathrm{success}}$ and overall burst failure probability $P_{\mathrm{fail}}$ under \ac{SACK}-\ac{ARQ} are analytically bounded by:
+\subsubsection{Idealized Analytical Burst Reliability Baseline}
+Under an independent frame loss probability $p$ and assuming error-free control feedback, the probability that an individual chunk fails after $R_{\mathrm{max}}$ repair rounds is $p^{R_{\mathrm{max}} + 1}$. For an $N$-chunk payload under this idealized i.i.d. baseline, the overall burst delivery success probability $P_{\mathrm{success}}$ is modeled as:
 \begin{equation}
 P_{\mathrm{success}} = \left(1 - p^{R_{\mathrm{max}} + 1}\right)^N, \qquad P_{\mathrm{fail}} = 1 - P_{\mathrm{success}}
 \label{eq:burst_fail}
 \end{equation}
-For a lossy wireless channel with a 20\% frame error rate ($p = 0.20$) and the default retry limit $R_{\mathrm{max}} = 5$ (configured via \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}), the individual chunk failure probability drops to $p^6 = 0.000064$, yielding an overall burst delivery success probability $P_{\mathrm{success}} = (1 - 0.000064)^{20} \approx 99.87\%$ for a standard 20-chunk payload transfer.
+For a lossy channel with a 20\% frame error rate ($p = 0.20$) and $R_{\mathrm{max}} = 5$ (matching \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}), $P_{\mathrm{success}} = (1 - 0.20^6)^{20} \approx 99.87\%$ for a 20-chunk transfer. In physical wireless environments with correlated shadowing and reverse-link fading, overall completion rates are evaluated empirically via the stochastic ns-3 campaign in Section~\ref{sec:eval}.
 
 \begin{table}[htpb]
 \centering
@@ -777,23 +777,23 @@ For a lossy wireless channel with a 20\% frame error rate ($p = 0.20$) and the d
 \footnotesize
 \begin{tabular}{|c|r|r|r|}
 \hline
-\textbf{SF} & \textbf{$\widehat{T}_{\mathrm{oA}}$ (ms)} & \textbf{$\alpha\cdot\widehat{T}_{\mathrm{oA}}+\delta$ (ms)} & \textbf{$T_{\mathrm{timeout}}$ (ms)} \\ \hline
-7  &   99 &  174 & 1000 \\ \hline
-8  &  174 &  286 & 1000 \\ \hline
-9  &  313 &  494 & 1000 \\ \hline
-10 &  564 &  871 & 1000 \\ \hline
-11 & 1025 & 1563 & 1563 \\ \hline
-12 & 1886 & 2854 & 2854 \\ \hline
+\textbf{SF} & \textbf{$\widehat{T}_{\mathrm{DATA}}$ (ms)} & \textbf{$\alpha\sum\widehat{T}_{\mathrm{oA}}+\delta$ (ms)} & \textbf{$T_{\mathrm{timeout}}$ (ms)} \\ \hline
+7  &   99 &  188 & 1000 \\ \hline
+8  &  174 &  312 & 1000 \\ \hline
+9  &  313 &  542 & 1000 \\ \hline
+10 &  564 &  958 & 1000 \\ \hline
+11 & 1025 & 1720 & 1720 \\ \hline
+12 & 1886 & 3140 & 3140 \\ \hline
 \end{tabular}
 \end{table}
 
 \subsection{Memory Bounding and RAM Footprint Analysis}
 To guarantee memory safety on constrained microcontrollers, the dynamic memory allocated for an active reassembly session at the receiver is strictly bounded by:
 \begin{equation}
-M_{\mathrm{session}} = S_{\mathrm{struct}} + N_{\mathrm{chunks}} \cdot S_{\mathrm{chunk}} + \left\lceil \frac{N_{\mathrm{chunks}}}{8} \right\rceil
+M_{\mathrm{session}} = S_{\mathrm{struct}} + N_{\mathrm{chunks}} \cdot S_{\max} + \left\lceil \frac{N_{\mathrm{chunks}}}{8} \right\rceil
 \label{eq:ram_footprint}
 \end{equation}
-where $S_{\mathrm{struct}} \approx 48$~bytes represents the session tracking structure metadata, $S_{\mathrm{chunk}} \le 244$~bytes is the maximum payload chunk size, and the final term represents the binary \ac{SACK} bitmask.
+where $S_{\mathrm{struct}} \approx 48$~bytes represents the session tracking structure metadata, $S_{\max} = 244$~bytes is the maximum chunk stride, and the final term represents the binary \ac{SACK} bitmask.
 
 For a representative 20-chunk payload (4.88~KB data size), a complete reassembly session requires $\approx 4.93$~KB of RAM (totaling $\approx 49.3$~KB across 10 concurrent 20-chunk sessions). On entry-level microcontrollers with limited SRAM ($\le 64$~KB), the concurrency pool ceiling ($\texttt{MAX\_CONCURRENT\_SESSIONS}$) is tuned to 1--2 sessions in \texttt{LoRaMultiPacketConfig}, while runtime heap protection (\texttt{AvailMem()}) prevents allocation failures by rejecting new requests with \texttt{CONN\_NACK(BUSY)} when memory is depleted.
 
