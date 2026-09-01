@@ -577,6 +577,8 @@ Rather than claiming overall superiority over existing industrial standards, LAM
 \textbf{Max Session Payload} & Unbounded (Sequential) & Variable (IPv6 Packet) & Unlimited (Block Session) & Multi-MB Image (65k Packets) & 62.2~KB (255 Chunks / Session) \\ \hline
 \textbf{Operational Modes} & 1 (Reliable S\&W) & 2 (ACK / No-ACK) & 1 (Unreliable \ac{FEC}) & 1 (Reliable Batch) & 4 Configurable Modes \\ \hline
 \textbf{Node Addressing} & None / Application & IPv6 128-bit (Compressed) & DevAddr (32-bit) & EUI (64-bit) & 8-bit Unicast + Broadcast \\ \hline
+\textbf{Multi-Node Suitability} & Single P2P Link & Star (Gateway-Centric) & Star Broadcast (Downlink) & P2P Uplink (Node--GW) & P2P \& Multi-Node Ready \\ \hline
+\textbf{Parameter Negotiation} & None (Static) & Static (Pre-shared Rules) & Static / Out-of-Band & Static Batch / 4WHS & Dynamic \ac{3WHS} Metadata \\ \hline
 \textbf{Key Strengths} & Minimal header size, trivial implementation & Extreme header compression for IP traffic & No feedback channel required (pure \ac{FEC}) & High-volume image uplink batching & 4 flexible modes, dynamic \ac{3WHS} buffer safety, raw \ac{LoRa} autonomy \\ \hline
 \textbf{Key Limitations \& Trade-offs} & Severe airtime latency, duty-cycle exhaustion & Requires static gateway rules \& IP core infrastructure & High \ac{FEC} compute cost, constant airtime overhead & 16B header overhead, single mode, 4WHS teardown & 9B header (11B w/ CRC), 62.2~KB session limit, RAM/timer state \\ \hline
 \end{tabularx}
@@ -757,12 +759,12 @@ T_{\mathrm{timeout}} = \max\!\left(T_{\min},\;\alpha\cdot\widehat{T}_{\mathrm{oA
 where $T_{\min} = 1000$~ms is the minimum guard, $\alpha = 1.5$ is a safety factor, $\widehat{T}_{\mathrm{oA}}$ is the Time-on-Air for the current packet length queried from the radio driver~\cite{semtech-an1200}, and $\delta = 25$~ms is the half-duplex switching guard delay. Table~\ref{tab:timeouts} reports representative timeout values across spreading factors.
 
 \subsubsection{Analytical Burst Reliability Bounding}
-Under a frame loss probability $p$, the probability that a specific retransmitted chunk or \ac{SACK} query fails across $k$ maximum retries is $p^k$. Consequently, for a data payload segmented into $N$ chunks, the overall burst delivery success probability $P_{\mathrm{success}}$ and overall burst failure probability $P_{\mathrm{burst\_fail}}$ under \ac{SACK}-\ac{ARQ} are analytically bounded by:
+Under a frame loss probability $p$, the probability that a specific chunk or \ac{SACK} query fails after $R_{\mathrm{max}}$ retransmission retries is $p^{R_{\mathrm{max}} + 1}$. Consequently, for a data payload segmented into $N$ chunks, the overall burst delivery success probability $P_{\mathrm{success}}$ and overall burst failure probability $P_{\mathrm{burst\_fail}}$ under \ac{SACK}-\ac{ARQ} are analytically bounded by:
 \begin{equation}
-P_{\mathrm{success}} = \left(1 - p^k\right)^N, \qquad P_{\mathrm{burst\_fail}} = 1 - \left(1 - p^k\right)^N
+P_{\mathrm{success}} = \left(1 - p^{R_{\mathrm{max}} + 1}\right)^N, \qquad P_{\mathrm{fail}} = 1 - P_{\mathrm{success}}
 \label{eq:burst_fail}
 \end{equation}
-For a lossy wireless channel with a 20\% frame error rate ($p = 0.20$) and the default retry limit $k = 5$, the individual chunk failure probability drops to $p^5 = 0.00032$, yielding an overall burst delivery success probability $P_{\mathrm{success}} > 99.993\%$ for a standard 20-chunk payload transfer.
+For a lossy wireless channel with a 20\% frame error rate ($p = 0.20$) and the default retry limit $R_{\mathrm{max}} = 5$ (configured via \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}), the individual chunk failure probability drops to $p^6 = 0.000064$, yielding an overall burst delivery success probability $P_{\mathrm{success}} > 99.998\%$ for a standard 20-chunk payload transfer.
 
 \begin{table}[htpb]
 \centering
@@ -1071,13 +1073,13 @@ To achieve statistical convergence, a comprehensive stochastic simulation campai
 To model payload completion probabilities analytically, we define a theoretical bound under stated hypotheses:
 \begin{enumerate}
   \item \textit{Independent Loss Model}: Channel frame loss follows an independent and identically distributed (i.i.d.) Bernoulli error process with packet error rate $p \in [0, 1)$.
-  \item \textit{Bounded Retransmissions}: Selective \ac{SACK} retransmission retries are bounded by a maximum retry limit $R_{\mathrm{max}} = 3$.
+  \item \textit{Bounded Retransmissions}: Selective \ac{SACK} retransmission retries are bounded by the protocol's maximum retry limit $R_{\mathrm{max}} = 5$ (matching \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}).
 \end{enumerate}
 Under these stated assumptions, the analytical upper bound for successfully reassembling an $N$-fragment payload across $R_{\mathrm{max}}$ retries is given by:
 \begin{equation}
-P_{\mathrm{complete}}(N, p, R_{\mathrm{max}}) = \prod_{i=0}^{N-1} \left( 1 - p^{R_{\mathrm{max}} + 1} \right)
+P_{\mathrm{complete}}(N, p, R_{\mathrm{max}}) = \left( 1 - p^{R_{\mathrm{max}} + 1} \right)^N
 \end{equation}
-It is crucial to clarify that when reliable modes (Mode 3 and Mode 4) sustain a 100\% Application Payload Delivery Ratio ($PDR_{\mathrm{app}}$) in Fig.~\ref{fig:ns3_pdr}, this does not indicate physical channel reliability or zero-loss propagation. Rather, it demonstrates that the selective bit-vector \ac{SACK}-\ac{ARQ} mechanism successfully recovers lost fragments within the $R_{\mathrm{max}}$ retry budget prior to session timeout.
+It is crucial to clarify that when reliable modes (Mode 3 and Mode 4) sustain a 100\% Application Payload Delivery Ratio ($PDR_{\mathrm{app}}$) in Fig.~\ref{fig:ns3_pdr}, this does not indicate physical channel reliability or zero-loss propagation. Rather, it demonstrates that the selective bit-vector \ac{SACK}-\ac{ARQ} mechanism successfully recovers lost fragments within the $R_{\mathrm{max}} = 5$ retry budget prior to session timeout.
 
 In \ac{LoS} conditions, SF10 sustains complete payload reassembly up to 19.1~km, exhibiting a steep drop-off between 20.0~km and 23.1~km as frame loss probability exceeds retransmission recovery budgets. Conversely, best-effort unreliable modes (Mode 1 and Mode 2) experience progressive packet drop rates as spatial fading degrades signal-to-noise ratios.
 
