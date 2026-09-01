@@ -537,7 +537,7 @@ The remainder of this paper is organized as follows. Section~\ref{sec:state_of_a
 \label{sec:state_of_art}
 Reliable packet fragmentation and reassembly over \acp{LPWAN} has been the subject of active research, driven by the growing demand for data-intensive \ac{IoT} applications.
 
-A prominent industrial standard is \ac{SCHC}~\cite{rfc8724}, which introduces a framework for fragmenting IPv6 packets over resource-constrained networks. To guarantee reliability, \ac{SCHC} ACK frames carry a bitmap representing the status of individual tiles within a window (ACK-on-Error). However, \ac{SCHC} is designed as a generic adaptation layer for IP-based architectures, requiring pre-shared context rules and gateway-centric networks. Similarly, the \ac{LoRa} Alliance standardized the Fragmented Data Block Transport specification to support \ac{FUOTA} using \ac{FEC} codes to reconstruct blocks without feedback. However, \ac{FEC}-based recovery introduces a constant over-the-air encoding overhead and high computational requirements for low-cost embedded systems.
+A prominent industrial standard is \ac{SCHC}~\cite{rfc8724, rfc9011}, which introduces a generic framework for header compression and fragmentation over \acp{LPWAN}. In particular, RFC~9011 defines SCHC over LoRaWAN profiles supporting No-ACK, ACK-Always, and ACK-on-Error modes. While SCHC excels in IP-connected topologies with pre-provisioned rule contexts, LAMP is designed as an autonomous, zero-configuration transport layer operating directly over raw LoRa PHY. Similarly, the \ac{LoRa} Alliance standardized Fragmented Data Block Transport (\ac{TS004})~\cite{ts004} to support \ac{FUOTA} using open-loop \ac{FEC} redundancy codes to reconstruct blocks without feedback. However, open-loop \ac{FEC} introduces constant over-the-air encoding overhead regardless of channel conditions and requires compute-intensive decoding on embedded microcontrollers.
 
 For custom peer-to-peer \ac{LoRa} networks, early efforts focused on overcoming the excessive airtime latencies and capacity constraints of traditional Stop-and-Wait (S\&W) \ac{ARQ} schemes. Empirical link evaluations by Cattani et al.~\cite{cattani2017} and network scalability analyses by Bor et al.~\cite{bor2016} demonstrated that high packet-loss rates and strict Time-on-Air limits make per-packet Stop-and-Wait acknowledgments unviable for bulk data transfers~\cite{multimedia-lora-survey}. Chen et al.~\cite{mplr-chen2019} proposed the \ac{MPLR} protocol, introducing the concept of replacing Stop-and-Wait \ac{ARQ} with a windowed batch transmission scheme acknowledged by a bit-vector acknowledgment packet (\texttt{BVACK}). Subsequent specialized studies explored multi-hop relay networks for visual \ac{IoT} coverage~\cite{kim2022multihop}, comprehensive mesh survey frameworks~\cite{wong2024mesh}, and Time Division Multiplexing (TDM) scheduled channels~\cite{wei2020tdm}. As a pure transport-layer protocol, LAMP is topology-agnostic and can operate transparently on top of multi-hop mesh routing protocols to extend reliable bulk delivery across multi-hop topologies.
 
@@ -549,12 +549,12 @@ Building on the bit-vector \ac{SACK} concept, LAMP extends and generalizes this 
   \item \textbf{Dynamic Parameter Negotiation}: \ac{MPLR} utilizes a fixed batch size and requires a 4-way handshake tear-down (\texttt{FIN}/\texttt{ACK}). LAMP implements a lightweight \ac{3WHS} embedded with dynamic parameter negotiation (\texttt{SynMetadata} and \texttt{SynAckMetadata} negotiating chunk size, sliding window, and inactivity timeout) and replaces explicit tear-down overhead with automatic idle session pruning.
 \end{itemize}
 
-To clearly position the proposed protocol within the current technological landscape and define the precise design space in which LAMP operates, Table~\ref{tab:arch_comparison} provides an architectural comparison with other prominent fragmentation and transport solutions over \ac{LoRa}, including Stop-and-Wait \ac{ARQ}, \ac{SCHC}~\cite{rfc8724}, \ac{LoRaWAN} Fragmented Data Block Transport, and \ac{MPLR}~\cite{mplr-chen2019}. 
+To clearly position the proposed protocol within the current technological landscape and define the design space in which LAMP operates, Table~\ref{tab:arch_comparison} provides an architectural comparison with other prominent fragmentation and transport solutions over \ac{LoRa}, including Stop-and-Wait \ac{ARQ}, \ac{SCHC}~\cite{rfc8724, rfc9011}, \ac{LoRaWAN} Fragmented Data Block Transport (\ac{TS004})~\cite{ts004}, and \ac{MPLR}~\cite{mplr-chen2019}. 
 
-Rather than claiming overall superiority over existing industrial standards, LAMP is designed to occupy a specific, previously unaddressed architectural niche: providing a \textit{lightweight, autonomous, and highly configurable transport layer for raw \ac{LoRa} links}. Each protocol in Table~\ref{tab:arch_comparison} represents a distinct set of engineering trade-offs tailored to specific deployment constraints:
+Rather than claiming overall superiority over existing industrial standards, LAMP addresses a distinct design space in raw \ac{LoRa} communications: providing a \textit{lightweight, autonomous, and configurable transport layer for raw \ac{LoRa} point-to-point and local multi-node links}. Each protocol in Table~\ref{tab:arch_comparison} represents a distinct set of engineering trade-offs tailored to specific deployment constraints:
 \begin{itemize}
-  \item \textbf{\ac{SCHC}~\cite{rfc8724}}: Represents the de facto standard for IP-connected star networks, achieving header compression down to 1--2 bytes for standard IPv6/UDP traffic. However, it relies on gateway-centric infrastructure and pre-shared static context rules, making it less suitable for standalone, ad-hoc, raw-\ac{LoRa} peer-to-peer or multi-node links without gateway context managers.
-  \item \textbf{\ac{LoRaWAN} Fragmented Transport}: Optimized for unidirectional downlink firmware updates (\ac{FUOTA}) to thousands of nodes simultaneously using Forward Error Correction (\ac{FEC}) without requiring a feedback channel. However, pure \ac{FEC} introduces constant over-the-air encoding overhead regardless of channel quality and imposes significant computational and memory decoding overhead on low-cost microcontrollers.
+  \item \textbf{\ac{SCHC}~\cite{rfc8724, rfc9011}}: Represents the standard for IP-connected LPWANs, achieving header compression down to 1--2 bytes for predictable IPv6/UDP flows. However, it relies on pre-shared static context rules, making it less suitable for standalone, ad-hoc, raw-\ac{LoRa} peer-to-peer or multi-node links without gateway context managers.
+  \item \textbf{\ac{LoRaWAN} Fragmented Transport (\ac{TS004})~\cite{ts004}}: Optimized for unidirectional downlink firmware updates (\ac{FUOTA}) to thousands of nodes simultaneously using Forward Error Correction (\ac{FEC}) without requiring a feedback channel. However, open-loop \ac{FEC} introduces constant over-the-air encoding overhead regardless of channel quality and imposes significant computational decoding overhead on low-cost microcontrollers.
   \item \textbf{\ac{MPLR}~\cite{mplr-chen2019}}: Engineered specifically for high-volume agricultural image uplink transfers (e.g., 9~KB to multi-megabyte images) using 40-packet batching with bit-vector acknowledgments over a 16-bit sequence space (up to 65,536 distinct message IDs). However, it utilizes a 16-byte fixed header (8-byte EUI addressing), operates under a single stateful batch mode, and requires explicit 4-way handshake teardown (\texttt{FIN}/\texttt{ACK}).
   \item \textbf{Stop-and-Wait \ac{ARQ}}: Offers minimal header size (2--4 bytes) and trivial stateless implementation for isolated single-packet telemetry. However, it incurs prohibitive airtime latencies and strict ETSI duty-cycle saturation when applied to multi-fragment payloads due to per-packet ACK waiting delays.
   \item \textbf{LAMP (Proposed Protocol)}: Fills the design space of standalone raw-\ac{LoRa} links by providing four configurable operational modes (Reliable/Unreliable $\times$ Connected/Connectionless), 8-bit local unicast/broadcast addressing, dynamic \ac{3WHS} buffer negotiation, and transport-layer purity (decoupled from opt-in HAL channel access helpers like CAD/CSMA-CA).
@@ -569,18 +569,18 @@ Rather than claiming overall superiority over existing industrial standards, LAM
 \scriptsize
 \begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{2.4cm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
 \hline
-\textbf{Architectural Dimension} & \textbf{Stop-and-Wait ARQ} & \textbf{\ac{SCHC}~\cite{rfc8724}} & \textbf{\ac{LoRaWAN} Fragmented} & \textbf{\ac{MPLR}~\cite{mplr-chen2019}} & \textbf{Proposed (LAMP)} \\ \hline
-\textbf{Stack Dependency} & Raw \ac{LoRa} PHY & Full \ac{LoRaWAN} / IP Stack & Full \ac{LoRaWAN} Stack & Raw \ac{LoRa} PHY & Raw \ac{LoRa} PHY (Standalone) \\ \hline
-\textbf{ACK Mechanism} & Per-Packet ACK & ACK-on-Error Bitmap & None (\ac{FEC} Code) & Bit-Vector \ac{SACK} & Bit-Vector \ac{SACK} \\ \hline
-\textbf{Header Overhead} & 2--4 Bytes & 1--2 Bytes (Compressed) & 2 Bytes & 16 Bytes & 9 Bytes (11B total w/ CRC) \\ \hline
+\textbf{Architectural Dimension} & \textbf{Stop-and-Wait ARQ} & \textbf{\ac{SCHC}~\cite{rfc8724}} & \textbf{\ac{LoRaWAN} Fragmented~\cite{ts004}} & \textbf{\ac{MPLR}~\cite{mplr-chen2019}} & \textbf{Proposed (LAMP)} \\ \hline
+\textbf{Stack Dependency} & Raw \ac{LoRa} PHY & Generic Adaptation (often LoRaWAN/IP) & LoRaWAN App Layer (\ac{TS004}) & Raw \ac{LoRa} PHY & Raw \ac{LoRa} PHY (Standalone) \\ \hline
+\textbf{ACK Mechanism} & Per-Packet ACK & ACK-on-Error / ACK-Always & None (Open-Loop Redundancy) & Bit-Vector \ac{SACK} & Bit-Vector \ac{SACK} \\ \hline
+\textbf{Header Overhead} & 2--4 Bytes & 1--2 Bytes (Compressed RuleID/Residue) & 2 Bytes & 16 Bytes & 9 Bytes (11B total w/ CRC) \\ \hline
 \textbf{Max Frame Payload} & 240+ Bytes & Variable & Variable & 239 Bytes & 244 Bytes (255B PHY limit) \\ \hline
 \textbf{Max Session Payload} & Unbounded (Sequential) & Variable (IPv6 Packet) & Unlimited (Block Session) & Multi-MB Image (65k Packets) & 62.2~KB (255 Chunks / Session) \\ \hline
-\textbf{Operational Modes} & 1 (Reliable S\&W) & 2 (ACK / No-ACK) & 1 (Unreliable \ac{FEC}) & 1 (Reliable Batch) & 4 Configurable Modes \\ \hline
+\textbf{Operational Modes} & 1 (Reliable S\&W) & 3 (No-ACK, ACK-Always, ACK-on-Error) & 1 (Open-Loop \ac{FEC}) & 1 (Reliable Batch) & 4 Configurable Modes \\ \hline
 \textbf{Node Addressing} & None / Application & IPv6 128-bit (Compressed) & DevAddr (32-bit) & EUI (64-bit) & 8-bit Unicast + Broadcast \\ \hline
 \textbf{Multi-Node Suitability} & Single P2P Link & Star (Gateway-Centric) & Star Broadcast (Downlink) & P2P Uplink (Node--GW) & P2P \& Multi-Node Ready \\ \hline
 \textbf{Parameter Negotiation} & None (Static) & Static (Pre-shared Rules) & Static / Out-of-Band & Static Batch / 4WHS & Dynamic \ac{3WHS} Metadata \\ \hline
 \textbf{Key Strengths} & Minimal header size, trivial implementation & Header compression (1--2~B) for IP traffic & No feedback channel required (pure \ac{FEC}) & High-volume image uplink batching & 4 flexible modes, dynamic \ac{3WHS} buffer safety, raw \ac{LoRa} autonomy \\ \hline
-\textbf{Key Limitations \& Trade-offs} & Prohibitive airtime latency, duty-cycle saturation & Requires static gateway rules \& IP core infrastructure & High \ac{FEC} compute cost, constant airtime overhead & 16B header overhead, single mode, 4WHS teardown & 9B header (11B w/ CRC), 62.2~KB session limit, RAM/timer state \\ \hline
+\textbf{Key Limitations \& Trade-offs} & Prohibitive airtime latency, duty-cycle saturation & Requires shared rule context \& IP infrastructure & High \ac{FEC} compute cost, constant airtime overhead & 16B header overhead, single mode, 4WHS teardown & 9B header (11B w/ CRC), 62.2~KB session limit, RAM/timer state \\ \hline
 \end{tabularx}
 \end{table*}
 
@@ -667,7 +667,7 @@ The exact byte alignment and offsets of the 9-byte header packet structure are p
 2--3 & \texttt{messageId} & uint16\_t & Message Sequence ID \\ \hline
 4 & \texttt{totalChunks} & uint8\_t & Total Count ($1 \le N \le 255$; $N=0$ invalid) \\ \hline
 5 & \texttt{chunkIndex} & uint8\_t & Index ($0 \le i < N$) \\ \hline
-6 & \texttt{payloadSize} & uint8\_t & Chunk Payload ($1 \le L \le 244$~B on SX1262) \\ \hline
+6 & \texttt{payloadSize} & uint8\_t & Chunk Payload ($0 \le L \le 244$~B; $L=0$ for control) \\ \hline
 7 & \texttt{flags} & uint8\_t & Bitfield (\texttt{ACK\_REQ}, \texttt{CONN\_REQ}) \\ \hline
 8 & \texttt{protocolVersion} & uint8\_t & Protocol Version (\texttt{0x02}) \\ \hline
 9--$L$+8 & \texttt{payload[]} & uint8\_t[] & Application Data ($L$ bytes) \\ \hline
@@ -692,10 +692,10 @@ The fields in the Logical Header are defined as follows:
 \begin{itemize}
   \item \textbf{\texttt{srcAddr} (1 byte)}: Source node identifier (\texttt{0x01}--\texttt{0xFE}, or \texttt{0x00} for unassigned).
   \item \textbf{\texttt{dstAddr} (1 byte)}: Destination node identifier (\texttt{0x01}--\texttt{0xFE}, or \texttt{0xFF} for broadcast).
-  \item \textbf{\texttt{messageId} (2 bytes)}: Unique message sequence identifier. All fragments composing the same segmented message share this ID.
+  \item \textbf{\texttt{messageId} (2 bytes)}: Unique message sequence identifier. All fragments composing the same segmented message share this ID. Active and completed sessions are uniquely keyed by the 4-tuple $(\mathtt{srcAddr}, \mathtt{dstAddr}, \mathtt{messageId}, \mathtt{version})$.
   \item \textbf{\texttt{totalChunks} (1 byte)}: The total count of chunks into which the original large payload is divided ($1 \le \texttt{totalChunks} \le 255$).
   \item \textbf{\texttt{chunkIndex} (1 byte)}: The 0-based index of this specific fragment ($0 \le \texttt{chunkIndex} < \texttt{totalChunks}$).
-  \item \textbf{\texttt{payloadSize} (1 byte)}: Payload data byte count. Logically, the 1-byte field supports up to 255~bytes per chunk, enabling a theoretical protocol capacity of $255 \times 255 = 65,025$~bytes ($\approx 65.0$~KB) per session. On standard transceivers with a 255-byte hardware FIFO limit (e.g., SX1262), subtracting the 9-byte header and 2-byte CRC-16 yields $N = 244$~bytes per chunk, resulting in an empirical capacity of $255 \times 244 = 62,220$~bytes ($\approx 62.2$~KB).
+  \item \textbf{\texttt{payloadSize} (1 byte)}: Payload data byte count ($0 \le L \le 244$~bytes; $L=0$ for pure control frames). On standard SX1262 transceivers (256-byte FIFO, 255-byte maximum PHY frame), subtracting the 9-byte header and 2-byte CRC-16 yields $S_{\max} = 244$~bytes per chunk, resulting in a single-session capacity of $255 \times 244 = 62,220$~bytes ($\approx 62.2$~KB).
   \item \textbf{\texttt{flags} (1 byte)}: A control bitfield used to manage transmission and connection states:
   \begin{itemize}
     \item \texttt{FLAG\_ACK\_REQ} (\texttt{0x04}): Selective Acknowledgment requested from receiver.
@@ -706,6 +706,8 @@ The fields in the Logical Header are defined as follows:
   \end{itemize}
   \item \textbf{\texttt{protocolVersion} (1 byte)}: Identifies protocol version (currently 2) to ensure backward compatibility.
 \end{itemize}
+
+In LAMPv2, broadcast addressing (\texttt{0xFF}) is strictly restricted to unreliable Best-Effort Datagrams (Mode 1). To avoid acknowledgment implosion and channel collapse, control frames (\texttt{FLAG\_ACK\_REQ}, \texttt{SYN}, \texttt{SYN-ACK}, \texttt{CONN\_NACK}) are prohibited with \texttt{dstAddr = 0xFF}.
 
 After the payload, a 16-bit CRC-16 (Modbus CRC-16, polynomial \texttt{0xA001}, initialized to \texttt{0xFFFF}) is appended. The checksum is computed over the concatenation of the 9-byte Logical Header and exactly \texttt{payloadSize} application-layer bytes; any trailing buffer bytes beyond \texttt{payloadSize} are excluded, so that partial final chunks are validated identically to full-size chunks and inter-implementation interoperability is preserved.
 
@@ -725,7 +727,7 @@ Table~\ref{tab:flag_combinations} summarises all defined flag combinations and t
 \texttt{0x08} & SACK feedback & Payload = received-chunk bitmap \\ \hline
 \texttt{0x10} & SYN & 3WHS Step~1 (SynMetadata) \\ \hline
 \texttt{0x30} & SYN-ACK & 3WHS Step~2 (SynAckMetadata) \\ \hline
-\texttt{0x20} & ACK & 3WHS Step~3, no payload \\ \hline
+\texttt{0x20} & ACK & 3WHS Step~3, no payload ($L=0$) \\ \hline
 \texttt{0x40} & CONN-NACK & Payload = rejection reason code \\ \hline
 \textit{other} & \textit{Undefined} & Silently discarded \\ \hline
 \end{tabularx}
@@ -739,7 +741,7 @@ When a transmission is executed in reliable mode:
 \begin{enumerate}
   \item The transmitter segments the payload, serializes the chunks with \texttt{srcAddr} and \texttt{dstAddr}, and streams them sequentially. The final chunk index ($Index = \texttt{totalChunks} - 1$) is marked with the \texttt{FLAG\_ACK\_REQ} flag.
   \item Upon receipt of the chunk requesting acknowledgment, the receiver evaluates its reassembly session. It identifies which fragments are still missing by checking its internal bitmask of received chunks.
-  \item The receiver responds by transmitting a \ac{SACK} packet (\texttt{FLAG\_ACK}) addressed back to the transmitter's \texttt{srcAddr}. The \ac{SACK}'s payload contains a binary bitmap where each bit represents the receipt status of a chunk (1 for received, 0 for missing).
+  \item The receiver responds by transmitting a \ac{SACK} packet (\texttt{FLAG\_ACK}) addressed back to the transmitter's \texttt{srcAddr}. The \ac{SACK} carries a payload of $\lceil N/8 \rceil$ bytes containing a binary bitmap: chunk index $i$ ($0 \le i < N$) maps to bit position $(i \bmod 8)$ of byte $\lfloor i/8 \rfloor$ (LSB-first ordering), where a 1-bit indicates successful reception and a 0-bit indicates a missing fragment.
   \item The transmitter parses the received \ac{SACK} bitmap. If some chunks are missing, it selectively retransmits only those lost chunks. The last retransmitted chunk has the \texttt{FLAG\_ACK\_REQ} flag set again to query the receiver.
   \item This selective retry loop continues until the full message is reconstructed at the receiver, or the transmitter reaches the maximum retry count.
 \end{enumerate}
@@ -793,7 +795,7 @@ M_{\mathrm{session}} = S_{\mathrm{struct}} + N_{\mathrm{chunks}} \cdot S_{\mathr
 \end{equation}
 where $S_{\mathrm{struct}} \approx 48$~bytes represents the session tracking structure metadata, $S_{\mathrm{chunk}} \le 244$~bytes is the maximum payload chunk size, and the final term represents the binary \ac{SACK} bitmask.
 
-For a representative 20-chunk payload (4.88~KB data size), a complete reassembly session requires only $\approx 4.93$~KB of RAM. Furthermore, the protocol bounds the maximum number of concurrent active sessions ($\texttt{MAX\_CONCURRENT\_SESSIONS} = 10$), placing an absolute upper bound of $\approx 49.3$~KB on total protocol RAM consumption, making it well-suited for low-cost \ac{IoT} microcontrollers with limited SRAM capacities.
+For a representative 20-chunk payload (4.88~KB data size), a complete reassembly session requires $\approx 4.93$~KB of RAM (totaling $\approx 49.3$~KB across 10 concurrent 20-chunk sessions). On entry-level microcontrollers with limited SRAM ($\le 64$~KB), the concurrency pool ceiling ($\texttt{MAX\_CONCURRENT\_SESSIONS}$) is tuned to 1--2 sessions in \texttt{LoRaMultiPacketConfig}, while runtime heap protection (\texttt{AvailMem()}) prevents allocation failures by rejecting new requests with \texttt{CONN\_NACK(BUSY)} when memory is depleted.
 
 \subsection{Formal Protocol Algorithms}
 To ensure complete specification clarity and system-level reproducibility across different hardware platforms, Algorithm~\ref{alg:segmentation} and Algorithm~\ref{alg:reassembly} formally detail the transmitter-side segmentation pipeline and the receiver-side out-of-order reassembly engine, respectively.
@@ -821,19 +823,24 @@ To ensure complete specification clarity and system-level reproducibility across
 \EndFor
 \If{$M \in \{\text{Mode 1}, \text{Mode 2}\}$} \State \Return \texttt{OK} \Comment{Unreliable delivery complete} \EndIf
 \State $retries \gets 0$
-\While{$retries < R_{\mathrm{max}}$}
-    \State $retries \gets retries + 1$
+\While{$retries \le R_{\mathrm{max}}$}
     \State $sack \gets \text{WaitForSack}(T_{\mathrm{timeout}})$
     \If{$sack == \text{TIMEOUT}$}
-        \State $\text{Transmit}(F_{N-1})$ \Comment{Re-query SACK bitmap}
+        \If{$retries == R_{\mathrm{max}}$} \State \textbf{break} \EndIf
+        \State $\text{Transmit}(F_{N-1})$; $retries \gets retries + 1$
     \ElsIf{$\text{IsAllAcked}(sack.bitmap)$}
-        \State \Return \texttt{OK} \Comment{Complete delivery confirmed}
+        \State \Return \texttt{OK} \Comment{Full payload delivery confirmed}
     \Else
+        \If{$retries == R_{\mathrm{max}}$} \State \textbf{break} \EndIf
         \State $missing \gets \text{MissingChunks}(sack.bitmap)$
         \For{$idx \in missing$}
-            \State $F_{idx}.flags \gets (idx == \text{Last}(missing)) ? \texttt{FLAG\_ACK\_REQ} : \texttt{0x00}$
-            \State $\text{Transmit}(F_{idx})$
+            \State $cLen \gets (idx == N-1) ? (L - idx \cdot S) : S$
+            \State $flags \gets (idx == \text{Last}(missing)) ? \texttt{FLAG\_ACK\_REQ} : \texttt{0x00}$
+            \State $hdr \gets \text{BuildHdr}(src, dst, msgId, N, idx, cLen, flags)$
+            \State $crc \gets \text{CalcCRC16}(hdr, P[idx\cdot S : idx\cdot S + cLen])$
+            \State $\text{Transmit}(\text{SerializeFrame}(hdr, P[idx\cdot S : idx\cdot S + cLen], crc))$
         \EndFor
+        \State $retries \gets retries + 1$
     \EndIf
 \EndWhile
 \State \Return \texttt{ERR\_MAX\_RETRIES\_EXCEEDED}
@@ -846,27 +853,30 @@ To ensure complete specification clarity and system-level reproducibility across
 \label{alg:reassembly}
 \footnotesize
 \begin{algorithmic}[1]
-\Require Received Frame $F$
+\Require Received Frame $F$, Fixed Chunk Stride $S_{\max}$
 \Ensure Reassembled Payload $P$ or Drop Status
 \State $(hdr, payload, crc) \gets \text{ParseFrame}(F)$
 \If{$\text{ValidateCRC}(hdr, payload, crc) == \text{FAIL}$} \State \text{Drop}($F$); \Return \EndIf
 \If{$hdr.dstAddr \neq myAddr \textbf{ and } hdr.dstAddr \neq \texttt{0xFF}$} \State \text{Drop}($F$); \Return \EndIf
+\If{$hdr.dstAddr == \texttt{0xFF} \textbf{ and } (hdr.flags \ \& \ \texttt{FLAG\_ACK\_REQ})$} \State \text{Drop}($F$); \Return \EndIf
 \If{$hdr.totalChunks == 0 \textbf{ or } hdr.chunkIndex \ge hdr.totalChunks$} \State \text{Drop}($F$); \Return \EndIf
-\If{$\text{IsCompleted}(hdr.srcAddr, hdr.msgId)$} \State \text{Drop}($F$); \Return \EndIf
+\If{$\text{IsCompleted}(hdr.srcAddr, hdr.msgId)$}
+    \If{$hdr.flags \ \& \ \texttt{FLAG\_ACK\_REQ}$} \State $\text{SendTerminalSack}(hdr.srcAddr, hdr.msgId)$ \EndIf
+    \State \text{Drop}($F$); \Return
+\EndIf
 \State $session \gets \text{FindSession}(hdr.srcAddr, hdr.msgId)$
 \If{$session == \text{NULL}$}
-    \If{$\text{AvailMem}() < hdr.totalChunks \cdot hdr.payloadSize$} \Comment{Safety check}
+    \If{$\text{AvailMem}() < hdr.totalChunks \cdot S_{\max}$} \Comment{Safe stride check}
         \State \text{SendNack}(hdr.srcAddr, \texttt{BUSY}); \Return 
     \EndIf
-    \State $session \gets \text{AllocBuf}(hdr.totalChunks, hdr.payloadSize)$
+    \State $session \gets \text{AllocBuf}(hdr.totalChunks, S_{\max})$
 \EndIf
 \State $idx \gets hdr.chunkIndex$
 \If{$\text{IsBitSet}(session.bitmap, idx)$}
     \State \text{Drop}($F$) \Comment{Duplicate chunk, ignore write}
 \Else
-    \State $\text{WriteChunk}(session.buffer, idx, payload)$
-    \State $\text{SetBit}(session.bitmap, idx)$
-    \State $session.count \gets session.count + 1$
+    \State $\text{WriteChunk}(session.buffer, idx \cdot S_{\max}, payload)$
+    \State $\text{SetBit}(session.bitmap, idx)$; $session.count \gets session.count + 1$
 \EndIf
 \If{$hdr.flags \ \& \ \texttt{FLAG\_ACK\_REQ}$}
     \State $\text{SendSack}(hdr.srcAddr, hdr.msgId, session.bitmap)$
@@ -1069,12 +1079,23 @@ Physical tests were conducted using two Heltec Wi-Fi \ac{LoRa}~32~V3 development
   \item \textbf{Preamble Length}: 8 symbols
 \end{itemize}
 
-\subsubsection{Regulatory Compliance and Reproducibility}
-It is important to clarify the relationship between the LAMP transport protocol and RF regulatory constraints. LAMP operates strictly at the \textit{transport layer} and is entirely agnostic to duty-cycle regulations, carrier frequency, and RF power limits; compliance with these constraints is the responsibility of the MAC/PHY layer or the integrating application.
+\subsubsection{Regulatory Compliance and Regional Deployment}
+It is important to clarify the relationship between the LAMP transport protocol and RF regulatory constraints. LAMP operates strictly at the \textit{transport layer} and is agnostic to regional duty-cycle regulations, carrier frequency, and RF power limits; compliance with these constraints is the responsibility of the underlying MAC/PHY layer and application policy.
 
-For the experimental validation reported in this work, the 869.400--869.650~MHz sub-band was selected~\cite{etsi300220}. Under ETSI~EN~300~220-1, this sub-band permits a maximum duty cycle of 10\% and an output power of up to 500~mW (27~dBm), providing sufficient headroom for the multi-chunk burst transfers required by the LAMP reliable delivery modes without incurring the restrictive 1\% hourly airtime cap of the primary 868~MHz sub-band.
+Under European ETSI~EN~300~220-2 regulations~\cite{etsi300220}, the 869.400--869.650~MHz sub-band (Band P) allocates a 250~kHz frequency block permitting up to 10\% duty cycle and an output power up to 500~mW ERP (27~dBm), providing operational headroom for multi-chunk burst transfers without incurring the restrictive 1\% hourly airtime cap of the primary 868~MHz sub-band. For standard field deployments strictly adhering to this sub-band, channel bandwidths of 125~kHz or 250~kHz centered at 869.525~MHz are selected. In our laboratory testbed and simulation campaign, a wideband configuration ($BW = 500.0$~kHz, matching standard US915 500~kHz channels) was evaluated to characterize upper throughput limits.
 
-Additionally, in the reference implementation validated on Heltec~V3 hardware, the optional MAC-layer helpers provided by the LAMP library, namely SX1262-native Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) and duty-cycle pacing, were enabled to prevent collisions and further reduce channel occupancy. These features are opt-in and disabled by default; they are not part of the LAMP transport specification but are offered as convenience primitives for integrators targeting shared ISM bands. All experimental results are therefore fully reproducible in any deployment targeting the 869.4--869.65~MHz sub-band with the same radio configuration.
+Additionally, the reference C++ library provides opt-in MAC-layer helpers, including SX1262-native Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) and duty-cycle pacing to mitigate channel contention. These features are decoupled from the transport core and offered as convenience primitives for integrators targeting shared ISM spectrum.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.42\textwidth]{img/pdr_ns3_subplots_LOS.png}
+\caption{Packet Delivery Ratio ($PDR_{\mathrm{app}}$ \%) as a function of distance across Spreading Factors (SF7, SF9, SF10) in Line-of-Sight (\ac{LoS}) propagation. Solid lines denote mean delivery rates across 50 Monte Carlo trials; shaded ribbons represent 95\% confidence intervals.}
+\label{fig:ns3_pdr}
+\vspace{4pt}
+\includegraphics[width=0.42\textwidth]{img/goodput_ns3_subplots_LOS.png}
+\caption{Effective application-layer throughput (Goodput in bps) across Spreading Factors and LAMP operational modes in \ac{LoS}. Shaded ribbons denote 95\% confidence intervals across 50 Monte Carlo trials.}
+\label{fig:ns3_goodput}
+\end{figure*}
 
 \section{Performance Evaluation and Experimental Methodology}
 \label{sec:eval}
@@ -1086,17 +1107,6 @@ To characterize protocol performance under controlled fading channels across ext
 
 \subsubsection{Simulation Campaign Hierarchy}
 To achieve statistical convergence, an extensive Monte Carlo campaign comprising 117,050 total independent simulation runs was conducted. The experimental space spans 3 RF propagation environments (\ac{LoS}, Urban, Rural), 3 Spreading Factors (SF7, SF9, SF10), 4 operational modes (Mode 1 to Mode 4), 5 random seeds per parameter set, and 10 payload size steps (scaling from 1 to 100 chunks) across an adaptive distance grid extending dynamically up to 23.5~km with early-stopping thresholds once reception falls to 0\% across consecutive steps. Each curve point plotted in Figs.~\ref{fig:ns3_pdr} and~\ref{fig:ns3_goodput} represents the sample mean over 50 Monte Carlo trials (combining 5 random seeds across 10 payload size iterations per distance step), with shaded ribbons denoting 95\% confidence intervals.
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=0.62\textwidth]{img/pdr_ns3_subplots_LOS.png}
-\caption{Packet Delivery Ratio ($PDR_{\mathrm{app}}$ \%) as a function of distance across Spreading Factors (SF7, SF9, SF10) in Line-of-Sight (\ac{LoS}) propagation. Solid lines denote mean delivery rates across 50 Monte Carlo trials; shaded ribbons represent 95\% confidence intervals.}
-\label{fig:ns3_pdr}
-\vspace{4pt}
-\includegraphics[width=0.62\textwidth]{img/goodput_ns3_subplots_LOS.png}
-\caption{Effective application-layer throughput (Goodput in bps) across Spreading Factors and LAMP operational modes in \ac{LoS}. Shaded ribbons denote 95\% confidence intervals across 50 Monte Carlo trials.}
-\label{fig:ns3_goodput}
-\end{figure*}
 
 \subsubsection{Analytical Reliability Bound under Stated Assumptions}
 To model payload completion probabilities analytically, we define a theoretical bound under stated hypotheses:
@@ -1136,31 +1146,12 @@ This paper presents the design, implementation, network simulation, and hardware
 
 \subsection{Architectural Roadmap}
 To guide the long-term progression of LAMP from point-to-point data links to decentralized multiagent mesh networks, we define a strategic three-level architectural roadmap:
-
 \begin{itemize}
-  \setlength{\itemsep}{1pt}
+  \setlength{\itemsep}{2pt}
   \setlength{\parskip}{0pt}
-  \item \textbf{Level 1 -- Addressed Transport \& Polite Spectrum Access (Current Implemented Stack)}: 
-  The core architecture established in this work. It features 8-bit source and destination node addressing (\texttt{srcAddr}, \texttt{dstAddr}) with broadcast support (\texttt{0xFF}), dynamic 9-byte header packing, four operational modes (unreliable best-effort datagrams to stateful \ac{SACK}-\ac{ARQ} streams), a \ac{3WHS} for parameter negotiation, and an opt-in \ac{HAL} helper implementing Channel Activity Detection (CAD)/CSMA-CA with exponential backoff for \textit{Polite Spectrum Access} as specified by ETSI~EN~300~220-1~\cite{etsi300220}.
-  
-  \item \textbf{Level 2 -- Adaptive Spectrum \& Link Optimization (Near-Term Enhancement)}: 
-  Extending the link layer to support dynamic channel adaptation in multi-node clusters sharing the same RF channel:
-  \begin{itemize}
-    \setlength{\itemsep}{1pt}
-    \setlength{\parskip}{0pt}
-    \item \textit{Adaptive Data Rate (\ac{ADR})}: Dynamically tuning Spreading Factor (SF7--SF12) and Coding Rate (CR) based on real-time RSSI/SNR link quality metrics embedded in \ac{SACK} feedback frames.
-    \item \textit{Scheduled Time-Slotted Access}: Incorporating Time Division Multiplexing (TDM) and microsecond time synchronization for collision-free multiagent payload transfers in high-density deployments~\cite{wei2020tdm}.
-    \item \textit{Optional Security Profile (Future Work Extension)}: For raw-LoRa multi-node and multi-agent links requiring data privacy, LAMP can be extended with an opt-in Security Profile providing AES-128-GCM or HMAC-SHA256 authentication, payload encryption, and 32-bit sequence replay protection at the transport header level, evaluating byte, latency, and energy overhead in multi-node configurations.
-  \end{itemize}
-  
-  \item \textbf{Level 3 -- Multi-Hop Mesh Extension (Long-Term Vision)}: 
-  Scaling the architecture to autonomous multi-hop networks, such as \ac{UAV} swarms, distributed sensor meshes, and relay networks~\cite{kim2022multihop, wong2024mesh}:
-  \begin{itemize}
-    \setlength{\itemsep}{1pt}
-    \setlength{\parskip}{0pt}
-    \item \textit{Mesh Routing Protocol Integration}: Combining dynamic routing (e.g., AODV-Light or RPL adaptation) with hop-by-hop vs. end-to-end \ac{SACK} reliability options to limit retransmission overhead over multi-hop links~\cite{wong2024mesh}.
-    \item \textit{IPv6 Network Layer Bridging}: Leveraging the 8-bit Node ID mapping to establish full IPv6 link-local capability (\texttt{fe80::/64}), connecting edge nodes directly to global IP infrastructure.
-  \end{itemize}
+  \item \textbf{Level 1 -- Addressed Transport \& Polite Spectrum Access (Current Implemented Stack)}: Establishes 8-bit addressing (\texttt{srcAddr}, \texttt{dstAddr}), dynamic 9-byte header packing, four operational modes, dynamic \ac{3WHS} negotiation, and opt-in CAD/CSMA-CA for polite spectrum access under ETSI~EN~300~220-1~\cite{etsi300220}.
+  \item \textbf{Level 2 -- Adaptive Spectrum, Scheduling \& Security (Near-Term Enhancement)}: Incorporates dynamic Adaptive Data Rate (ADR) tuning via RSSI/SNR metrics in \ac{SACK} feedback, scheduled time-slotted channel access (TDM)~\cite{wei2020tdm}, and an optional transport-layer security profile (AES-128-GCM / HMAC-SHA256 authenticated encryption with 32-bit replay counters).
+  \item \textbf{Level 3 -- Multi-Hop Mesh \& IPv6 Extension (Long-Term Vision)}: Integrates dynamic multi-hop routing (e.g., AODV-Light or RPL adaptation) with hop-by-hop vs. end-to-end \ac{SACK} reliability options~\cite{kim2022multihop, wong2024mesh}, and leverages 8-bit node ID mapping for IPv6 link-local bridging (\texttt{fe80::/64}).
 \end{itemize}
 
 \section*{Declarations}
