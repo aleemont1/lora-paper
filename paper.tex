@@ -382,6 +382,7 @@
 \acrodef{TDD}{Test-Driven Development}
 \acrodef{FUOTA}{Firmware Update Over The Air}
 \acrodef{FEC}{Forward Error Correction}
+\acrodef{TS004}[TS004]{Fragmented Data Block Transport Specification}
 \acrodef{LPWAN}{Low-Power Wide-Area Network}
 \acrodef{MTU}{Maximum Transmission Unit}
 \acrodef{PDR}{Packet Delivery Ratio}
@@ -539,7 +540,7 @@ The remainder of this paper is organized as follows. Section~\ref{sec:state_of_a
 Reliable packet fragmentation and transport over \acp{LPWAN} has been the subject of extensive investigation, driven by the expanding demand for data-intensive \ac{IoT} workloads~\cite{multimedia-lora-survey, dare-lorawan}. Existing approaches broadly fall into three categories: standardized LPWAN frameworks, conventional Stop-and-Wait ARQ, and specialized windowed batch transports.
 
 \subsection{Standardized LPWAN Frameworks: SCHC and LoRaWAN TS004}
-At the standardization level, the IETF defined \ac{SCHC}~\cite{rfc8724, rfc9011}, introducing a generic architecture for header compression and fragmentation over LPWANs. RFC~9011 defines SCHC profiles over LoRaWAN supporting No-ACK, ACK-Always, and ACK-on-Error modes. While SCHC achieves high compression for predictable IPv6/UDP flows (down to 1--2 bytes), it relies on pre-provisioned static rule contexts and gateway-centric infrastructure, making it ill-suited for autonomous, ad-hoc raw-\ac{LoRa} peer-to-peer or multi-node links. Similarly, the \ac{LoRa} Alliance standardized Fragmented Data Block Transport (\ac{TS004})~\cite{ts004} to support \ac{FUOTA} via open-loop \ac{FEC} redundancy codes. While open-loop \ac{FEC} delivers multicast firmware images without requiring a reverse feedback channel, it introduces continuous over-the-air encoding overhead regardless of physical channel conditions and imposes substantial computational decoding demands on resource-constrained microcontrollers.
+At the standardization level, the IETF defined \ac{SCHC}~\cite{rfc8724, rfc9011}, introducing a generic architecture for header compression and fragmentation over LPWANs. RFC~9011 defines SCHC profiles over LoRaWAN supporting No-ACK, ACK-Always, and ACK-on-Error modes. While SCHC achieves high compression for predictable IPv6/UDP flows (down to 1--2 bytes), it relies on pre-provisioned static rule contexts and gateway-centric infrastructure, making it ill-suited for autonomous, ad-hoc raw-\ac{LoRa} peer-to-peer or multi-node links. Similarly, the \ac{LoRa} Alliance standardized \ac{TS004}~\cite{ts004} to support \ac{FUOTA} via open-loop \ac{FEC} redundancy codes. While open-loop \ac{FEC} delivers multicast firmware images without requiring a reverse feedback channel, it introduces continuous over-the-air encoding overhead regardless of physical channel conditions and imposes substantial computational decoding demands on resource-constrained microcontrollers.
 
 \subsection{Point-to-Point Transports and Stop-and-Wait Limitations}
 In infrastructure-free point-to-point and local mesh configurations, early implementations relied on Stop-and-Wait (S\&W) \ac{ARQ}. However, empirical link evaluations by Cattani et al.~\cite{cattani2017} and network scalability analyses by Bor et al.~\cite{bor2016} established that per-fragment acknowledgments incur prohibitive Time-on-Air latencies and severe duty-cycle saturation when applied to multi-packet payloads. Under typical LPWAN channels, the round-trip overhead of waiting for an individual ACK after every single packet dramatically reduces effective throughput.
@@ -569,7 +570,7 @@ LAMP addresses these gaps by establishing an autonomous, lightweight, and config
 \scriptsize
 \begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{2.4cm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
 \hline
-\textbf{Architectural Dimension} & \textbf{Stop-and-Wait ARQ} & \textbf{\ac{SCHC}~\cite{rfc8724}} & \textbf{\ac{LoRaWAN} Fragmented~\cite{ts004}} & \textbf{\ac{MPLR}~\cite{mplr-chen2019}} & \textbf{Proposed (LAMP)} \\ \hline
+\textbf{Architectural Dimension} & \textbf{Stop-and-Wait ARQ} & \textbf{\ac{SCHC}~\cite{rfc8724}} & \textbf{LoRaWAN \ac{TS004}~\cite{ts004}} & \textbf{\ac{MPLR}~\cite{mplr-chen2019}} & \textbf{Proposed (LAMP)} \\ \hline
 \textbf{Stack Dependency} & Raw \ac{LoRa} PHY & Generic Adaptation (often LoRaWAN/IP) & LoRaWAN App Layer & Raw \ac{LoRa} PHY & Raw \ac{LoRa} PHY (Standalone) \\ \hline
 \textbf{ACK Mechanism} & Per-Packet ACK & ACK-on-Error / ACK-Always & None (Open-Loop Redundancy) & Bit-Vector \ac{SACK} & Bit-Vector \ac{SACK} \\ \hline
 \textbf{Header Overhead} & 2--4 Bytes & 1--2 Bytes (Compressed RuleID/Residue) & 2 Bytes & 16 Bytes & 9 Bytes (11B total w/ CRC) \\ \hline
