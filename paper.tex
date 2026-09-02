@@ -602,7 +602,7 @@ While LAMPv1 achieved high spectral efficiency for isolated datagram bursts, dep
 \end{itemize}
 
 \subsubsection{Addressed Logical Header Specification}
-To resolve the limitations of LAMPv1, LAMPv2 introduces an addressed, stateful transport architecture. LAMPv2 expands the Logical Header to 9~bytes by embedding explicit 8-bit Source (\texttt{srcAddr}) and Destination (\texttt{dstAddr}) Node Identifiers, while incorporating an integrated \ac{3WHS} mechanism.
+To resolve the limitations of LAMPv1, LAMPv2 introduces an addressed, stateful transport architecture supporting four distinct operational modes (summarized in Table~\ref{tab:operational_modes}). LAMPv2 expands the Logical Header to 9~bytes by embedding explicit 8-bit Source (\texttt{srcAddr}) and Destination (\texttt{dstAddr}) Node Identifiers, while incorporating an integrated \ac{3WHS} mechanism.
 
 Although adding 2~bytes to the header increases over-the-air frame length by less than 0.8\% relative to the maximum 255-byte frame (9-byte header + 244-byte payload + 2-byte \ac{CRC}-16), this trade-off provides three main architectural benefits:
 \begin{enumerate}
@@ -612,7 +612,8 @@ Although adding 2~bytes to the header increases over-the-air frame length by les
 \end{enumerate}
 
 \subsection{Operational Modes and Sequence Management}
-To accommodate diverse \ac{IoT} workload requirements, LAMP defines four distinct operational modes across two primary dimensions: \textit{Reliability} (Unreliable Best-Effort vs. \ac{SACK}-\ac{ARQ}) and \textit{Connection State} (Connectionless Handshake-Free vs. Connection-Oriented Stateful).
+\label{sec:operational_modes}
+To accommodate diverse \ac{IoT} workload requirements, LAMP defines four distinct operational modes structured across two primary dimensions (Table~\ref{tab:operational_modes}): \textit{Reliability} (Unreliable Best-Effort vs. \ac{SACK}-\ac{ARQ}) and \textit{Connection State} (Connectionless Handshake-Free vs. Connection-Oriented Stateful).
 
 \begin{table*}[htpb]
 \centering
