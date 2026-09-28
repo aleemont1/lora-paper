@@ -118,6 +118,16 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{tikz}
+
+% ===== Review annotations (pre-submission audit, 2026-09-28) =====
+% Notes [R1]..[R19] are printed in dark red. Set \reviewnotesfalse to hide all of them
+% before building the submission PDF. Do NOT merge to main with \reviewnotestrue:
+% the CI workflow publishes main to GitHub Pages.
+\newif\ifreviewnotes
+\reviewnotestrue
+\newcommand{\revnote}[2]{\ifreviewnotes\par\smallskip\noindent{\color{red!65!black}\footnotesize\textbf{[#1]}~#2}\par\smallskip\fi}
+% \ckey prints a literal \cite{key} inside notes, so notes never alter the bibliography numbering
+\newcommand{\ckey}[1]{\texttt{\textbackslash cite\{#1\}}}
 \usetikzlibrary{automata, positioning, arrows.meta}
 \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
 \renewcommand\tabularxcolumn[1]{m{#1}} % all X columns now vertically centered
@@ -438,7 +448,7 @@
 
 
 % The paper headers
-\markboth{IEEE Internet of Things Journal}%
+\markboth{IEEE Transactions on Communications}%
 {Monticelli: LAMP: A Selective-ACK Transport Protocol for Reliable Bulk Data Transmission over LoRa Networks}
 % The only time the second header will appear is for the odd numbered pages
 % after the title page when using the twoside option.
@@ -475,6 +485,10 @@
 \begin{IEEEkeywords}
 Long Range (LoRa), SACK, packet fragmentation, transport protocol, IoT, embedded systems, 3-Way Handshake, point-to-point.
 \end{IEEEkeywords}
+
+\revnote{R1}{\textbf{Rivista e formato (TCOM).} Requisiti verificati sulla pagina ``Information for Authors'' di IEEE Trans.\ Commun.: $\le$13 pagine a doppia colonna in prima sottomissione (ora 11--12), page charge oltre le 10 pagine stampate, abstract 75--200 parole (ora 122, ok), \emph{al massimo 5 keyword} (ora 8): proposta ``LoRa, selective acknowledgment, packet fragmentation, transport protocol, embedded systems''. Il template era impostato per IEEE IoT Journal (intestazione ora corretta): TCOM pubblica soprattutto contributi teorici o sperimentali ``of permanent reference value''; un paper di protocollo+implementazione valutato solo in simulazione rischia il desk reject per scope. Valutare anche IoT Journal, Sensors Journal o Computer Communications (impressione del revisore, non requisito formale).}
+
+\revnote{R2}{\textbf{Autore e preprint.} Mancano affiliazione ed e-mail dell'autore (\texttt{\textbackslash thanks}): da inserire. Il workflow CI pubblica PDF e HTML su GitHub Pages a ogni push su \texttt{main}: dopo la sottomissione la versione pubblica deve riportare, per policy ComSoc, ``This work has been submitted to the IEEE for possible publication. Copyright may be transferred without notice, after which this version may no longer be accessible.''}
 
 
 
@@ -518,11 +532,11 @@ constraints~\cite{10807074}.
 Several communication standards, including ZigBee, Sigfox, and \ac{LoRa}
 have been adopted to address these needs, and \ac{LoRa}, in particular, has
 emerged as the leading choice for low-power and long-range deployments thanks to
-its robust modulation technique and open network architecture~\cite{8424846}.
+its robust modulation technique and open network architecture~\cite{croce2020demystified}.
 However, conventional solutions based on \ac{LoRa} (particularly those following
 the LoRaWAN\textsuperscript{\textregistered} specifications) are optimized for small, non-frequent payloads~\cite{8016141}.
 
-This limitation poses acute restrictions on data-intensive \ac{IoT} applications which demand the continuous transfer of large data blocks~\cite{multimedia-lora-survey, dare-lorawan}, such as \ac{FUOTA}, \ac{SLAM} map transfers in autonomous robotics, or bulk sensor log collection. Standard \ac{LoRaWAN} links require substantial transmission overhead, restrictive duty-cycle limitations~\cite{etsi300220}, and lack optimized mechanisms for handling large, multi-packet payloads in point-to-point configurations.
+This limitation poses acute restrictions on data-intensive \ac{IoT} applications which demand the continuous transfer of large data blocks~\cite{multimedia-lora-survey, dare-lorawan}, such as \ac{FUOTA}, \ac{SLAM} map transfers in autonomous robotics, or bulk sensor log collection. Standard \ac{LoRaWAN} links require substantial transmission overhead, restrictive duty-cycle limitations~\cite{etsi300220-2}, and lack optimized mechanisms for handling large, multi-packet payloads in point-to-point configurations.
 
 This paper presents the design and implementation of \ac{LAMP}, a lightweight transport protocol for point-to-point and local multi-node \ac{LoRa} networks. LAMP supports payloads up to 62.2~KB on 255 byte \ac{FIFO} transceivers (such as the Semtech\textsuperscript{\textregistered} SX1262), operating independently of higher-layer middleware such as \ac{LoRaWAN}.
 
@@ -533,6 +547,8 @@ The main contributions of this work are:
   \item \textbf{Modular C++17 Implementation and \ac{TDD} Validation}: The core state machine is completely decoupled from the physical radio driver through a \ac{HAL}. This design enables both native host-based unit testing (using the Unity framework) and physical deployment on Semtech SX126x transceivers.
 \end{itemize}
 
+\revnote{R3}{\textbf{Posizionamento dei contributi.} ``Unlike existing LPWAN fragmentation solutions that rely on Stop-and-Wait'' è smentito dalla Sez.~II dello stesso paper: SCHC ACK-on-Error e MPLR usano già un bitmap. Il bitmap SACK di per sé non è nuovo (vedi [R4]). Il contributo difendibile è la \emph{combinazione}: raw LoRa P2P/multi-nodo, 4 modalità, 3WHS con negoziazione, libreria HAL-agnostica. Riformulare il primo punto in questo senso. Non affermare (né qui né nella cover letter) di essere il ``primo framework open-source'': vedi [R5].}
+
 The remainder of this paper is organized as follows. Section~\ref{sec:state_of_art} surveys related work and defines the design space. Section~\ref{sec:architecture} details the system architecture, packet structure, and formal protocol algorithms. Section~\ref{sec:poc} outlines preliminary prototyping findings. Section~\ref{sec:implementation} presents the hardware-level C++17 implementation. Section~\ref{sec:eval} evaluates performance through extensive ns-3 simulations and planned field validation. Section~\ref{sec:conclusion} concludes the paper and presents the architectural roadmap.
 
 \section{State of the Art and Design Space}
@@ -542,8 +558,15 @@ Reliable packet fragmentation and transport over \acp{LPWAN} has been the subjec
 \subsection{Standardized LPWAN Frameworks: SCHC and LoRaWAN TS004}
 At the standardization level, the IETF defined \ac{SCHC}~\cite{rfc8724, rfc9011}, introducing a generic architecture for header compression and fragmentation over LPWANs. RFC~9011 defines SCHC profiles over LoRaWAN supporting No-ACK, ACK-Always, and ACK-on-Error modes. While SCHC achieves high compression for predictable IPv6/UDP flows (down to 1--2 bytes), it relies on pre-provisioned static rule contexts and gateway-centric infrastructure, making it ill-suited for autonomous, ad-hoc raw-\ac{LoRa} peer-to-peer or multi-node links. Similarly, the \ac{LoRa} Alliance standardized \ac{TS004}~\cite{ts004} to support \ac{FUOTA} via open-loop \ac{FEC} redundancy codes. While open-loop \ac{FEC} delivers multicast firmware images without requiring a reverse feedback channel, it introduces continuous over-the-air encoding overhead regardless of physical channel conditions and imposes substantial computational decoding demands on resource-constrained microcontrollers.
 
+\revnote{R4}{\textbf{Il bitmap SACK esiste già negli standard.} In RFC~9011 (uplink, modalità ACK-on-Error) il ricevitore restituisce un \emph{Compressed Bitmap} dei tile mancanti per finestra. RFC~8931 (6LoWPAN Selective Fragment Recovery, 2020; chiave bib \texttt{rfc8931} già aggiunta) definisce un ACK a bitmap di 32 bit. Il paragrafo scarta SCHC solo per motivi infrastrutturali: aggiungere il confronto sul \emph{meccanismo}. Testo proposto: \emph{``Notably, bitmap-based selective feedback is not new: SCHC's ACK-on-Error mode returns a compressed bitmap of missing tiles per window~\ckey{rfc9011}, and 6LoWPAN Selective Fragment Recovery acknowledges fragments through a 32-bit bitmap~\ckey{rfc8931}. LAMP adopts the same principle but applies it end-to-end over raw LoRa links without rule contexts or IP infrastructure, with a single uncompressed bitmap covering up to 255 chunks.''} In Tab.~\ref{tab:arch_comparison}, riga ``ACK Mechanism'', colonna SCHC: indicare ``Compressed bitmap (ACK-on-Error), ACK-Always, No-ACK''.}
+
 \subsection{Point-to-Point Transports and Stop-and-Wait Limitations}
 In infrastructure-free point-to-point and local mesh configurations, early implementations relied on Stop-and-Wait (S\&W) \ac{ARQ}. However, empirical link evaluations by Cattani et al.~\cite{cattani2017} and network scalability analyses by Bor et al.~\cite{bor2016} established that per-fragment acknowledgments incur prohibitive Time-on-Air latencies and severe duty-cycle saturation when applied to multi-packet payloads. Under typical LPWAN channels, the round-trip overhead of waiting for an individual ACK after every single packet dramatically reduces effective throughput.
+
+\revnote{R5}{\textbf{Lavori open-source mancanti, verificati alla fonte.}
+(i) \emph{RadioHead}~\ckey{radiohead}: \texttt{RHDatagram} usa un header TO/FROM/ID/FLAGS a 8 bit con broadcast \texttt{0xFF}, indipendente dal driver radio; \texttt{RHReliableDatagram} aggiunge ACK stop-and-wait, retry e rilevamento duplicati. È esattamente lo schema di indirizzamento di LAMP e va citato come precedente.
+(ii) \emph{LoRaMesher}~\ckey{sole2022loramesher} e soprattutto Solé \emph{et al.}, Computer Communications 2026~\ckey{sole2026largetransfer}: servizio open-source (MIT) di trasferimento affidabile di dati grandi su LoRa, punto-punto e multi-hop, con handshake SYNC, ACK per chunk, richieste selettive \texttt{LOST\_P} e RTO secondo RFC~6298, valutato su 10 nodi reali.
+LAMP resta distinto per meccanismo (bitmap cumulativo invece di stop-and-wait) e per le 4 modalità, ma va posizionato esplicitamente rispetto a entrambi. LoRaMesher è anche la baseline open-source più naturale per [R12]. Le chiavi bib sono già in \texttt{paper.bib}.}
 
 \subsection{Windowed Selective Transports: MPLR and Technical Gaps}
 To mitigate Stop-and-Wait overhead, Chen et al.~\cite{mplr-chen2019} proposed \ac{MPLR}, introducing windowed batch transmissions acknowledged by a bit-vector acknowledgment packet (\texttt{BVACK}). While pioneering the use of bitmap feedback over LoRa, MPLR was engineered as an application-specific pipeline tailored strictly for uploading agricultural camera images from an end-device to a central gateway. Consequently, MPLR exhibits key architectural limitations when generalized as a generic transport protocol:
@@ -552,6 +575,8 @@ To mitigate Stop-and-Wait overhead, Chen et al.~\cite{mplr-chen2019} proposed \a
   \item \textit{Rigid Single-Mode Operation}: MPLR operates solely under a stateful batch model with a fixed window size (40 packets), lacking support for unacknowledged streaming, connectionless datagrams, or dynamic window scaling.
   \item \textit{Static Setup and Heavy Teardown}: MPLR lacks run-time buffer negotiation and mandates an explicit 4-way handshake teardown sequence (\texttt{FIN}/\texttt{ACK}), generating unnecessary control frame traffic.
 \end{enumerate}
+
+\revnote{R6}{\textbf{Caratterizzazione di MPLR da correggere} (verificata sul testo di Chen \emph{et al.}). (a) La finestra \emph{non} è fissa: l'header MPLR contiene un campo ``Batch Size'' per batch, e 40 è il \emph{massimo} scelto negli esperimenti (Sez.~IV-D del loro paper). ``Fixed window size (40 packets)'' va riformulato. (b) MPLR è stato valutato anche in topologia a stella con 5--20 nodi e un protocollo di prenotazione del canale dati: la cella ``P2P Uplink (Node--GW)'' della Tab.~\ref{tab:arch_comparison} lo sottostima. (c) Il confronto 11~B contro 16~B è corretto (31{,}25\%), ma il checksum MPLR copre solo l'header: vedi [R7].}
 
 \subsection{Architectural Contributions of LAMP}
 LAMP addresses these gaps by establishing an autonomous, lightweight, and configurable transport layer operating directly over raw \ac{LoRa} PHY. As summarized in Table~\ref{tab:arch_comparison}, LAMP advances the state of the art through four core design principles:
@@ -713,6 +738,8 @@ In LAMPv2, broadcast addressing (\texttt{0xFF}) is strictly restricted to unreli
 
 After the payload, a 16-bit CRC-16 (Modbus CRC-16, polynomial \texttt{0xA001}, initialized to \texttt{0xFFFF}) is appended. The checksum is computed over the concatenation of the 9-byte Logical Header and exactly \texttt{payloadSize} application-layer bytes; any trailing buffer bytes beyond \texttt{payloadSize} are excluded, so that partial final chunks are validated identically to full-size chunks and inter-implementation interoperability is preserved.
 
+\revnote{R7}{\textbf{CRC-16 ridondante?} In modalità explicit header il PHY LoRa calcola già un CRC-16 sul payload, e i frame corrotti vengono scartati dal transceiver. Il CRC di LAMP occupa 2 degli 11 byte di overhead (18\%). Giustificarlo (per esempio implicit header, radio senza CRC PHY, portabilità del HAL su altri PHY) oppure renderlo opzionale. In ogni caso dichiarare se il CRC PHY è attivo nell'implementazione e nella simulazione.}
+
 Table~\ref{tab:flag_combinations} summarises all defined flag combinations and the behaviour of the packet parser upon receipt of an undefined value.
 
 \begin{table}[htpb]
@@ -771,6 +798,10 @@ P_{\mathrm{success}} = \left(1 - p^{R_{\mathrm{max}} + 1}\right)^N, \qquad P_{\m
 \end{equation}
 For a lossy channel with a 20\% frame error rate ($p = 0.20$) and $R_{\mathrm{max}} = 5$ (matching \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}), $P_{\mathrm{success}} = (1 - 0.20^6)^{20} \approx 99.87\%$ for a 20-chunk transfer. In physical wireless environments with correlated shadowing and reverse-link fading, overall completion rates are evaluated empirically via the stochastic ns-3 campaign in Section~\ref{sec:eval}.
 
+\revnote{R8}{\textbf{L'Eq.~(\ref{eq:burst_fail}) non descrive l'Algoritmo~\ref{alg:segmentation} (errore sostanziale).} L'Alg.~\ref{alg:segmentation} usa \emph{un solo} contatore \texttt{retries} sia per i timeout sia per i round di riparazione. Un round in cui si perde il frame con \texttt{ACK\_REQ} (probabilità $p$) consuma un tentativo senza ritrasmettere gli altri chunk mancanti. Quindi $p^{R_{\max}+1}$ non è la probabilità di fallimento di un chunk, e l'Eq.~(\ref{eq:burst_fail}) è solo un \emph{limite superiore}: ogni chunk è trasmesso al più $R_{\max}+1$ volte. Probabilità esatta dell'Alg.~\ref{alg:segmentation} (catena di Markov, confermata da Monte Carlo con $2\cdot10^5$ prove), $N=20$, $R_{\max}=5$, SACK senza errori: $p=0{,}1$: 99{,}982\% contro 99{,}998\% dell'Eq.; $p=0{,}2$: \textbf{98{,}97\%} contro 99{,}87\% (fallimento 8$\times$ più probabile); $p=0{,}3$: 91{,}0\% contro 98{,}55\%. Con SACK perdibile ($p_{\mathrm{SACK}}=p=0{,}2$): 92{,}4\%. Anche ``up to $R_{\max}$ \emph{consecutive} timeout events'' (Sez.~III-C-3) contraddice l'algoritmo, dove il contatore è globale. \emph{Azioni:} scrivere $P_{\mathrm{success}}\le(1-p^{R_{\max}+1})^N$; togliere ``matches'' e l'Eq.~(\ref{eq:analytical_bound}), duplicato identico, in Sez.~VI; riportare il valore esatto (script fornito) oppure separare nell'algoritmo il budget dei timeout da quello di riparazione.}
+
+\revnote{R9}{\textbf{Tabella~\ref{tab:timeouts} non riproducibile così com'è.} Ho portato \texttt{SX126x::calculateTimeOnAir()} di RadioLib: la colonna $\widehat{T}_{\mathrm{DATA}}$ coincide entro 1\,ms con un frame da 255\,B in \emph{implicit header} (oppure 252\,B in explicit), CRC PHY attivo, preambolo 8. I frame LAMP però hanno lunghezza variabile e richiedono l'explicit header, che dà 99{,}9 / 176{,}8 / 312{,}6 / 574{,}0 / 1045{,}5 / 1927{,}2\,ms (SF7--12). La terza colonna non si ottiene con \emph{nessuna} lunghezza del SACK tra 9 e 47\,B, né in explicit né in implicit. Con SACK da 14\,B ($N=20$: 9+3+2) ed explicit header: 192 / 321 / 556 / 994 / 1810 / 3349\,ms, per cui $T_{\mathrm{timeout}}$ diventa 1810 (SF11) e 3349\,ms (SF12). Con 43\,B ($N=255$) SF10 supera il pavimento: 1086\,ms. \emph{Azioni:} dichiarare header mode, lunghezza del SACK ($N$) e fonte dei valori; aggiungere la colonna $\widehat{T}_{\mathrm{SACK}}$; motivare il termine $\widehat{T}_{\mathrm{DATA}}$ nell'Eq.~(\ref{eq:timeout}), dato che il timer parte dopo la trasmissione. La citazione AN1200.13 riguarda SX127x: per SX1262 citare il datasheet SX1261/2 (sezione ``LoRa Time-on-Air'').}
+
 \begin{table}[htpb]
 \centering
 \caption{Adaptive SACK Timeout Values (BW~500~kHz, CR~4/5, 255-byte max frame)}
@@ -801,6 +832,14 @@ For a representative 20-chunk payload (4.88~KB data size), a complete reassembly
 
 \subsection{Formal Protocol Algorithms}
 To ensure complete specification clarity and system-level reproducibility across different hardware platforms, Algorithm~\ref{alg:segmentation} and Algorithm~\ref{alg:reassembly} formally detail the transmitter-side segmentation pipeline and the receiver-side out-of-order reassembly engine, respectively.
+
+\revnote{R10}{\textbf{Incoerenze di specifica negli algoritmi.}
+(a) \emph{Sicurezza della memoria:} l'Alg.~\ref{alg:reassembly} non verifica che \texttt{hdr.totalChunks} coincida con l'$N$ con cui la sessione è stata allocata. Un frame successivo dello stesso \texttt{msgId} con \texttt{totalChunks} maggiore supera la riga 11 e scrive fuori dal buffer alla riga 31; anche la riga 37 usa il valore dell'header. Aggiungere il controllo e scartare il frame in caso di discrepanza.
+(b) \texttt{FindSession(srcAddr, msgId)} usa 2 campi, mentre la Sez.~III-B dichiara una chiave a 4 (con \texttt{dstAddr} e \texttt{version}).
+(c) Il TX segmenta con $S$, l'RX scrive con passo fisso $S_{\max}$: la ricostruzione è corretta solo se $S=S_{\max}$. Dichiararlo come invariante oppure salvare il passo nella sessione. \texttt{ExtractPayload} ha inoltre bisogno della lunghezza dell'ultimo chunk.
+(d) Alla riga 29 \texttt{Drop(F)} non ha \texttt{return}, a differenza di tutti gli altri punti, ed è corretto così perché il SACK va comunque inviato. Rinominarlo (per esempio \texttt{SkipWrite}).
+(e) \texttt{SynMetadata.windowSize} viene negoziato ma l'Alg.~\ref{alg:segmentation} non usa alcuna finestra: invia tutti gli $N\le255$ chunk prima dell'\texttt{ACK\_REQ}. Definirne la semantica o rimuoverlo.
+(f) $L=0$ dà $N=0$ (\texttt{totalChunks} non valido): aggiungere la precondizione $L>0$.}
 
 \begin{figure*}[t]
 \centering
@@ -1067,17 +1106,19 @@ Physical validation was conducted using two Heltec Wi-Fi \ac{LoRa}~32~V3 develop
 \subsubsection{Regulatory Compliance and Regional Deployment}
 It is important to clarify the relationship between the LAMP transport protocol and RF regulatory constraints. LAMP operates strictly at the \textit{transport layer} and is agnostic to regional carrier frequency, channel width, and RF power limits; compliance with these constraints is the responsibility of the underlying MAC/PHY layer.
 
-Under European ETSI~EN~300~220-2 regulations~\cite{etsi300220}, the 869.400--869.650~MHz sub-band (Band P) allocates a 250~kHz total frequency block permitting up to 10\% duty cycle and an output power up to 500~mW ERP (27~dBm). For field deployments strictly adhering to this sub-band, channel bandwidths of $\le 250$~kHz (specifically 125~kHz or 250~kHz raster centered at 869.525~MHz) are selected. To characterize the protocol's upper theoretical throughput limits under maximum channel stress, our simulation campaign and laboratory benchmarks evaluated a wideband configuration ($BW = 500.0$~kHz, matching standard US915 / AU915 wideband LoRa allocations) on an experimental carrier.
+Under European ETSI~EN~300~220-2 regulations~\cite{etsi300220-2}, the 869.400--869.650~MHz sub-band (Band P) allocates a 250~kHz total frequency block permitting up to 10\% duty cycle and an output power up to 500~mW ERP (27~dBm). For field deployments strictly adhering to this sub-band, channel bandwidths of $\le 250$~kHz (specifically 125~kHz or 250~kHz raster centered at 869.525~MHz) are selected. To characterize the protocol's upper theoretical throughput limits under maximum channel stress, our simulation campaign and laboratory benchmarks evaluated a wideband configuration ($BW = 500.0$~kHz, matching standard US915 / AU915 wideband LoRa allocations) on an experimental carrier.
+
+\revnote{R11}{\textbf{Normativa (citazione già corretta).} I limiti della banda~P stanno in EN~300~220-2 (Tab.~B.1), non nella Parte~1: aggiunta la voce \texttt{etsi300220-2} (V3.2.1, 2018) e usata qui e nell'introduzione. La Parte~1 resta citata per CAD/LBT nella roadmap. Testo della norma: 869{,}400--869{,}650\,MHz, 500\,mW e.r.p., ``$\le$10\% duty cycle \emph{or polite spectrum access}'', larghezza occupata massima ``the whole band'' (250\,kHz). Aggiungere l'alternativa ``polite spectrum access''. \emph{Da chiarire:} (a) le prove fisiche a 869{,}525\,MHz con BW\,500\,kHz superano la larghezza della banda~P: dichiarare se sono state condotte via cavo, in ambiente schermato o con licenza sperimentale; (b) se la campagna ns-3 impone il duty cycle; (c) aggiungere almeno un punto a BW\,125/250\,kHz, le uniche larghezze utilizzabili in UE. La CAD/CSMA-CA e il duty-cycle pacing citati sotto non esistono nel codice pubblico (vedi [R18]).}
 
 Additionally, the reference C++ library provides opt-in MAC-layer helpers, including SX1262-native Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) and duty-cycle pacing to mitigate channel contention. These features are decoupled from the transport core and offered as convenience primitives for integrators targeting shared ISM spectrum.
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.42\textwidth]{img/pdr_ns3_subplots_LOS.png}
+\includegraphics[width=\textwidth]{img/pdr_ns3_subplots_LOS.png}
 \caption{Packet Delivery Ratio ($PDR_{\mathrm{app}}$ \%) for a fixed $N=20$-chunk payload transfer (4.88~KB application data) as a function of distance across Spreading Factors (SF7, SF9, SF10) in Line-of-Sight (\ac{LoS}) propagation. Solid lines denote mean delivery rates across 50 independent Monte Carlo random seeds; shaded ribbons represent 95\% confidence intervals.}
 \label{fig:ns3_pdr}
 \vspace{4pt}
-\includegraphics[width=0.42\textwidth]{img/goodput_ns3_subplots_LOS.png}
+\includegraphics[width=\textwidth]{img/goodput_ns3_subplots_LOS.png}
 \caption{Effective application-layer throughput (Goodput in bps) for an $N=20$-chunk payload transfer across Spreading Factors and LAMP operational modes in \ac{LoS}. Shaded ribbons denote 95\% confidence intervals across 50 Monte Carlo seeds.}
 \label{fig:ns3_goodput}
 \end{figure*}
@@ -1086,9 +1127,13 @@ Additionally, the reference C++ library provides opt-in MAC-layer helpers, inclu
 \label{sec:eval}
 To evaluate the reliability, throughput, and communication limits of LAMP, we adopt a two-stage evaluation methodology: a large-scale stochastic network simulation campaign executed in ns-3, complemented by functional hardware testbed validation on microcontroller nodes and a planned outdoor field benchmarking campaign.
 
+\revnote{R12}{\textbf{Mancano le baseline.} Le Fig.~\ref{fig:ns3_pdr}--\ref{fig:ns3_goodput} confrontano solo le 4 modalità di LAMP tra loro. L'abstract (``significantly reduces acknowledgment overhead''), l'introduzione e la Tab.~\ref{tab:arch_comparison} affermano però una superiorità su stop-and-wait e MPLR che nessun esperimento misura. Aggiungere, a parità di canale e di $N$, almeno stop-and-wait, MPLR (batch con BVACK; Chen \emph{et al.} riportano $-$24\% di tempo senza perdite e fino a $-$49\% con il 10\% di perdite contro stop-and-wait) e il servizio open-source di LoRaMesher [R5]. Riportare anche le metriche già previste in Sez.~VI-B: latenza, overhead di ritrasmissione e airtime per byte utile.}
+
 \subsection{Network Simulation Benchmarking (ns-3)}
 \label{sec:ns3_eval}
 To characterize protocol performance under controlled fading channels across extensive distance ranges, we developed a full C++ simulator integrated into the ns-3 framework (\texttt{ns3-lorawan}). The simulator reproduces the exact LAMPv2 frame structure (9-byte Logical Header + 2-byte \ac{CRC}-16), all four operational modes, the \ac{3WHS} handshake, and selective bit-vector \ac{SACK} retransmissions over a Nakagami-$m$ fast-fading propagation loss model calibrated for the Semtech SX1262 transceiver (+24.2~dBm EIRP, 869.525~MHz), with shape factors: $m = 3.0$ for \ac{LoS} (strong specular component), $m = 1.5$ for Urban (moderate multipath), and $m = 1.0$ for Rural (Rayleigh fading).
+
+\revnote{R13}{\textbf{Modello di simulazione non riproducibile.} Il testo descrive solo il fading veloce (Nakagami-$m$). Mancano: il modello di path loss su larga scala (tipo, esponente, perdita di riferimento), guadagni d'antenna, cifra di rumore, soglie di sensibilità o SNR per SF/BW, modello di errore di pacchetto, versione di ns-3 e del modulo. Senza questi dati le distanze (0--23\,km) non sono verificabili. \emph{Stima del revisore:} con i parametri degli esempi del modulo \texttt{lorawan} (log-distance, esponente 3{,}76, 7{,}7\,dB a 1\,m; verificato nel codice) e una sensibilità tipica a SF10/BW\,500\,kHz tra circa $-127$ e $-131$\,dBm, +24{,}2\,dBm EIRP darebbero un raggio di circa 7--9\,km, non circa 20\,km. Dichiarare quindi il modello usato. Altri punti: la classificazione Rural$\,{=}\,$Rayleigh ($m{=}1$) peggiore di Urban ($m{=}1{,}5$) è controintuitiva e va giustificata; sono stati simulati 3 ambienti ma sono mostrati solo i risultati LoS (aggiungere Urban e Rural, o non citarli); indicare se il duty cycle è modellato.}
 
 \subsubsection{Simulation Campaign Hierarchy}
 To achieve statistical convergence, an extensive Monte Carlo campaign comprising 117,050 total independent simulation runs was conducted. The experimental space spans 3 RF propagation environments (\ac{LoS}, Urban, Rural), 3 Spreading Factors (SF7, SF9, SF10), 4 operational modes (Mode 1 to Mode 4), and 50 independent random seeds per parameter configuration across an adaptive distance grid extending dynamically up to 23.5~km with early-stopping thresholds once reception falls to 0\% across consecutive steps. Each curve point plotted in Figs.~\ref{fig:ns3_pdr} and~\ref{fig:ns3_goodput} represents the sample mean over 50 independent Monte Carlo seed replications for a representative $N=20$-chunk payload (4.88~KB data size), with shaded ribbons denoting 95\% confidence intervals.
@@ -1111,9 +1156,15 @@ In \ac{LoS} conditions, SF10 sustains complete payload reassembly up to 19.1~km,
 
 Fig.~\ref{fig:ns3_goodput} depicts effective application-layer Goodput (bps). While best-effort streaming (Mode 2) achieves peak throughput in pristine channels by omitting acknowledgment latency, Mode 4 (\textit{Reliable Stream}) preserves sustained throughput near physical channel capacity across the operational range, degrading only near receiver sensitivity thresholds.
 
+\revnote{R14}{\textbf{Fig.~\ref{fig:ns3_goodput}: goodput fisicamente impossibile (errore critico).} Il plateau è di circa 130\,kbps ed è \emph{identico} a SF7, SF9 e SF10. Il bit rate lordo PHY a BW\,500\,kHz e CR\,4/5 è 21{,}9\,kbps (SF7), 7{,}0\,kbps (SF9) e 3{,}9\,kbps (SF10). Il goodput massimo teorico per $N=20$ (39\,040 bit utili su 20 frame da 255\,B, senza handshake né SACK) è circa 19{,}5 / 6{,}2 / 3{,}4\,kbps. La curva supera quindi il bit rate PHY di circa 6$\times$ (SF7) e 33$\times$ (SF10) e non dipende dallo SF: il tempo in aria non entra nel denominatore, cioè c'è un errore nella metrica o nel simulatore. La figura e le frasi che ne derivano (``near physical channel capacity'', ``Mode 2 achieves peak throughput'') vanno rifatte dopo la correzione. Può essere che anche la Fig.~\ref{fig:ns3_pdr} risenta dello stesso problema di temporizzazione (timeout, SACK).}
+
+\revnote{R15}{\textbf{Fig.~\ref{fig:ns3_pdr} contraddice il testo} (letture dal grafico). (a) Le modalità 3 e 4 sono al 100\% solo fino a circa 7\,km (SF7), 9\,km (SF9) e 11--12\,km (SF10); a 19\,km, per SF10, sono sotto il 10\%. ``Complete payload reassembly up to 19.1\,km'' è quindi falso, e il 100\% citato in Sez.~VI-A-2 vale solo a breve distanza. (b) La Mode~2 si ferma a circa il 95\% (SF7) e il 98\% (SF9) \emph{anche a distanza zero}: una perdita in canale ideale che va spiegata. Ha anche il goodput più basso in canale pulito, contrariamente al testo. (c) In coda la Mode~4 (affidabile) scende a zero prima delle Mode~1 e~3 (circa 12\,km contro 15\,km a SF7; 20\,km contro 23\,km a SF10): spiegare il motivo, per esempio il fallimento del 3WHS. (d) Definire $PDR_{\mathrm{app}}$ per le modalità non affidabili (per chunk o per payload?): l'asse dice ``Packet Delivery Ratio''. (e) Formato: ho portato le figure a \texttt{\textbackslash textwidth} perché a 0{,}42 erano illeggibili. Togliere i titoli interni (basta la didascalia), ingrandire i font ed esportarle in PDF vettoriale.}
+
 \subsection{Planned Real-World Field Benchmarking Campaign}
 \label{sec:field_benchmarking}
 While hardware testbed experiments on two Heltec Wi-Fi \ac{LoRa}~32~V3 nodes have validated the functional correctness, C++ memory safety, \ac{3WHS} state machine transitions, and out-of-order reassembly of LAMP, a systematic outdoor field campaign is planned as future experimental work to record real-world empirical performance under environmental interference, multipath reflections, and temperature-induced frequency drift.
+
+\revnote{R16}{\textbf{Validazione hardware solo funzionale.} Questa frase è corretta: sull'hardware è stata verificata la correttezza, non le prestazioni. Abstract, Sez.~V e Conclusioni però parlano di ``hardware validation'' in modo generico, mentre tutti i numeri del paper sono simulazioni o formule chiuse. In più il codice pubblico implementa LAMPv1 (vedi [R18]), quindi la validazione di LAMPv2 non è verificabile da un revisore. \emph{Azioni:} (a) completare almeno una parte della campagna sul campo, anche pochi punti di PDR, latenza e goodput misurati per ancorare la simulazione (è la modifica con più impatto per una rivista di questo livello); oppure (b) limitare esplicitamente ``validated'' alla correttezza funzionale in abstract, Sez.~V e Conclusioni.}
 
 \subsubsection{Planned Experimental Matrix and Evaluation Metrics}
 The planned outdoor physical validation strategy follows established \ac{LPWAN} characterization methodologies~\cite{cattani2017}. It will sweep transmission distances (1 to 5000~meters across \ac{LoS} and \ac{NLoS} conditions) and payload sequence sizes (1 to 100 chunks, $\approx 24.6$~KB) under standard radio configurations (SF7, BW 500~kHz, CR 4/5, 10~dBm TX power).
@@ -1134,6 +1185,8 @@ To provide a transparent systems assessment, three inherent architectural bounda
   \item \textit{Unauthenticated Baseline 3WHS}: Baseline LAMPv2 incorporates CRC-16 for physical frame integrity but omits cryptographic nonces. Consequently, adversarial replays of stale \texttt{SYN} frames could exhaust active session descriptors. This is mitigated via the opt-in Level-2 Security Profile (AES-128-GCM / HMAC) detailed below.
 \end{enumerate}
 
+\revnote{R17}{\textbf{Affermazioni delle conclusioni non supportate.} (a) ``This is mitigated via the opt-in Level-2 Security Profile'': il Level~2 è nella roadmap (``Near-Term''), non implementato. Scrivere ``could be mitigated by'' oppure mostrarne l'implementazione. (b) ``Achieves high reliability \dots\ with minimal airtime overhead and duty-cycle footprint'': né l'airtime né l'impronta sul duty cycle sono misurati (vedi [R12], [R14]). (c) ``Hardware validation'' nel primo paragrafo: vedi [R16]. (d) Per il Level~3 (affidabilità end-to-end e hop-by-hop in mesh) citare anche \ckey{sole2026largetransfer}, che la implementa già su LoRa mesh.}
+
 \subsection{Architectural Roadmap}
 To guide the long-term progression of LAMP from point-to-point data links to decentralized multiagent mesh networks, we define a three-level architectural roadmap:
 \begin{itemize}
@@ -1145,11 +1198,15 @@ To guide the long-term progression of LAMP from point-to-point data links to dec
 \end{itemize}
 
 \section*{Declarations}
-\noindent\textbf{Data and Code Availability}: The complete C++17 library source code, HAL drivers, Unity test suites, and ns-3 simulation scripts are publicly available on GitHub at \url{https://github.com/aleemont/LoRaMultiPacket} under the MIT license.
+\noindent\textbf{Data and Code Availability}: The complete C++17 library source code, HAL drivers, Unity test suites, and ns-3 simulation scripts are publicly available on GitHub at \url{https://github.com/aleemont1/lmp} under the MIT license.
+
+\revnote{R18}{\textbf{Il codice pubblico non corrisponde al protocollo descritto.} L'URL originale (\texttt{aleemont/LoRaMultiPacket}) restituiva 404 ed è stato corretto. Tutti e tre i branch pubblici di \texttt{aleemont1/lmp} (\texttt{main} al 1/7/2026, \texttt{aleemont1-patch-1}, \texttt{feature/deserializer}) contengono però \emph{LAMPv1}: header da 7\,B con flag SOM/EOM e \texttt{protocolVersion = 1}. Non contengono \texttt{srcAddr}/\texttt{dstAddr}, 3WHS/\texttt{SynMetadata}, \texttt{LoRaMultiPacketConfig}, \texttt{MAX\_CONCURRENT\_SESSIONS}, \texttt{AvailMem}, CAD/CSMA-CA, duty-cycle pacing né alcun codice ns-3. \emph{Prima della sottomissione:} pubblicare LAMPv2, gli script ns-3 e i dati grezzi delle figure, meglio come release con DOI (per esempio Zenodo); altrimenti riformulare questa dichiarazione. Allineare anche i nomi: il README dice ``LoRaMultiPacket'' e presenta il progetto come nato per la telemetria del razzo Borealis (Aurora Rocketry), cosa che il paper non menziona.}
 
 \noindent\textbf{Ethical Statement \& AI Tool Usage}: This study did not involve human or animal subjects. AI assistant tools were utilized strictly for code formatting, micro-typography auditing, and manuscript style calibration in compliance with IEEE publication ethics guidelines.
 
-\noindent\textbf{Conflict of Interest}: The authors declare that they have no competing financial or personal interests that could influence the work reported in this paper.
+\revnote{R19}{\textbf{Dichiarazione sull'uso di AI da rendere accurata.} Tre voci bibliografiche avevano combinazioni autore/DOI inesistenti (Elshabrawy \& Al-Ali al posto di Croce \emph{et al.}; Gomez \& Crowcroft al posto di Gimenez \& Petrov; DOI e autori errati in \texttt{wong2024mesh}), un pattern tipico dei riferimenti generati automaticamente. Ora sono corrette. La policy IEEE chiede di dichiarare nei ringraziamenti l'uso di contenuti generati da AI, indicando le sezioni coinvolte. Se strumenti AI hanno contribuito a bibliografia, testo o a questa revisione, la frase ``strictly for code formatting \dots'' va aggiornata di conseguenza.}
+
+\noindent\textbf{Conflict of Interest}: The author declares that there are no competing financial or personal interests that could influence the work reported in this paper.
 
 % references section
 \bibliographystyle{IEEEtran}
