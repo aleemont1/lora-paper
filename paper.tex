@@ -120,7 +120,7 @@
 \usepackage{tikz}
 
 % ===== Review annotations (pre-submission audit, 2026-09-28) =====
-% Notes [R1]..[R19] are printed in dark red. Set \reviewnotesfalse to hide all of them
+% Notes [R1]..[R18] are printed in dark red. Set \reviewnotesfalse to hide all of them
 % before building the submission PDF. Do NOT merge to main with \reviewnotestrue:
 % the CI workflow publishes main to GitHub Pages.
 \newif\ifreviewnotes
@@ -1203,8 +1203,6 @@ To guide the long-term progression of LAMP from point-to-point data links to dec
 \revnote{R18}{\textbf{Il codice pubblico non corrisponde al protocollo descritto.} L'URL originale (\texttt{aleemont/LoRaMultiPacket}) restituiva 404 ed è stato corretto. Tutti e tre i branch pubblici di \texttt{aleemont1/lmp} (\texttt{main} al 1/7/2026, \texttt{aleemont1-patch-1}, \texttt{feature/deserializer}) contengono però \emph{LAMPv1}: header da 7\,B con flag SOM/EOM e \texttt{protocolVersion = 1}. Non contengono \texttt{srcAddr}/\texttt{dstAddr}, 3WHS/\texttt{SynMetadata}, \texttt{LoRaMultiPacketConfig}, \texttt{MAX\_CONCURRENT\_SESSIONS}, \texttt{AvailMem}, CAD/CSMA-CA, duty-cycle pacing né alcun codice ns-3. \emph{Prima della sottomissione:} pubblicare LAMPv2, gli script ns-3 e i dati grezzi delle figure, meglio come release con DOI (per esempio Zenodo); altrimenti riformulare questa dichiarazione. Allineare anche i nomi: il README dice ``LoRaMultiPacket'' e presenta il progetto come nato per la telemetria del razzo Borealis (Aurora Rocketry), cosa che il paper non menziona.}
 
 \noindent\textbf{Ethical Statement \& AI Tool Usage}: This study did not involve human or animal subjects. AI assistant tools were utilized strictly for code formatting, micro-typography auditing, and manuscript style calibration in compliance with IEEE publication ethics guidelines.
-
-\revnote{R19}{\textbf{Dichiarazione sull'uso di AI da rendere accurata.} Tre voci bibliografiche avevano combinazioni autore/DOI inesistenti (Elshabrawy \& Al-Ali al posto di Croce \emph{et al.}; Gomez \& Crowcroft al posto di Gimenez \& Petrov; DOI e autori errati in \texttt{wong2024mesh}), un pattern tipico dei riferimenti generati automaticamente. Ora sono corrette. La policy IEEE chiede di dichiarare nei ringraziamenti l'uso di contenuti generati da AI, indicando le sezioni coinvolte. Se strumenti AI hanno contribuito a bibliografia, testo o a questa revisione, la frase ``strictly for code formatting \dots'' va aggiornata di conseguenza.}
 
 \noindent\textbf{Conflict of Interest}: The author declares that there are no competing financial or personal interests that could influence the work reported in this paper.
 
