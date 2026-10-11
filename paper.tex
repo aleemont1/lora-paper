@@ -550,7 +550,7 @@ This paper presents the design and implementation of \ac{LAMP}, a lightweight tr
 
 The main contributions of this work are:
 \begin{itemize}
-  \item \textbf{Bitmap-Based \ac{SACK} Scheme}: Unlike existing \ac{LPWAN} fragmentation solutions that rely on Stop-and-Wait (S\&W) \ac{ARQ}, which requires one acknowledgment per packet and incurs substantial latency under duty-cycle constraints, the proposed protocol uses a compact binary bitmap carried in a single feedback frame. The receiver reports the delivery status of up to 255 chunks per round-trip, reducing retransmission overhead and over-the-air footprint.
+  \item \textbf{Bitmap \ac{SACK} in a Compact Addressed Transport}: bitmap feedback already appears in SCHC ACK-on-Error~\cite{rfc9011} and MPLR~\cite{mplr-chen2019}. LAMP combines a single uncompressed bitmap, carried in one feedback frame and covering up to 255 chunks per round trip, with a 9-byte addressed header, four operational modes and a three-way handshake that negotiates receiver limits, directly over raw \ac{LoRa} and without rule contexts or gateway infrastructure.
   \item \textbf{Lightweight Packet Segmentation and Abstraction}: The protocol introduces a 9-byte logical header (with 8-bit local node addressing) and a custom \ac{CRC} integrity check on partial payloads, enabling out-of-order chunk reassembly on resource-constrained microcontrollers.
   \item \textbf{Modular C++17 Implementation and \ac{TDD} Validation}: The core state machine is completely decoupled from the physical radio driver through a \ac{HAL}. This design enables both native host-based unit testing (using the Unity framework) and physical deployment on Semtech SX126x transceivers.
 \end{itemize}
@@ -574,8 +574,8 @@ Open-source \ac{LoRa} libraries follow the same pattern. RadioHead offers an 8-b
 \subsection{Windowed Selective Transports: MPLR and Technical Gaps}
 To mitigate Stop-and-Wait overhead, Chen et al.~\cite{mplr-chen2019} proposed \ac{MPLR}, introducing windowed batch transmissions acknowledged by a bit-vector acknowledgment packet (\texttt{BVACK}). While pioneering the use of bitmap feedback over LoRa, MPLR was engineered as an application-specific pipeline tailored strictly for uploading agricultural camera images from an end-device to a central gateway. Consequently, MPLR exhibits key architectural limitations when generalized as a generic transport protocol:
 \begin{enumerate}
-  \item \textit{Substantial Header Overhead}: MPLR enforces a 16-byte fixed header per fragment (allocating 8~bytes for 64-bit \ac{EUI} source/destination addresses), which consumes a substantial portion of the 255-byte maximum LoRa physical payload.
-  \item \textit{Rigid Single-Mode Operation}: MPLR operates solely under a stateful batch model with a fixed window size (40 packets), lacking support for unacknowledged streaming, connectionless datagrams, or dynamic window scaling.
+  \item \textit{Substantial Header Overhead}: MPLR enforces a 16-byte fixed header per fragment (allocating 4~bytes each to the source and destination \ac{EUI}), which consumes a substantial portion of the 255-byte maximum LoRa physical payload.
+  \item \textit{Rigid Single-Mode Operation}: MPLR operates solely under a stateful batch model with the batch size carried in the header (up to 40 packets in the reported experiments), lacking support for unacknowledged streaming, connectionless datagrams, or dynamic window scaling.
   \item \textit{Static Setup and Heavy Teardown}: MPLR lacks run-time buffer negotiation and mandates an explicit 4-way handshake teardown sequence (\texttt{FIN}/\texttt{ACK}), generating unnecessary control frame traffic.
 \end{enumerate}
 
@@ -603,8 +603,8 @@ To mitigate Stop-and-Wait overhead, Chen et al.~\cite{mplr-chen2019} proposed \a
 \textbf{Max Frame Payload} & 240+ Bytes & Variable & Variable & 239 Bytes & 244 Bytes (255B PHY limit) \\ \hline
 \textbf{Max Session Payload} & Unbounded (Sequential) & Variable (IPv6 Packet) & Unlimited (Block Session) & Multi-MB Image (65k Packets) & 62.2~kB (255 Chunks / Session) \\ \hline
 \textbf{Operational Modes} & 1 (Reliable S\&W) & 3 (No-ACK, ACK-Always, ACK-on-Error) & 1 (Open-Loop \ac{FEC}) & 1 (Reliable Batch) & 4 Configurable Modes \\ \hline
-\textbf{Node Addressing} & None / Application & IPv6 128-bit (Compressed) & DevAddr (32-bit) & EUI (64-bit) & 8-bit Unicast + Broadcast \\ \hline
-\textbf{Multi-Node Suitability} & Single P2P Link & Star (Gateway-Centric) & Star Broadcast (Downlink) & P2P Uplink (Node--GW) & P2P \& Multi-Node Ready \\ \hline
+\textbf{Node Addressing} & None / Application & IPv6 128-bit (Compressed) & DevAddr (32-bit) & EUI (32-bit) & 8-bit Unicast + Broadcast \\ \hline
+\textbf{Multi-Node Suitability} & Single P2P Link & Star (Gateway-Centric) & Star Broadcast (Downlink) & Node--GW uplink (star, 5--20 nodes tested) & P2P \& Multi-Node Ready \\ \hline
 \textbf{Parameter Negotiation} & None (Static) & Static (Pre-shared Rules) & Static / Out-of-Band & Static Batch / 4WHS & Dynamic \ac{3WHS} Metadata \\ \hline
 \textbf{Key Strengths} & Minimal header size, trivial implementation & Header compression (1--2~B) for IP traffic & No feedback channel required (pure \ac{FEC}) & High-volume image uplink batching & 4 flexible modes, dynamic \ac{3WHS} buffer safety, raw \ac{LoRa} autonomy \\ \hline
 \textbf{Key Limitations \& Trade-offs} & Prohibitive airtime latency, duty-cycle saturation & Requires shared rule context \& IP infrastructure & High \ac{FEC} compute cost, constant airtime overhead & 16B header overhead, single mode, 4WHS teardown & 9B header (11B w/ CRC), 62.2~kB session limit, RAM/timer state \\ \hline
@@ -837,7 +837,7 @@ To ensure complete specification clarity and system-level reproducibility across
 \label{alg:segmentation}
 \footnotesize
 \begin{algorithmic}[1]
-\Require Payload $P$ (size $L$), $dstAddr$, Max Chunk Size $S$, Mode $M$
+\Require Payload $P$ (size $L > 0$), $dstAddr$, Chunk Size $S = S_{\max}$, Mode $M$
 \Ensure Delivery Status (\texttt{OK} or \texttt{FAIL})
 \State $N \gets \lceil L / S \rceil$
 \If{$N > 255$} \State \Return \texttt{ERR\_PAYLOAD\_TOO\_LARGE} \EndIf
@@ -903,7 +903,7 @@ To ensure complete specification clarity and system-level reproducibility across
 \EndIf
 \State $idx \gets hdr.chunkIndex$
 \If{$\text{IsBitSet}(session.bitmap, idx)$}
-    \State \text{Drop}($F$) \Comment{Duplicate chunk, ignore write}
+    \State \text{SkipWrite}($F$) \Comment{Duplicate chunk, ignore write}
 \Else
     \State $\text{WriteChunk}(session.buffer, idx \cdot S_{\max}, payload)$
     \State $\text{SetBit}(session.bitmap, idx)$; $session.count \gets session.count + 1$
@@ -1097,7 +1097,7 @@ It is important to clarify the relationship between the \ac{LAMP} transport prot
 
 Under \ac{ETSI}~EN~300~220-2 regulations~\cite{etsi300220-2}, the 869.400--869.650~MHz sub-band (Band P) allocates a 250~kHz total frequency block permitting up to 10\% duty cycle and an output power up to 500~mW \ac{ERP} (27~dBm). For field deployments strictly adhering to this sub-band, channel bandwidths of $\le 250$~kHz (specifically 125~kHz or 250~kHz raster centered at 869.525~MHz) are selected. All simulations and bench measurements reported in this paper use $BW = 125$~kHz at 869.525~MHz, inside this sub-band. Because the 10\% duty cycle bounds the sustained airtime of any transfer, goodput is reported both as the raw transfer rate and as the sustained rate under duty-cycle compliance (Section~\ref{sec:ns3_eval}).
 
-Additionally, the reference C++ library provides opt-in MAC-layer helpers, including SX1262-native Channel Activity Detection (CAD) with randomized exponential backoff (\ac{CSMA-CA}) and duty-cycle pacing to mitigate channel contention. These features are decoupled from the transport core and offered as convenience primitives for integrators targeting shared \ac{ISM} spectrum.
+LAMP does not implement channel access: listen-before-talk and duty-cycle management are left to the MAC layer or the integrator, and listen-before-talk is part of the roadmap in Section~\ref{sec:conclusion}.
 
 \begin{figure*}[t]
 \centering
@@ -1260,8 +1260,8 @@ To guide the long-term progression of \ac{LAMP} from point-to-point data links t
 \begin{itemize}
   \setlength{\itemsep}{1.5pt}
   \setlength{\parskip}{0pt}
-  \item \textbf{Level 1 -- Addressed Transport \& Polite Spectrum Access (Current Stack)}: 8-bit addressing (\texttt{srcAddr}, \texttt{dstAddr}), 9-byte header, four operational modes, dynamic \ac{3WHS}, and opt-in CAD/CSMA-CA under ETSI~EN~300~220-1~\cite{etsi300220}.
-  \item \textbf{Level 2 -- Adaptive Spectrum, Scheduling \& Security (Near-Term)}: Dynamic \ac{ADR} tuning via RSSI/SNR metrics in \ac{SACK} feedback, time-slotted channel access via \ac{TDMA}~\cite{wei2020tdm}, and an optional transport security profile (AES-128-GCM / HMAC-SHA256 with 32-bit replay counters).
+  \item \textbf{Level 1 -- Addressed Transport (Current Stack)}: 8-bit addressing (\texttt{srcAddr}, \texttt{dstAddr}), 9-byte header, four operational modes, and dynamic \ac{3WHS}.
+  \item \textbf{Level 2 -- Polite Spectrum Access, Adaptive Rates, Scheduling \& Security (Near-Term)}: Listen-before-talk with \ac{CAD} and randomized \ac{CSMA-CA} backoff under \ac{ETSI}~EN~300~220-1~\cite{etsi300220}, dynamic \ac{ADR} tuning via RSSI/SNR metrics in \ac{SACK} feedback, time-slotted channel access via \ac{TDMA}~\cite{wei2020tdm}, and an optional transport security profile (AES-128-GCM / HMAC-SHA256 with 32-bit replay counters).
   \item \textbf{Level 3 -- Multi-Hop Mesh \& IPv6 Extension (Long-Term Vision)}: Dynamic multi-hop routing (\ac{AODV}-Light / \ac{RPL} adaptation) with hop-by-hop vs. end-to-end \ac{SACK} reliability~\cite{kim2022multihop, wong2024mesh}, and 8-bit node ID mapping for IPv6 link-local bridging (\texttt{fe80::/64}).
 \end{itemize}
 
