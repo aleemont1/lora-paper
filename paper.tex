@@ -765,7 +765,7 @@ Because \ac{LoRa} transceivers are half-duplex, a hardware transition period is 
 It is important to emphasize that all protocol timing parameters, guard delays (e.g., \texttt{SACK\_PREAMBLE\_GUARD\_DELAY\_MS}), and retry limits are fully decoupled into a centralized configuration namespace (\texttt{LoRaMultiPacketConfig}) and can be customized by integrators for any \ac{MCU}/radio target. The default parameters presented in this study were specifically tuned around the Heltec Wi-Fi \ac{LoRa}~32~V3 (ESP32-S3) hardware platform.
 
 \subsubsection{Timeout and Fallback Recovery}
-If the transmitter does not receive a \ac{SACK} packet within the dynamic timeout window, it assumes the query or response was lost and retransmits the last transmitted chunk with the \texttt{FLAG\_ACK\_REQ} flag. The transmitter permits up to $R_{\mathrm{max}} = 5$ consecutive timeout events before aborting the session.
+If the transmitter does not receive a \ac{SACK} packet within the dynamic timeout window, it assumes the query or response was lost and re-sends the last chunk of the message (index $N-1$) with the \texttt{FLAG\_ACK\_REQ} flag. Timeouts and repair rounds draw on a single budget of $R_{\mathrm{max}} = 5$ rounds per session; when it is exhausted the session is aborted.
 
 The timeout is computed adaptively to account for forward data frame airtime, receiver turnaround, and reverse \ac{SACK} airtime:
 \begin{equation}
@@ -775,12 +775,12 @@ T_{\mathrm{timeout}} = \max\!\left(T_{\min},\;\alpha\cdot\left(\widehat{T}_{\mat
 where $T_{\min} = 1000$~ms is the minimum guard, $\alpha = 1.5$ is a safety factor, $\widehat{T}_{\mathrm{oA, DATA}}$ and $\widehat{T}_{\mathrm{oA, SACK}}$ are the Times-on-Air for the data frame and reverse \ac{SACK} frame queried from the radio driver~\cite{semtech-an1200}, and $\delta = 50$~ms is the sum of the SACK preamble guard and a scheduling guard (25~ms each), covering half-duplex switching. The timer starts once the burst has been transmitted, so it covers one data frame, the receiver turnaround and the SACK, not the airtime of the whole burst. Table~\ref{tab:timeouts} reports representative timeout values across spreading factors.
 
 \subsubsection{Idealized Analytical Burst Reliability Baseline}
-Under an independent frame loss probability $p$ and assuming error-free control feedback, the probability that an individual chunk fails after $R_{\mathrm{max}}$ repair rounds is $p^{R_{\mathrm{max}} + 1}$. For an $N$-chunk payload under this idealized i.i.d. baseline, the overall burst delivery success probability $P_{\mathrm{success}}$ is modeled as:
+Under an independent frame loss probability $p$ and assuming error-free control feedback, the probability that an individual chunk fails after $R_{\mathrm{max}}$ repair rounds is $p^{R_{\mathrm{max}} + 1}$. For an $N$-chunk payload under this idealized i.i.d. baseline, the overall burst delivery success probability $P_{\mathrm{success}}$ is bounded by:
 \begin{equation}
-P_{\mathrm{success}} = \left(1 - p^{R_{\mathrm{max}} + 1}\right)^N, \qquad P_{\mathrm{fail}} = 1 - P_{\mathrm{success}}
+P_{\mathrm{success}} \le \left(1 - p^{R_{\mathrm{max}} + 1}\right)^N, \qquad P_{\mathrm{fail}} = 1 - P_{\mathrm{success}}
 \label{eq:burst_fail}
 \end{equation}
-For a lossy channel with a 20\% frame error rate ($p = 0.20$) and $R_{\mathrm{max}} = 5$ (matching \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}), $P_{\mathrm{success}} = (1 - 0.20^6)^{20} \approx 99.87\%$ for a 20-chunk transfer. In physical wireless environments with correlated shadowing and reverse-link fading, overall completion rates are evaluated empirically via the stochastic ns-3 campaign in Section~\ref{sec:eval}.
+For a lossy channel with a 20\% frame error rate ($p = 0.20$) and $R_{\mathrm{max}} = 5$ (matching \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}), $P_{\mathrm{success}} \le (1 - 0.20^6)^{20} \approx 99.87\%$ for a 20-chunk transfer. The bound is optimistic: a repair round in which the frame carrying \texttt{FLAG\_ACK\_REQ} is lost consumes one of the $R_{\mathrm{max}}$ rounds without retransmitting the other missing chunks. For the same parameters and lossless SACK frames, a Monte Carlo simulation of the protocol as implemented gives 94.6\%. In physical wireless environments with correlated shadowing and reverse-link fading, overall completion rates are evaluated empirically via the stochastic ns-3 campaign in Section~\ref{sec:eval}.
 
 \begin{table}[htpb]
 \centering
@@ -836,12 +836,12 @@ To ensure complete specification clarity and system-level reproducibility across
     \State $\text{Transmit}(F_i)$
 \EndFor
 \If{$M \in \{\text{Mode 1}, \text{Mode 2}\}$} \State \Return \texttt{OK} \Comment{Unreliable delivery complete} \EndIf
-\State $retries \gets 0$; $lastIdx \gets N - 1$
+\State $retries \gets 0$
 \While{$retries \le R_{\mathrm{max}}$}
     \State $sack \gets \text{WaitForSack}(T_{\mathrm{timeout}})$
     \If{$sack == \text{TIMEOUT}$}
         \If{$retries == R_{\mathrm{max}}$} \State \textbf{break} \EndIf
-        \State $\text{Transmit}(F_{lastIdx})$; $retries \gets retries + 1$
+        \State $\text{Transmit}(F_{N-1})$ \textbf{with} \texttt{FLAG\_ACK\_REQ}; $retries \gets retries + 1$
     \ElsIf{$\text{IsAllAcked}(sack.bitmap)$}
         \State \Return \texttt{OK} \Comment{Full payload delivery confirmed}
     \Else
@@ -855,7 +855,7 @@ To ensure complete specification clarity and system-level reproducibility across
             \State $F_{idx} \gets \text{SerializeFrame}(hdr, P[idx\cdot S : idx\cdot S + cLen], crc)$
             \State $\text{Transmit}(F_{idx})$
         \EndFor
-        \State $lastIdx \gets \text{Last}(missing)$; $retries \gets retries + 1$
+        \State $retries \gets retries + 1$
     \EndIf
 \EndWhile
 \State \Return \texttt{ERR\_MAX\_RETRIES\_EXCEEDED}
@@ -1042,7 +1042,7 @@ As illustrated in Fig.~\ref{fig:3whs_sequence}(a), the connection lifecycle foll
 \subsection{Concurrency and Fault Handling}
 To ensure protocol stability in multi-node and lossy environments, \ac{LAMP} incorporates the following fault-handling mechanisms:
 \begin{itemize}
-  \item \textit{Simultaneous Connection Resolution}: If two nodes transmit \texttt{SYN} frames to each other simultaneously, a deterministic tie-breaking rule resolves the conflict: the node with the lower numerical \texttt{NodeAddress} yields and transitions back to \texttt{CLOSED}, while the node with the higher \texttt{NodeAddress} proceeds with session setup.
+  \item \textit{Simultaneous Connection Resolution}: If two nodes transmit \texttt{SYN} frames to each other simultaneously, a deterministic tie-breaking rule resolves the conflict: the node with the higher numerical \texttt{NodeAddress} yields, abandoning its own request and accepting the peer's \texttt{SYN}, while the node with the lower \texttt{NodeAddress} answers the peer's \texttt{SYN} with \texttt{CONN\_NACK(BUSY)} and proceeds with session setup.
   \item \textit{Receiver Busy Rejection}: If a receiver receives a \texttt{SYN} frame while its active reassembly session is already locked by another node, it responds with a \texttt{CONN\_NACK} frame (\texttt{FLAG\_CONN\_NACK}) specifying a \texttt{BUSY} status code, causing the requester to back off.
   \item \textit{Source Address Filtering}: Initiators in \texttt{waitForSynAck} and \texttt{waitForSack} validate incoming control frames against the expected \texttt{srcAddr}, ignoring packets from unrelated third-party nodes.
   \item \textit{Incomplete Handshake Timeout}: If a \texttt{SYN-ACK} or \texttt{ACK} of a \ac{3WHS} is lost in transit, the receiver in \texttt{SYN\_RCVD} or initiator in \texttt{SYN\_SENT} automatically aborts and resets to \texttt{CLOSED} after an inactivity timeout (\texttt{timeoutMs}).
