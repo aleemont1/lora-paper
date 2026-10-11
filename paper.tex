@@ -895,6 +895,7 @@ To ensure complete specification clarity and system-level reproducibility across
     \State \text{Drop}($F$); \Return
 \EndIf
 \State $session \gets \text{FindSession}(hdr.srcAddr, hdr.msgId)$
+\If{$session \neq \text{NULL} \textbf{ and } hdr.totalChunks \neq session.total$} \State \text{Drop}($F$); \Return \EndIf
 \If{$session == \text{NULL}$}
     \If{$\text{AvailMem}() < hdr.totalChunks \cdot S_{\max}$} \Comment{Safe stride check}
         \State \text{SendNack}(hdr.srcAddr, \texttt{BUSY}); \Return 
@@ -911,7 +912,7 @@ To ensure complete specification clarity and system-level reproducibility across
 \If{$hdr.flags \ \& \ \texttt{FLAG\_ACK\_REQ}$}
     \State $\text{SendSack}(hdr.srcAddr, hdr.msgId, session.bitmap)$
 \EndIf
-\If{$session.count == hdr.totalChunks$}
+\If{$session.count == session.total$}
     \State $P \gets \text{ExtractPayload}(session.buffer)$
     \State $\text{DeliverToApp}(P)$; $\text{MarkCompleted}(hdr.srcAddr, hdr.msgId)$; $\text{FreeSession}(session)$
 \EndIf
