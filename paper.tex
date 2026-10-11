@@ -374,7 +374,7 @@
 \acrodef{NLoS}{Non-Line-of-Sight}
 \acrodef{ADR}{Adaptive Data Rate}
 \acrodef{UAV}{Unmanned Aerial Vehicle}
-\acrodef{LAMP}{Lightweight Addressed Messaging Protocol}
+\acrodef{LAMP}{LoRa Adaptive Multipacket Protocol}
 \acrodef{SACK}{Selective Acknowledgment}
 \acrodef{ARQ}{Automatic Repeat Request}
 \acrodef{3WHS}{3-Way Handshake}
@@ -425,6 +425,7 @@
 % was not built to handle multiple paragraphs
 %
 
+% TODO(finale): affiliazione, e-mail (\thanks) e nota IEEE sul preprint -- placeholder per ora
 \author{Alessandro Monticelli}
 
 % note the % following the last \IEEEmembership and also \thanks - 
@@ -478,6 +479,16 @@
 % make the title area
 \maketitle
 
+% TODO(finale) ABSTRACT -- da sistemare insieme alle conclusioni, dopo D1/C5/C6:
+%  1. "To overcome the prohibitive Time-on-Air overhead and duty-cycle saturation typical of existing
+%     Stop-and-Wait solutions": il goodput sostenuto sotto duty cycle e' uguale per tutti i modi (Sec. VI-A).
+%     Suggerimento: "To reduce the acknowledgment airtime of Stop-and-Wait solutions".
+%  2. "significantly reduces acknowledgment overhead": nessun numero a supporto. Suggerimento:
+%     "In ns-3 simulations, SACK-ARQ extends the 90% delivery range by 22--35% over Stop-and-Wait in an
+%      urban channel and raises goodput by 14--16% at SF7; a hardware bench with emulated frame loss
+%      agrees with the simulator." (ricontrollare i numeri dopo le modifiche al codice)
+%  3. "without incurring the constant over-the-air encoding overhead of pure FEC": nessuna baseline FEC
+%     valutata; attenuare ("avoids") o togliere.
 \begin{abstract}
   This paper presents \ac{LAMP}, a lightweight transport architecture that enables the continuous transfer of large data blocks over point-to-point Long-Range (LoRa\textsuperscript{\textregistered}) networks. To overcome the prohibitive Time-on-Air overhead and duty-cycle saturation typical of existing Stop-and-Wait solutions, the proposed architecture segments payloads into up to 255 chunks per transmission window. Each chunk is protected by a 9-byte Logical Header with compact 8-bit node addressing (supporting downstream IPv6 link-local prefix mapping) and a 2-byte \ac{CRC}-16 checksum suffix. The protocol provides four distinct operational modes combining connection state (Connectionless / Stateful) and reliability (Best-effort / {SACK}-{ARQ} feedback). By requiring receiver feedback only at sequence boundaries rather than per-packet, the \ac{SACK} mechanism significantly reduces acknowledgment overhead without incurring the constant over-the-air encoding overhead of pure \ac{FEC}.
 \end{abstract}
@@ -553,8 +564,12 @@ Reliable packet fragmentation and transport over \acp{LPWAN} has been the subjec
 \subsection{Standardized LPWAN Frameworks: SCHC and LoRaWAN TS004}
 At the standardization level, the IETF defined \ac{SCHC}~\cite{rfc8724, rfc9011}, introducing a generic architecture for header compression and fragmentation over LPWANs. RFC~9011 defines SCHC profiles over LoRaWAN supporting No-ACK, ACK-Always, and ACK-on-Error modes. While SCHC achieves high compression for predictable IPv6/UDP flows (down to 1--2 bytes), it relies on pre-provisioned static rule contexts and gateway-centric infrastructure, making it ill-suited for autonomous, ad-hoc raw-\ac{LoRa} peer-to-peer or multi-node links. Similarly, the \ac{LoRa} Alliance standardized \ac{TS004}~\cite{ts004} to support \ac{FUOTA} via open-loop \ac{FEC} redundancy codes. While open-loop \ac{FEC} delivers multicast firmware images without requiring a reverse feedback channel, it introduces continuous over-the-air encoding overhead regardless of physical channel conditions and imposes substantial computational decoding demands on resource-constrained microcontrollers.
 
+Bitmap-based selective feedback is not new in this space: SCHC's ACK-on-Error mode returns a compressed bitmap of the tiles received in a window~\cite{rfc9011}, and 6LoWPAN Selective Fragment Recovery confirms fragments through a 32-bit acknowledgment bitmap~\cite{rfc8931}. LAMP adopts the same principle but applies it end-to-end over raw \ac{LoRa} links, without rule contexts or IP infrastructure, with a single uncompressed bitmap covering up to 255 chunks.
+
 \subsection{Point-to-Point Transports and Stop-and-Wait Limitations}
 In infrastructure-free point-to-point and local mesh configurations, early implementations relied on S\&W \ac{ARQ}. However, empirical link evaluations by Cattani et al.~\cite{cattani2017} and network scalability analyses by Bor et al.~\cite{bor2016} established that per-fragment acknowledgments incur prohibitive Time-on-Air latencies and severe duty-cycle saturation when applied to multi-packet payloads. Under typical LPWAN channels, the round-trip overhead of waiting for an individual ACK after every single packet dramatically reduces effective throughput.
+
+Open-source \ac{LoRa} libraries follow the same pattern. RadioHead offers an 8-bit TO/FROM/ID/FLAGS header with broadcast address 255 and a reliable datagram layer with per-message acknowledgments, timed retransmissions and duplicate detection, which blocks the sender until each message is acknowledged~\cite{radiohead}. The large-transfer service built into LoRaMesher~\cite{sole2022loramesher,sole2026largetransfer} applies stop-and-wait \ac{ARQ} with a \texttt{SYNC} handshake, per-chunk acknowledgments, receiver-side requests for lost packets and RTT-based timeouts, and was evaluated on ten real nodes in two topologies. LAMP differs in using one cumulative bitmap per repair round and in offering four operational modes.
 
 \subsection{Windowed Selective Transports: MPLR and Technical Gaps}
 To mitigate Stop-and-Wait overhead, Chen et al.~\cite{mplr-chen2019} proposed \ac{MPLR}, introducing windowed batch transmissions acknowledged by a bit-vector acknowledgment packet (\texttt{BVACK}). While pioneering the use of bitmap feedback over LoRa, MPLR was engineered as an application-specific pipeline tailored strictly for uploading agricultural camera images from an end-device to a central gateway. Consequently, MPLR exhibits key architectural limitations when generalized as a generic transport protocol:
@@ -583,7 +598,7 @@ To mitigate Stop-and-Wait overhead, Chen et al.~\cite{mplr-chen2019} proposed \a
 \hline
 \textbf{Architectural Dimension} & \textbf{Stop-and-Wait ARQ} & \textbf{\ac{SCHC}~\cite{rfc8724}} & \textbf{LoRaWAN \ac{TS004}~\cite{ts004}} & \textbf{\ac{MPLR}~\cite{mplr-chen2019}} & \textbf{Proposed (\ac{LAMP})} \\ \hline
 \textbf{Stack Dependency} & Raw \ac{LoRa} PHY & Generic Adaptation (often LoRaWAN/IP) & LoRaWAN App Layer & Raw \ac{LoRa} PHY & Raw \ac{LoRa} PHY (Standalone) \\ \hline
-\textbf{ACK Mechanism} & Per-Packet ACK & ACK-on-Error / ACK-Always & None (Open-Loop Redundancy) & Bit-Vector \ac{SACK} & Bit-Vector \ac{SACK} \\ \hline
+\textbf{ACK Mechanism} & Per-Packet ACK & Compressed bitmap (ACK-on-Error) / ACK-Always & None (Open-Loop Redundancy) & Bit-Vector \ac{SACK} & Bit-Vector \ac{SACK} \\ \hline
 \textbf{Header Overhead} & 2--4 Bytes & 1--2 Bytes (Compressed RuleID/Residue) & 2 Bytes & 16 Bytes & 9 Bytes (11B total w/ CRC) \\ \hline
 \textbf{Max Frame Payload} & 240+ Bytes & Variable & Variable & 239 Bytes & 244 Bytes (255B PHY limit) \\ \hline
 \textbf{Max Session Payload} & Unbounded (Sequential) & Variable (IPv6 Packet) & Unlimited (Block Session) & Multi-MB Image (65k Packets) & 62.2~kB (255 Chunks / Session) \\ \hline
@@ -747,7 +762,7 @@ Table~\ref{tab:flag_combinations} summarises all defined flag combinations and t
 \end{table}
 
 \subsection{Selective Acknowledgment and Retransmission}
-In reliable mode, the protocol implements a \ac{SACK} mechanism~\cite{lora-arq-sar} to recover lost fragments with minimal additional airtime.
+In reliable mode, the protocol implements a \ac{SACK} mechanism in the sense of~\cite{rfc2018}, applied to fragment recovery over LoRa as in~\cite{lora-arq-sar}, to recover lost fragments with minimal additional airtime.
 
 \subsubsection{Retransmission Protocol Interaction}
 When a transmission is executed in reliable mode:
@@ -1112,7 +1127,7 @@ To evaluate the reliability, throughput, and communication limits of \ac{LAMP}, 
 
 \subsection{Network Simulation Benchmarking (ns-3)}
 \label{sec:ns3_eval}
-To characterize protocol performance under controlled fading channels, we developed a C++ simulator integrated into the ns-3 framework (\texttt{ns3-lorawan}). The simulator reproduces the LAMPv2 frame (9-byte Logical Header carried as a real packet header, plus the 2-byte \ac{CRC}-16), all four operational modes, the \ac{3WHS} handshake and selective bit-vector \ac{SACK} retransmissions: the receiver returns the bitmap of the chunks it actually holds and the transmitter re-sends only the missing ones. Timers and the repair budget $R_{\mathrm{max}}=5$ mirror \texttt{ProtocolConfig.hpp}. As a baseline it implements Stop-and-Wait \ac{ARQ} (one acknowledgment per frame, up to $R_{\mathrm{max}}$ retries per chunk) with two timeouts: the rule of Eq.~(\ref{eq:timeout}) (``base'') and a tight timeout of one acknowledgment airtime plus 50~ms (``tight'').
+To characterize protocol performance under controlled fading channels, we developed a C++ simulator integrated into the ns-3 framework (version 3.48, development snapshot of 2~June~2026) and the \texttt{lorawan} module (one commit after release v0.3.7, \texttt{67bcaef}). The simulator reproduces the LAMPv2 frame (9-byte Logical Header carried as a real packet header, plus the 2-byte \ac{CRC}-16), all four operational modes, the \ac{3WHS} handshake and selective bit-vector \ac{SACK} retransmissions: the receiver returns the bitmap of the chunks it actually holds and the transmitter re-sends only the missing ones. Timers and the repair budget $R_{\mathrm{max}}=5$ mirror \texttt{ProtocolConfig.hpp}. As a baseline it implements Stop-and-Wait \ac{ARQ} (one acknowledgment per frame, up to $R_{\mathrm{max}}$ retries per chunk) with two timeouts: the rule of Eq.~(\ref{eq:timeout}) (``base'') and a tight timeout of one acknowledgment airtime plus 50~ms (``tight'').
 
 The channel combines a single-slope log-distance path loss, a log-normal shadowing offset drawn once per transfer and Nakagami-$m$ fast fading, with a transmit power of +24.2~dBm \ac{EIRP} (22~dBm PA, 3~dBi antenna, 0.8~dB connector loss) and a receiver noise floor of $-174\,\mathrm{dBm/Hz} + 10\log_{10}BW + 6$~dB. Table~\ref{tab:channel} lists the parameters. The Urban and Water scenarios are the fits of Petäjäjärvi et al.~\cite{petajajarvi2015} (868.67~MHz, car on the ground and boat on the water, SF12 data); other measured urban exponents range from 1.58~\cite{rademacher2021} to 2.71~\cite{dare-lorawan}. The Rural scenario is the re-fit of measurements by Chall et al. published in the review~\cite{azevedo2024}, not a value from the original article. The Nakagami shape factors ($m=3$, 1.5, 1) are modelling assumptions for which we found no LoRa measurement. Two stress channels reuse earlier, steeper parameters ($n=4.0$ and $n=4.5$) as explicit worst cases.
 
@@ -1216,6 +1231,15 @@ The planned outdoor physical validation strategy follows established \ac{LPWAN} 
 
 During the planned outdoor campaign, four core performance metrics will be recorded across 5 independent trials per operational mode: (i)~\textbf{Application Payload Delivery Ratio ($PDR_{\mathrm{app}}$)}, measuring successful reassembly rate; (ii)~\textbf{End-to-End Latency}, from initial serialization to reassembly completion; (iii)~\textbf{Effective Throughput (Goodput)}, calculated as delivered payload bits over elapsed duration; and (iv)~\textbf{Retransmission Overhead}, tracking extra frames and \ac{SACK} packets relative to unreliable baselines.
 
+% TODO(finale) CONCLUSIONI -- da sistemare insieme all'abstract, dopo D1/C5/C6:
+%  1. "with minimal airtime overhead and duty-cycle footprint": ne' airtime ne' duty cycle sono misurati
+%     contro baseline (il goodput sostenuto e' lo stesso per tutti i modi). Suggerimento: "with fewer
+%     acknowledgment frames than per-packet Stop-and-Wait" oppure riportare i numeri di D1.
+%  2. Limite 3 (Unauthenticated Baseline 3WHS): "This is mitigated via the opt-in Level-2 Security Profile"
+%     -> il profilo non e' implementato: "could be mitigated by a transport security profile (Level 2)".
+%  3. Roadmap Level 3: citare anche sole2026largetransfer (gia' in paper.bib), che implementa
+%     l'affidabilita' end-to-end su mesh LoRa.
+%  4. Ricontrollare "validated"/"validation": solo funzionale sul banco (limite 4).
 \section{Conclusion and Architectural Roadmap}
 \label{sec:conclusion}
 This paper presents the design, implementation, simulation-based evaluation, and functional validation on commodity hardware of \ac{LAMP}, a lightweight and reliable transport-layer architecture optimized for transmitting segmented large payloads over point-to-point and local multi-node \ac{LoRa} networks. By replacing traditional Stop-and-Wait per-packet acknowledgments with selective retransmissions requested via cumulative binary bitmaps, and eliminating redundant SOM/EOM markers in favor of implicit index derivation, the protocol achieves high reliability under lossy conditions with minimal airtime overhead and duty-cycle footprint.
