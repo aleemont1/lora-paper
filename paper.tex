@@ -518,7 +518,7 @@ constraints~\cite{10807074}.
 Several communication standards, including ZigBee, Sigfox, and \ac{LoRa}
 have been adopted to address these needs, and \ac{LoRa}, in particular, has
 emerged as the leading choice for low-power and long-range deployments thanks to
-its robust modulation technique and open network architecture~\cite{8424846}.
+its robust modulation technique and open network architecture~\cite{croce2020demystified}.
 However, conventional solutions based on \ac{LoRa} (particularly those following
 the LoRaWAN\textsuperscript{\textregistered} specifications) are optimized for small, non-frequent payloads~\cite{8016141}.
 
@@ -1069,7 +1069,7 @@ Functional validation was conducted using two Heltec Wi-Fi \ac{LoRa}~32~V3 devel
 \subsubsection{Regulatory Compliance and Regional Deployment}
 It is important to clarify the relationship between the LAMP transport protocol and RF regulatory constraints. LAMP operates strictly at the \textit{transport layer} and is agnostic to regional carrier frequency, channel width, and RF power limits; compliance with these constraints is the responsibility of the underlying MAC/PHY layer.
 
-Under European ETSI~EN~300~220-2 regulations~\cite{etsi300220}, the 869.400--869.650~MHz sub-band (Band P) allocates a 250~kHz total frequency block permitting up to 10\% duty cycle and an output power up to 500~mW ERP (27~dBm). For field deployments strictly adhering to this sub-band, channel bandwidths of $\le 250$~kHz (specifically 125~kHz or 250~kHz raster centered at 869.525~MHz) are selected. All simulations and bench measurements reported in this paper use $BW = 125$~kHz at 869.525~MHz, inside this sub-band. Because the 10\% duty cycle bounds the sustained airtime of any transfer, goodput is reported both as the raw transfer rate and as the sustained rate under duty-cycle compliance (Section~\ref{sec:ns3_eval}).
+Under European ETSI~EN~300~220-2 regulations~\cite{etsi300220-2}, the 869.400--869.650~MHz sub-band (Band P) allocates a 250~kHz total frequency block permitting up to 10\% duty cycle and an output power up to 500~mW ERP (27~dBm). For field deployments strictly adhering to this sub-band, channel bandwidths of $\le 250$~kHz (specifically 125~kHz or 250~kHz raster centered at 869.525~MHz) are selected. All simulations and bench measurements reported in this paper use $BW = 125$~kHz at 869.525~MHz, inside this sub-band. Because the 10\% duty cycle bounds the sustained airtime of any transfer, goodput is reported both as the raw transfer rate and as the sustained rate under duty-cycle compliance (Section~\ref{sec:ns3_eval}).
 
 Additionally, the reference C++ library provides opt-in MAC-layer helpers, including SX1262-native Channel Activity Detection (CAD) with randomized exponential backoff (CSMA-CA) and duty-cycle pacing to mitigate channel contention. These features are decoupled from the transport core and offered as convenience primitives for integrators targeting shared ISM spectrum.
 
@@ -1235,7 +1235,7 @@ To guide the long-term progression of LAMP from point-to-point data links to dec
 \end{itemize}
 
 \section*{Declarations}
-\noindent\textbf{Data and Code Availability}: The complete C++17 library source code, HAL drivers, Unity test suites, bench firmware, ns-3 simulator, campaign scripts and result data are publicly available on GitHub at \url{https://github.com/aleemont/LoRaMultiPacket} under the MIT license.
+\noindent\textbf{Data and Code Availability}: The complete C++17 library source code, HAL drivers, Unity test suites, bench firmware, ns-3 simulator, campaign scripts and result data are publicly available on GitHub at \url{https://github.com/aleemont1/lmp} under the MIT license.
 
 \noindent\textbf{Ethical Statement \& AI Tool Usage}: This study did not involve human or animal subjects. AI assistant tools were utilized strictly for code formatting, micro-typography auditing, and manuscript style calibration in compliance with IEEE publication ethics guidelines.
 
