@@ -357,18 +357,11 @@
 % correct bad hyphenation here
 \hyphenation{op-tical net-works semi-conduc-tor}
 
-\acrodef{IMU}{Inertial Measurement Unit}
 \acrodef{IoT}{Internet of Things}
 \acrodef{LoRa}{Long Range}
 \acrodef{LoRaWAN}{Long Range Wide Area Network}
-\acrodef{CSS}{Chirp Spread Spectrum}
-\acrodef{SF}{Spreading Factor}
-\acrodef{UART}{Universal Asynchronous Receiver-Transmitter}
-\acrodef{I2C}[I\textsuperscript{2}C]{Inter-Integrated Circuit}
 \acrodef{SPI}{Serial Peripheral Interface}
-\acrodef{ISM}{Industrial, Scientific and Medical}
 \acrodef{RSSI}{Received Signal Strength Indicator}
-\acrodef{EKF}{Extended Kalman Filter}
 \acrodef{CRC}{Cyclic Redundancy Check}
 \acrodef{LoS}{Line-of-Sight}
 \acrodef{NLoS}{Non-Line-of-Sight}
@@ -384,12 +377,9 @@
 \acrodef{FEC}{Forward Error Correction}
 \acrodef{TS004}[TS004]{Fragmented Data Block Transport Specification}
 \acrodef{LPWAN}{Low-Power Wide-Area Network}
-\acrodef{MTU}{Maximum Transmission Unit}
-\acrodef{PDR}{Packet Delivery Ratio}
 \acrodef{OTA}{Over-the-Air}
 \acrodef{SCHC}{Static Context Header Compression}
 \acrodef{MPLR}{Multi-Packet LoRa}
-\acrodef{CPS}{Cyber-Physical System}
 \acrodef{SLAM}{Simultaneous Localization and Mapping}
 \acrodef{GPIO}{General-Purpose Input/Output}
 \acrodef{FIFO}{First-In, First-Out}
@@ -762,6 +752,7 @@ Table~\ref{tab:flag_combinations} summarises all defined flag combinations and t
 \end{table}
 
 \subsection{Selective Acknowledgment and Retransmission}
+\label{sec:sack}
 In reliable mode, the protocol implements a \ac{SACK} mechanism in the sense of~\cite{rfc2018}, applied to fragment recovery over LoRa as in~\cite{lora-arq-sar}, to recover lost fragments with minimal additional airtime.
 
 \subsubsection{Retransmission Protocol Interaction}
@@ -824,7 +815,7 @@ M_{\mathrm{session}} = S_{\mathrm{struct}} + N_{\mathrm{chunks}} \cdot S_{\max} 
 \end{equation}
 where $S_{\mathrm{struct}} \approx 48$~bytes represents the session tracking structure metadata, $S_{\max} = 244$~bytes is the maximum chunk stride, and the final term represents the binary \ac{SACK} bitmask.
 
-For a representative 20-chunk payload (4.88~kB of data), a reassembly session requires $\approx 4.93$~kB of RAM. The ceiling on simultaneous sessions (\texttt{MAX\_CONCURRENT\_SESSIONS}) must therefore be adapted to the memory available on the target. On the Heltec Wi-Fi \ac{LoRa}~32~V3 used in this work (ESP32-S3, 512~kB SRAM), we keep the default of 10 sessions, which reserves $\approx 49.3$~kB for 20-chunk payloads, about 10\% of the SRAM.
+For a representative 20-chunk payload (4.88~kB of data), Eq.~(\ref{eq:ram_footprint}) gives $\approx 4.93$~kB of RAM per reassembly session. The ceiling on simultaneous sessions (\texttt{MAX\_CONCURRENT\_SESSIONS}) must therefore be adapted to the memory available on the target. On the Heltec Wi-Fi \ac{LoRa}~32~V3 used in this work (ESP32-S3, 512~kB SRAM), we keep the default of 10 sessions, which reserves $\approx 49.3$~kB for 20-chunk payloads, about 10\% of the SRAM.
 
 \subsection{Formal Protocol Algorithms}
 To ensure complete specification clarity and system-level reproducibility across different hardware platforms, Algorithm~\ref{alg:segmentation} and Algorithm~\ref{alg:reassembly} formally detail the transmitter-side segmentation pipeline and the receiver-side out-of-order reassembly engine, respectively.
@@ -966,7 +957,7 @@ To ensure complete specification clarity and system-level reproducibility across
 \end{figure*}
 
 \subsection{Session Control and Handshake Protocol}
-To support stateful stream negotiation and protect resource-constrained receivers from buffer overflows, LAMPv2 introduces a \ac{3WHS} mechanism.
+To support stateful stream negotiation and protect resource-constrained receivers from buffer overflows, LAMPv2 introduces a \ac{3WHS} mechanism. Fig.~\ref{fig:state_machines} summarizes the resulting session and data-transfer state machines.
 
 \subsubsection{Three-Way Handshake Procedure}
 As illustrated in Fig.~\ref{fig:3whs_sequence}(a), the connection lifecycle follows a three-step exchange:
@@ -975,6 +966,7 @@ As illustrated in Fig.~\ref{fig:3whs_sequence}(a), the connection lifecycle foll
   \item \textbf{SYN-ACK}: Upon receiving the \texttt{SYN}, the peer evaluates available memory and protocol version. If accepted, it responds with a \texttt{SYN-ACK} control frame (\texttt{FLAG\_CONN\_REQ | FLAG\_CONN\_ACK}) addressed back to the initiator. The receiver clamps \texttt{acceptedPayloadSize} to its maximum buffer capability.
   \item \textbf{ACK}: The initiator parses the \texttt{SYN-ACK}, adopts the negotiated payload size, and transmits a final \texttt{ACK} frame (\texttt{FLAG\_CONN\_ACK}). Both nodes transition their internal state machine to \texttt{ESTABLISHED}.
 \end{enumerate}
+Once established, the data phase proceeds as in Fig.~\ref{fig:data_transfer_sequence}.
 
 \begin{figure*}[htpb]
 \centering
@@ -1130,7 +1122,7 @@ To evaluate the reliability, throughput, and communication limits of \ac{LAMP}, 
 \label{sec:ns3_eval}
 To characterize protocol performance under controlled fading channels, we developed a C++ simulator integrated into the ns-3 framework (version 3.48, development snapshot of 2~June~2026) and the \texttt{lorawan} module (one commit after release v0.3.7, \texttt{67bcaef}). The simulator reproduces the LAMPv2 frame (9-byte Logical Header carried as a real packet header, plus the 2-byte \ac{CRC}-16), all four operational modes, the \ac{3WHS} handshake and selective bit-vector \ac{SACK} retransmissions: the receiver returns the bitmap of the chunks it actually holds and the transmitter re-sends only the missing ones. Timers and the repair budget $R_{\mathrm{max}}=5$ mirror \texttt{ProtocolConfig.hpp}. As a baseline it implements Stop-and-Wait \ac{ARQ} (one acknowledgment per frame, up to $R_{\mathrm{max}}$ retries per chunk) with two timeouts: the rule of Eq.~(\ref{eq:timeout}) (``base'') and a tight timeout of one acknowledgment airtime plus 50~ms (``tight'').
 
-The channel combines a single-slope log-distance path loss, a log-normal shadowing offset drawn once per transfer and Nakagami-$m$ fast fading, with a transmit power of +24.2~dBm \ac{EIRP} (22~dBm PA, 3~dBi antenna, 0.8~dB connector loss) and a receiver noise floor of $-174\,\mathrm{dBm/Hz} + 10\log_{10}BW + 6$~dB. Table~\ref{tab:channel} lists the parameters. The Urban and Water scenarios are the fits of Petäjäjärvi et al.~\cite{petajajarvi2015} (868.67~MHz, car on the ground and boat on the water, SF12 data); other measured urban exponents range from 1.58~\cite{rademacher2021} to 2.71~\cite{dare-lorawan}. The Rural scenario is the re-fit of measurements by Chall et al. published in the review~\cite{azevedo2024}, not a value from the original article. The Nakagami shape factors ($m=3$, 1.5, 1) are modelling assumptions for which we found no LoRa measurement. Two stress channels reuse earlier, steeper parameters ($n=4.0$ and $n=4.5$) as explicit worst cases.
+The channel combines a single-slope log-distance path loss, a log-normal shadowing offset drawn once per transfer and Nakagami-$m$ fast fading, with a transmit power of +24.2~dBm \ac{EIRP} (22~dBm PA, 3~dBi antenna, 0.8~dB connector loss) and a receiver noise floor of $-174\,\mathrm{dBm/Hz} + 10\log_{10}BW + 6$~dB. Table~\ref{tab:channel} lists the parameters, from the \ac{LoS} free-space case to the Urban-like stress channel. The Urban and Water scenarios are the fits of Petäjäjärvi et al.~\cite{petajajarvi2015} (868.67~MHz, car on the ground and boat on the water, SF12 data); other measured urban exponents range from 1.58~\cite{rademacher2021} to 2.71~\cite{dare-lorawan}. The Rural scenario is the re-fit of measurements by Chall et al. published in the review~\cite{azevedo2024}, not a value from the original article. The Nakagami shape factors ($m=3$, 1.5, 1) are modelling assumptions for which we found no LoRa measurement. Two stress channels reuse earlier, steeper parameters ($n=4.0$ and $n=4.5$) as explicit worst cases.
 
 \begin{table}[htpb]
 \centering
@@ -1164,7 +1156,7 @@ To model payload completion probabilities analytically, we define a theoretical 
   \item \textit{Bounded Repair Rounds}: Selective \ac{SACK} retransmissions are bounded by the protocol's maximum repair round budget $R_{\mathrm{max}} = 5$ (matching \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}).
 \end{enumerate}
 Under these idealized assumptions, the analytical upper bound for successfully reassembling an $N$-fragment payload across $R_{\mathrm{max}}$ retries is given by Eq.~(\ref{eq:burst_fail}).
-Because Algorithm~\ref{alg:segmentation} enforces a global session repair round budget ($R_{\mathrm{max}} = 5$) across all missing fragments rather than independent per-chunk retries, Eq.~(\ref{eq:burst_fail}) serves as an optimistic theoretical baseline. Empirical multi-chunk delivery dynamics under correlated channel fading and joint forward-reverse link losses are directly evaluated via the stochastic ns-3 campaign.
+As discussed in Section~\ref{sec:sack}, Eq.~(\ref{eq:burst_fail}) is an optimistic bound: the repair budget is global rather than per chunk, and a repair round whose frame carrying \texttt{FLAG\_ACK\_REQ} is lost consumes one round without recovering any chunk. Empirical multi-chunk delivery dynamics under correlated channel fading and joint forward-reverse link losses are directly evaluated via the stochastic ns-3 campaign.
 It is crucial to clarify that when reliable modes (Mode 3 and Mode 4) sustain a 100\% Application Payload Delivery Ratio ($PDR_{\mathrm{app}}$) in Fig.~\ref{fig:ns3_pdr}, this does not indicate physical channel reliability or zero-loss propagation. Rather, it demonstrates that the selective bit-vector \ac{SACK}-\ac{ARQ} mechanism successfully recovers lost fragments within the $R_{\mathrm{max}} = 5$ retry budget prior to session timeout.
 
 \subsubsection{Results: static channel}
