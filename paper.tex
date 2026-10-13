@@ -1114,6 +1114,35 @@ LAMP does not implement channel access: listen-before-talk and duty-cycle manage
 \label{fig:hw_vs_sim}
 \end{figure*}
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{img/ns3_pdr_distance_urban_related.png}
+\caption{$PDR_{\mathrm{app}}$ versus distance in the Urban channel for \ac{LAMP} and the related protocols (same channel and seeds as Fig.~\ref{fig:ns3_urban}). Mode~4, MPLR and LoRaMesher with 10 retries nearly coincide; with 5 retries LoRaMesher falls to the level of Stop-and-Wait. Bands are 95\% confidence intervals over 50 seeds.}
+\label{fig:ns3_urban_related}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{img/ns3_pdr_snr_related.png}
+\caption{$PDR_{\mathrm{app}}$ versus nominal SNR in the static channel for \ac{LAMP} and the related protocols.}
+\label{fig:ns3_pdr_related}
+\vspace{4pt}
+\includegraphics[width=\textwidth]{img/ns3_goodput_snr_related.png}
+\caption{Goodput versus nominal SNR in the static channel for \ac{LAMP} and the related protocols (delivered fraction of the 4.88~kB message over transfer time).}
+\label{fig:ns3_goodput_related}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{img/ns3_pdr_distance_rural_related.png}
+\caption{$PDR_{\mathrm{app}}$ versus distance in the Rural channel for \ac{LAMP} and the related protocols (50 seeds, 95\% confidence bands).}
+\label{fig:ns3_rural_related}
+\vspace{4pt}
+\includegraphics[width=\textwidth]{img/ns3_pdr_distance_water_related.png}
+\caption{$PDR_{\mathrm{app}}$ versus distance in the Water channel for \ac{LAMP} and the related protocols (50 seeds, 95\% confidence bands).}
+\label{fig:ns3_water_related}
+\end{figure*}
+
 \section{Performance Evaluation and Experimental Methodology}
 \label{sec:eval}
 To evaluate the reliability, throughput, and communication limits of \ac{LAMP}, we adopt a three-part methodology: a large-scale stochastic simulation campaign executed in ns-3; a functional validation of the firmware on two microcontroller nodes with emulated frame loss, compared run-by-run against the simulator; and a planned outdoor field campaign, which is future work. The simulation results characterize the protocol under published channel models, the bench shows that the firmware behaves as the simulator does, and neither measures propagation on real links.
@@ -1190,7 +1219,7 @@ Water & 10 & 22.51 & 29.24 & 25.65 & 25.65 \\ \hline
 
 \subsubsection{Results: comparison with MPLR and LoRaMesher}
 \label{sec:related_results}
-Table~\ref{tab:related} compares \ac{LAMP} with the two related protocols at SF7; SF9 and SF10 give the same ordering. In the static channel all acknowledged protocols reach 90\% at the same SNR ($-12$, $-17$ and $-20$~dB at SF7, SF9 and SF10): the differences appear after the threshold, and with fading.
+Table~\ref{tab:related} compares \ac{LAMP} with the two related protocols at SF7; Figs.~\ref{fig:ns3_pdr_related} and~\ref{fig:ns3_goodput_related} show the static channel and Figs.~\ref{fig:ns3_urban_related}, \ref{fig:ns3_rural_related} and~\ref{fig:ns3_water_related} the Urban, Rural and Water channels. SF9 and SF10 give the same ordering. In the static channel all acknowledged protocols reach 90\% at the same SNR ($-12$, $-17$ and $-20$~dB at SF7, SF9 and SF10): the differences appear after the threshold, and with fading.
 
 In the lossless region the compact header and the single-bitmap exchange make \ac{LAMP} the fastest. At SF7 Mode~3 sustains 4.78~kbit/s against 4.48 for MPLR (+7\%) and 3.92 for LoRaMesher (+22\%), and delivers the message in 8.2~s against 8.7 and 10.0~s; Mode~4, which pays the handshake, is still 5\% above MPLR. Under the 10\% duty cycle the sustained rates are 488, 468 and 480~bit/s, a gap of 4\% and 2\%, because that rate is airtime-bound.
 
