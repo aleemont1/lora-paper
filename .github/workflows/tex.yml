@@ -25,11 +25,20 @@ jobs:
         with:
           root_file: paper.tex
           work_in_root_file_dir: true
+      - name: Compile supplementary PDF
+        if: hashFiles('supplementary.tex') != ''
+        uses: xu-cheng/latex-action@3.2.0
+        with:
+          root_file: supplementary.tex
+          work_in_root_file_dir: true
       - name: Generate build artifact (PDF)
         uses: actions/upload-artifact@v4
         with:
           name: build-pdf
-          path: paper.pdf
+          path: |
+            paper.pdf
+            supplementary.pdf
+          if-no-files-found: warn
 
   build-html:
     runs-on: ubuntu-latest
@@ -37,21 +46,91 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Compile paper HTML
+      - name: Compile paper and supplementary HTML
         uses: xu-cheng/texlive-action@v2
         with:
           scheme: full
           run: |
             make4ht -u paper.tex "mathjax,htmlex" && bibtex paper && make4ht -u paper.tex "mathjax,htmlex"
+            if [ -f supplementary.tex ]; then
+              make4ht -u supplementary.tex "mathjax,htmlex" || true
+              (bibtex supplementary || true)
+              make4ht -u supplementary.tex "mathjax,htmlex" || true
+            fi
       - name: Prepare deployment artifact
         run: |
           mkdir site
-          cp paper.html site/index.html
-          cp paper.css site/paper.css
-          cp paper.bib site/paper.bib   
+          cp paper.html site/paper.html
+          [ -f paper.css ] && cp paper.css site/paper.css
+          [ -f paper.bib ] && cp paper.bib site/paper.bib
+          [ -f supplementary.html ] && cp supplementary.html site/supplementary.html
+          [ -f supplementary.css ] && cp supplementary.css site/supplementary.css
           [ -d img ] && cp -r img/ site/
-          echo "img {max-width: 100%; height: auto;}" >> site/paper.css
-          echo "table { display: block; overflow-x: auto; overflow-y: hidden; white-space: nowrap; max-width: 100%; box-sizing: border-box; }" >> site/paper.css
+          [ -f site/paper.css ] && echo "img {max-width: 100%; height: auto;}" >> site/paper.css
+          [ -f site/paper.css ] && echo "table { display: block; overflow-x: auto; overflow-y: hidden; white-space: nowrap; max-width: 100%; box-sizing: border-box; }" >> site/paper.css
+
+          cat << 'EOF' > site/index.html
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>LAMP: A Selective-ACK Transport Protocol for LoRa Networks</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; max-width: 900px; margin: 40px auto; padding: 0 20px; color: #1f2328; }
+              h1 { font-size: 2rem; margin-bottom: 0.5rem; color: #0969da; }
+              .authors { color: #656d76; font-size: 1.1rem; margin-bottom: 2rem; }
+              .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 2rem 0; }
+              .card { border: 1px solid #d0d7de; border-radius: 8px; padding: 20px; background: #f6f8fa; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+              .card h2 { margin-top: 0; font-size: 1.3rem; color: #24292f; }
+              .card p { font-size: 0.95rem; color: #57606a; margin-bottom: 1.5rem; }
+              .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+              .btn { display: inline-block; padding: 8px 16px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; text-decoration: none; text-align: center; cursor: pointer; }
+              .btn-primary { background: #0969da; color: #ffffff; }
+              .btn-primary:hover { background: #0856b3; }
+              .btn-secondary { background: #ffffff; color: #24292f; border: 1px solid #d0d7de; }
+              .btn-secondary:hover { background: #f3f4f6; }
+              .abstract-box { background: #ffffff; border: 1px solid #e1e4e8; border-left: 4px solid #0969da; padding: 16px 20px; border-radius: 4px; margin-top: 2rem; }
+              .abstract-box h3 { margin-top: 0; }
+              footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #d0d7de; font-size: 0.85rem; color: #656d76; text-align: center; }
+            </style>
+          </head>
+          <body>
+            <h1>LAMP: Selective-ACK Transport Protocol for LoRa Networks</h1>
+            <div class="authors">Alessandro Monticelli et al.</div>
+
+            <div class="card-grid">
+              <div class="card">
+                <h2>Main Manuscript (8 Pages)</h2>
+                <p>Core architecture, 4 operational modes, SACK-ARQ protocol mechanics, ns-3 benchmarks in Urban channel, and hardware test-bench validation.</p>
+                <div class="btn-group">
+                  <a class="btn btn-primary" href="paper.html">Read Online (HTML)</a>
+                  <a class="btn btn-secondary" href="pdf/paper.pdf">Download PDF</a>
+                </div>
+              </div>
+
+              <div class="card">
+                <h2>Supplementary Material</h2>
+                <p>Hardware abstraction layer (HAL) specifications, ESP32-S3 driver integration, secondary parameter sweeps (Blocks F, G, H), and proof-of-concept history.</p>
+                <div class="btn-group">
+                  <a class="btn btn-primary" href="supplementary.html">Read Online (HTML)</a>
+                  <a class="btn btn-secondary" href="pdf/supplementary.pdf">Download PDF</a>
+                </div>
+              </div>
+            </div>
+
+            <div class="abstract-box">
+              <h3>Abstract</h3>
+              <p>This paper presents LAMP (LoRa Adaptive Multipacket Protocol), a lightweight transport architecture that enables continuous transfer of large data blocks over point-to-point and local LoRa networks. By substituting per-packet Stop-and-Wait acknowledgments with selective retransmissions requested through compact cumulative bitmaps, LAMP significantly reduces acknowledgment airtime and duty-cycle consumption, expanding the effective reliable delivery range under lossy channel conditions.</p>
+            </div>
+
+            <footer>
+              <p>Source Code, Simulation Scripts & Datasets available on <a href="https://github.com/aleemont1/lmp" target="_blank">GitHub (aleemont1/lmp)</a>.</p>
+            </footer>
+          </body>
+          </html>
+          EOF
+
       - name: Generate build artifact (HTML)
         uses: actions/upload-artifact@v4
         with:
