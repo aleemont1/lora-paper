@@ -471,7 +471,7 @@
 \maketitle
 
 \begin{abstract}
-  This paper presents \ac{LAMP}, a lightweight transport architecture that enables the continuous transfer of large data blocks over point-to-point Long-Range (LoRa\textsuperscript{\textregistered}) networks. To reduce the acknowledgment airtime of existing Stop-and-Wait solutions, the proposed architecture segments payloads into up to 255 chunks per transmission window. Each chunk is protected by a 9-byte Logical Header with compact 8-bit node addressing and a 2-byte \ac{CRC}-16 checksum suffix. The protocol provides four distinct operational modes combining connection state (Connectionless / Stateful) and reliability (Best-effort / {SACK}-{ARQ} feedback). In ns-3 simulations, SACK-ARQ extends the 90\% delivery range by 22--35\% over Stop-and-Wait in an urban channel and raises goodput by 14--16\% at SF7, while avoiding the constant over-the-air encoding overhead of pure \ac{FEC}. Measurements on a dual-board ESP32-S3/SX1262 hardware bench with emulated frame loss agree with the simulation model within 7\% timing variance.
+  This paper presents \ac{LAMP}, a lightweight transport architecture that enables the continuous transfer of large data blocks over point-to-point Long-Range (LoRa\textsuperscript{\textregistered}) networks. To overcome the prohibitive Time-on-Air overhead and duty-cycle saturation typical of existing Stop-and-Wait solutions, the proposed architecture segments payloads into up to 255 chunks per transmission window. Each chunk is protected by a 9-byte Logical Header with compact 8-bit node addressing (supporting downstream IPv6 link-local prefix mapping) and a 2-byte \ac{CRC}-16 checksum suffix. The protocol provides four distinct operational modes combining connection state (Connectionless / Stateful) and reliability (Best-effort / {SACK}-{ARQ} feedback). By requiring receiver feedback only at sequence boundaries rather than per-packet, the \ac{SACK} mechanism significantly reduces acknowledgment overhead without incurring the constant over-the-air encoding overhead of pure \ac{FEC}.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -512,11 +512,31 @@ Long Range (LoRa), SACK, packet fragmentation, transport protocol, IoT, embedded
 % 
 % Here we have the typical use of a "T" for an initial drop letter
 % and "HIS" in caps to complete the first word.
-\IEEEPARstart{L}{ow-power}, long-range wireless communication is central to data-intensive \ac{IoT} workloads, including \ac{FUOTA}, robotic map exchange, and bulk environmental telemetry~\cite{10807074, multimedia-lora-survey, dare-lorawan}. While \ac{LoRa} modulation provides robust link budgets, conventional \ac{LoRaWAN} stacks are strictly optimized for infrequent uplink datagrams and incur severe duty-cycle saturation under large payloads~\cite{croce2020demystified, etsi300220}. Early trials with commercial UART-based LoRa modules (Ebyte E220 series) demonstrated the viability of packet fragmentation, but exposed prohibitive limitations: opaque vendor firmware, lack of fine-grained symbol and interrupt timing, and heavy encapsulation overhead without selective feedback mechanisms.
+\IEEEPARstart{L}{ow-power}, low-cost, and long-range wireless communication technologies
+are becoming increasingly important in the context of the \ac{IoT}. Applications
+such as environmental monitoring, precision agriculture, and autonomous \acp{UAV} require
+reliable data transmission over extended distances under strict power and hardware
+constraints~\cite{10807074}.
 
-To overcome these barriers, this paper presents \ac{LAMP}, a lightweight, reliable transport protocol operating directly over raw \ac{LoRa} transceivers (such as the Semtech SX1262). LAMP supports multi-packet payloads up to 62.2~kB per session through four configurable operational modes. The core contributions of this work are: (i)~\textbf{Compact Addressed Framing}: A 9-byte Logical Header (11~bytes over the air including CRC-16) supporting 8-bit unicast/broadcast addressing and implicit frame boundary derivation, saving up to 31\% overhead over windowed LoRa transports; (ii)~\textbf{Single-Bitmap SACK-ARQ}: Efficient selective retransmission requesting lost chunks via a single uncompressed cumulative bitmask (covering up to 255 chunks per burst) without requiring complex rule contexts or IP headers; (iii)~\textbf{Modular C++17 Core with HAL Abstraction}: Decoupled protocol state machine validated via 72 native host unit tests in PlatformIO and deployed on physical ESP32-S3/SX1262 hardware; and (iv)~\textbf{Systematic ns-3 and Hardware Bench Evaluation}: Comprehensive evaluation across 295,800 ns-3 simulation runs in standardized channels, validated by dual-node hardware-bench measurements with emulated frame loss.
+Several communication standards, including ZigBee, Sigfox, and \ac{LoRa}
+have been adopted to address these needs, and \ac{LoRa}, in particular, has
+emerged as the leading choice for low-power and long-range deployments thanks to
+its robust modulation technique and open network architecture~\cite{croce2020demystified}.
+However, conventional solutions based on \ac{LoRa} (particularly those following
+the \ac{LoRaWAN}\textsuperscript{\textregistered} specifications) are optimized for small, non-frequent payloads~\cite{8016141}.
 
-The remainder of this paper is organized as follows: Section~\ref{sec:state_of_art} surveys the design space; Section~\ref{sec:architecture} details the system architecture and reassembly protocol; Section~\ref{sec:eval} evaluates performance in ns-3 and presents dual-board hardware validation; and Section~\ref{sec:conclusion} concludes with limitations and an architectural roadmap. Extended driver bindings, state machines, and secondary sweeps are provided in the companion Supplementary Material.
+This limitation poses acute restrictions on data-intensive \ac{IoT} applications which demand the continuous transfer of large data blocks~\cite{multimedia-lora-survey, dare-lorawan}, such as \ac{FUOTA}, \ac{SLAM} map transfers in autonomous robotics, or bulk sensor log collection. Standard \ac{LoRaWAN} links require substantial transmission overhead, restrictive duty-cycle limitations~\cite{etsi300220}, and lack optimized mechanisms for handling large, multi-packet payloads in point-to-point configurations.
+
+This paper presents the design and implementation of \ac{LAMP}, a lightweight transport protocol for point-to-point and local multi-node \ac{LoRa} networks. \ac{LAMP} supports payloads up to 62.2~kB on 255 byte \ac{FIFO} transceivers (such as the Semtech\textsuperscript{\textregistered} SX1262), operating independently of higher-layer middleware such as \ac{LoRaWAN}.
+
+The main contributions of this work are:
+\begin{itemize}
+  \item \textbf{Bitmap \ac{SACK} in a Compact Addressed Transport}: bitmap feedback already appears in SCHC ACK-on-Error~\cite{rfc9011} and MPLR~\cite{mplr-chen2019}. LAMP combines a single uncompressed bitmap, carried in one feedback frame and covering up to 255 chunks per round trip, with a 9-byte addressed header, four operational modes and a three-way handshake that negotiates receiver limits, directly over raw \ac{LoRa} and without rule contexts or gateway infrastructure.
+  \item \textbf{Lightweight Packet Segmentation and Abstraction}: The protocol introduces a 9-byte logical header (with 8-bit local node addressing) and a custom \ac{CRC} integrity check on partial payloads, enabling out-of-order chunk reassembly on resource-constrained microcontrollers.
+  \item \textbf{Modular C++17 Implementation and \ac{TDD} Validation}: The core state machine is completely decoupled from the physical radio driver through a \ac{HAL}. This design enables both native host-based unit testing (using the Unity framework) and physical deployment on Semtech SX126x transceivers.
+\end{itemize}
+
+The remainder of this paper is organized as follows. Section~\ref{sec:state_of_art} surveys related work and defines the design space. Section~\ref{sec:architecture} details the system architecture, packet structure, and formal protocol mechanisms. Section~\ref{sec:implementation} presents the hardware-level C++17 implementation. Section~\ref{sec:eval} evaluates performance through extensive ns-3 simulations, validates the firmware functionally on hardware with emulated frame loss, and frames the outdoor field campaign as planned future work. Section~\ref{sec:conclusion} concludes the paper and presents the architectural roadmap. Extended driver bindings, formal state machines, and secondary simulation blocks (F, G, H) are provided in the companion Supplementary Material.
 
 \section{State of the Art and Design Space}
 \label{sec:state_of_art}
