@@ -852,7 +852,7 @@ $PDR_{\mathrm{app}}$ is the number of distinct chunks received divided by $N$. G
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{img/hw_vs_sim_sf7.png}
-\caption{Hardware bench versus simulator at SF7 with emulated receiver frame loss (20 chunks): completed transfers, chunks transmitted and sender time. Lines and bands: simulator (50 seeds, 95\% intervals); markers and bars: hardware (10 trials, 95\% intervals).}
+\caption{Hardware bench versus simulator at SF7 with emulated receiver frame loss (20 chunks): completed transfers, chunks transmitted and sender time. Lines and bands: simulator (50 seeds, 95\% intervals); markers and bars: hardware (50 trials, 95\% intervals).}
 \label{fig:hw_vs_sim}
 \end{figure*}
 
@@ -917,24 +917,24 @@ Extended parametric evaluations are detailed in Section~S-IV of the companion Su
 
 \subsection{Functional Validation on Hardware with Emulated Frame Loss}
 \label{sec:hw_validation}
-To verify that firmware timing and state transitions match the simulator, the two Heltec nodes of Section~\ref{sec:hw_validation_setup} were driven by a host script across 10 trials per mode at SF7 for $p \in \{0,5,10,20,30,40,50\}\%$ emulated receiver frame loss (and 5 trials at SF10 for $p \in \{0,20,40\}\%$, repeating handshakes up to 6 times). Table~\ref{tab:hwsim} and Fig.~\ref{fig:hw_vs_sim} compare hardware against 50 simulation seeds. Across all 40 evaluated points, 95\% confidence intervals for completion fraction, transmitted chunks, and sender time overlap consistently. Reliable modes (Modes~3 and~4) maintain 100\% delivery up to 20\% loss and 90\% at 30\% loss. Measured hardware sender time is on average 7\% (SF7) and 3\% (SF10) above simulated values due to microcontroller SPI overhead and FreeRTOS task scheduling jitter.
+To verify that firmware timing and state transitions match the simulator, the two Heltec nodes of Section~\ref{sec:hw_validation_setup} were driven by a host script across 50 trials per mode at SF7 for $p \in \{0,5,10,20,30,40,50\}\%$ emulated receiver frame loss (and 5 trials at SF10 for $p \in \{0,20,40\}\%$, repeating handshakes up to 6 times). Table~\ref{tab:hwsim} and Fig.~\ref{fig:hw_vs_sim} compare hardware against 50 simulation seeds. Across all evaluated points, 95\% confidence intervals for completion fraction, transmitted chunks, and sender time overlap consistently. Reliable modes (Modes~3 and~4) maintain over 94\% delivery up to 20\% loss and over 88\% at 30\% loss. Measured hardware sender time is on average 5\% (SF7) and 3\% (SF10) above simulated values due to microcontroller SPI overhead and FreeRTOS task scheduling jitter.
 
 \begin{table}[htpb]
 \centering
-\caption{Fraction of completed 20-chunk transfers at SF7, hardware (10 trials) / simulator (50 seeds).}
+\caption{Fraction of completed 20-chunk transfers at SF7, hardware (50 trials) / simulator (50 seeds).}
 \label{tab:hwsim}
 \renewcommand{\arraystretch}{1.0}
 \footnotesize
 \begin{tabular}{|c|c|c|c|}
 \hline
 \textbf{Frame loss} & \textbf{Mode 1} & \textbf{Mode 3} & \textbf{Mode 4} \\ \hline
-0\% & 1.0 / 1.00 & 1.0 / 1.00 & 1.0 / 1.00 \\ \hline
-5\% & 0.3 / 0.42 & 1.0 / 1.00 & 1.0 / 1.00 \\ \hline
-10\% & 0.1 / 0.12 & 1.0 / 1.00 & 1.0 / 0.98 \\ \hline
-20\% & 0.0 / 0.02 & 1.0 / 0.94 & 1.0 / 0.98 \\ \hline
-30\% & 0.0 / 0.02 & 0.9 / 0.80 & 0.9 / 0.86 \\ \hline
-40\% & 0.0 / 0.00 & 0.6 / 0.40 & 0.2 / 0.40 \\ \hline
-50\% & 0.0 / 0.00 & 0.1 / 0.16 & 0.1 / 0.14 \\ \hline
+0\% & 0.96 / 1.00 & 1.00 / 1.00 & 1.00 / 1.00 \\ \hline
+5\% & 0.32 / 0.42 & 1.00 / 1.00 & 1.00 / 1.00 \\ \hline
+10\% & 0.16 / 0.12 & 1.00 / 1.00 & 1.00 / 1.00 \\ \hline
+20\% & 0.04 / 0.02 & 1.00 / 0.98 & 0.94 / 1.00 \\ \hline
+30\% & 0.00 / 0.02 & 0.88 / 0.92 & 0.96 / 0.96 \\ \hline
+40\% & 0.00 / 0.00 & 0.70 / 0.56 & 0.78 / 0.56 \\ \hline
+50\% & 0.00 / 0.00 & 0.34 / 0.24 & 0.32 / 0.26 \\ \hline
 \end{tabular}
 \end{table}
 
