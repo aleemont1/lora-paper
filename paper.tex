@@ -771,7 +771,7 @@ Because \ac{LoRa} transceivers are half-duplex, a hardware transition period is 
 It is important to emphasize that all protocol timing parameters, guard delays (e.g., \texttt{SACK\_PREAMBLE\_GUARD\_DELAY\_MS}), and retry limits are fully decoupled into a centralized configuration namespace (\texttt{LoRaMultiPacketConfig}) and can be customized by integrators for any \ac{MCU}/radio target. The default parameters presented in this study were specifically tuned around the Heltec Wi-Fi \ac{LoRa}~32~V3 (ESP32-S3) hardware platform.
 
 \subsubsection{Timeout and Fallback Recovery}
-If the transmitter does not receive a \ac{SACK} packet within the dynamic timeout window, it assumes the query or response was lost and re-sends the last chunk of the message (index $N-1$) with the \texttt{FLAG\_ACK\_REQ} flag. Timeouts and repair rounds draw on a single budget of $R_{\mathrm{max}} = 5$ rounds per session; when it is exhausted the session is aborted.
+If the transmitter does not receive a \ac{SACK} packet within the dynamic timeout window, it assumes the query or response was lost and re-sends, with the \texttt{FLAG\_ACK\_REQ} flag, the chunk that carried that flag in the last round: the last chunk of the message (index $N-1$) after the initial burst, the last chunk reported missing after a repair round. If the polling chunk itself was lost, the timeout poll therefore repairs it as well. Timeouts and repair rounds draw on a single budget of $R_{\mathrm{max}} = 5$ rounds per session; when it is exhausted the session is aborted.
 
 The timeout is computed adaptively to account for forward data frame airtime, receiver turnaround, and reverse \ac{SACK} airtime:
 \begin{equation}
@@ -786,7 +786,7 @@ Under an independent frame loss probability $p$ and assuming error-free control 
 P_{\mathrm{success}} \le \left(1 - p^{R_{\mathrm{max}} + 1}\right)^N, \qquad P_{\mathrm{fail}} = 1 - P_{\mathrm{success}}
 \label{eq:burst_fail}
 \end{equation}
-For a lossy channel with a 20\% frame error rate ($p = 0.20$) and $R_{\mathrm{max}} = 5$ (matching \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}), $P_{\mathrm{success}} \le (1 - 0.20^6)^{20} \approx 99.87\%$ for a 20-chunk transfer. The bound is optimistic: a repair round in which the frame carrying \texttt{FLAG\_ACK\_REQ} is lost consumes one of the $R_{\mathrm{max}}$ rounds without retransmitting the other missing chunks. For the same parameters and lossless SACK frames, a Monte Carlo simulation of the protocol as implemented gives 94.6\%. In physical wireless environments with correlated shadowing and reverse-link fading, overall completion rates are evaluated empirically via the stochastic ns-3 campaign in Section~\ref{sec:eval}.
+For a lossy channel with a 20\% frame error rate ($p = 0.20$) and $R_{\mathrm{max}} = 5$ (matching \texttt{LoRaMultiPacketConfig::MAX\_RETRIES}), $P_{\mathrm{success}} \le (1 - 0.20^6)^{20} \approx 99.87\%$ for a 20-chunk transfer. The bound is optimistic: a repair round in which the frame carrying \texttt{FLAG\_ACK\_REQ} is lost produces no SACK, and the timeout round that follows re-sends only that frame, so it consumes one of the $R_{\mathrm{max}}$ rounds without repairing the other missing chunks. For the same parameters and lossless SACK frames, a Monte Carlo simulation of the protocol as implemented (2000 seeds) gives 99.0\%; with the earlier rule, which re-sent chunk $N-1$ on every timeout and did not repair a lost polling chunk, it gave 94.4\%. In physical wireless environments with correlated shadowing and reverse-link fading, overall completion rates are evaluated empirically via the stochastic ns-3 campaign in Section~\ref{sec:eval}.
 
 \begin{table}[htpb]
 \centering
@@ -842,12 +842,12 @@ To ensure complete specification clarity and system-level reproducibility across
     \State $\text{Transmit}(F_i)$
 \EndFor
 \If{$M \in \{\text{Mode 1}, \text{Mode 2}\}$} \State \Return \texttt{OK} \Comment{Unreliable delivery complete} \EndIf
-\State $retries \gets 0$
+\State $retries \gets 0$; $poll \gets N-1$
 \While{$retries \le R_{\mathrm{max}}$}
     \State $sack \gets \text{WaitForSack}(T_{\mathrm{timeout}})$
     \If{$sack == \text{TIMEOUT}$}
         \If{$retries == R_{\mathrm{max}}$} \State \textbf{break} \EndIf
-        \State $\text{Transmit}(F_{N-1})$ \textbf{with} \texttt{FLAG\_ACK\_REQ}; $retries \gets retries + 1$
+        \State $\text{Transmit}(F_{poll})$ \textbf{with} \texttt{FLAG\_ACK\_REQ}; $retries \gets retries + 1$
     \ElsIf{$\text{IsAllAcked}(sack.bitmap)$}
         \State \Return \texttt{OK} \Comment{Full payload delivery confirmed}
     \Else
@@ -861,7 +861,7 @@ To ensure complete specification clarity and system-level reproducibility across
             \State $F_{idx} \gets \text{SerializeFrame}(hdr, P[idx\cdot S : idx\cdot S + cLen], crc)$
             \State $\text{Transmit}(F_{idx})$
         \EndFor
-        \State $retries \gets retries + 1$
+        \State $poll \gets \text{Last}(missing)$; $retries \gets retries + 1$
     \EndIf
 \EndWhile
 \State \Return \texttt{ERR\_MAX\_RETRIES\_EXCEEDED}
@@ -1174,7 +1174,7 @@ Stress (Urban-like) & 4.5 & 131 & 0 & 1 & worst case \\ \hline
 Reception in ns-3 is decided by comparing the received power with a per-SF sensitivity threshold. The thresholds of the simulator correspond to SNR values about 5~dB lower than the SX1262 datasheet figures ($-7.5$~dB at SF7, $-15$~dB at SF10). Absolute ranges are therefore optimistic by that margin, and the main results are reported against nominal SNR; calibrating the threshold on real links is left to the field campaign.
 
 \subsubsection{Simulation Campaign Hierarchy}
-The campaign comprises 220,000 independent runs (50 seeds per configuration, $N=20$ chunks of 244~B, i.e. 4.88~kB). \emph{Block~A} (37,200 runs) uses a static channel (free space, no shadowing, $m=50$, i.e. practically no fading) and sweeps the nominal received SNR from $-25$ to $+5$~dB in 1~dB steps for SF7, SF9 and SF10 and eight modes: \ac{LAMP} Modes 1--4 and the four Stop-and-Wait variants (base/tight timeout, with and without handshake). \emph{Block~B} (71,400 runs) applies each channel of Table~\ref{tab:channel} to SF7/9/10 with Modes 1, 3, 4 and Stop-and-Wait (base); the stress channels use Mode~4 and Stop-and-Wait only. Each SNR point is mapped to a distance through the nominal path loss of the channel (points beyond 100~km are discarded). \emph{Block~C} (2,800 runs) reproduces the hardware bench of Section~\ref{sec:hw_validation}. \emph{Blocks~D} (18,600 runs) and \emph{E} (90,000 runs) repeat Blocks~A and~B with MPLR and the three LoRaMesher variants, with the same seeds, so that the shadowing draws are paired with those of \ac{LAMP}.
+The campaign comprises 295,800 independent runs (50 seeds per configuration, $N=20$ chunks of 244~B, i.e. 4.88~kB, unless stated). \emph{Block~A} (37,200 runs) uses a static channel (free space, no shadowing, $m=50$, i.e. practically no fading) and sweeps the nominal received SNR from $-25$ to $+5$~dB in 1~dB steps for SF7, SF9 and SF10 and eight modes: \ac{LAMP} Modes 1--4 and the four Stop-and-Wait variants (base/tight timeout, with and without handshake). \emph{Block~B} (71,400 runs) applies each channel of Table~\ref{tab:channel} to SF7/9/10 with Modes 1, 3, 4 and Stop-and-Wait (base); the stress channels use Mode~4 and Stop-and-Wait only. Each SNR point is mapped to a distance through the nominal path loss of the channel (points beyond 100~km are discarded). \emph{Block~C} (2,800 runs) reproduces the hardware bench of Section~\ref{sec:hw_validation}. \emph{Blocks~D} (18,600 runs) and \emph{E} (90,000 runs) repeat Blocks~A and~B with MPLR and the three LoRaMesher variants, with the same seeds, so that the shadowing draws are paired with those of \ac{LAMP}. \emph{Block~F} (65,800 runs) sweeps the message size at SF7, \emph{Block~G} (5,400 runs) adds the loss of acknowledgments to the frame loss of Block~C, and \emph{Block~H} (4,600 runs) repeats it for Modes~3 and~4 with the earlier timeout rule.
 
 $PDR_{\mathrm{app}}$ is the number of distinct chunks received divided by $N$. Goodput is the delivered application bits divided by the transfer time $T$: the time at which the transmitter stops for the acknowledged modes (the transfer is complete only when the transmitter knows it), and the arrival time of the last new chunk for the best-effort modes. Sustained goodput under the 10\% duty cycle replaces $T$ by $\max(T, T_{\mathrm{air}}/0.10)$, where $T_{\mathrm{air}}$ is the airtime transmitted by the sender. Each curve point is a mean over the seeds, with $\pm 1.96\,s/\sqrt{n}$ bands.
 
@@ -1223,7 +1223,7 @@ Table~\ref{tab:related} compares \ac{LAMP} with the two related protocols at SF7
 
 In the lossless region the compact header and the single-bitmap exchange make \ac{LAMP} the fastest. At SF7 Mode~3 sustains 4.78~kbit/s against 4.48 for MPLR (+7\%) and 3.92 for LoRaMesher (+22\%), and delivers the message in 8.2~s against 8.7 and 10.0~s; Mode~4, which pays the handshake, is still 5\% above MPLR. Under the 10\% duty cycle the sustained rates are 488, 468 and 480~bit/s, a gap of 4\% and 2\%, because that rate is airtime-bound.
 
-In the faded channels MPLR has the same range as Mode~4 in all nine combinations of channel and SF of Table~\ref{tab:range}, as expected: with $N=20$ the message fits one MPLR batch, so both protocols perform a handshake and one bit-vector exchange per round. Mode~3, which has no handshake, reaches 8--14\% farther. A message longer than 40 chunks would exercise MPLR's batching, which we did not simulate.
+In the faded channels MPLR has the same range as Mode~4 in all nine combinations of channel and SF of Table~\ref{tab:range}, as expected: with $N=20$ the message fits one MPLR batch, so both protocols perform a handshake and one bit-vector exchange per round. Mode~3, which has no handshake, reaches 8--14\% farther. Longer messages, which exercise MPLR's batching, are treated below.
 
 The range of LoRaMesher depends on its retry budget. With 10 consecutive timeouts per chunk it matches Mode~4 in the Urban and Rural channels and Mode~3 in the Water channel; with the 5 retries of \ac{LAMP} it falls to the level of Stop-and-Wait (3.4, 14.7 and 9.0~km at SF7). The longer reach costs time: at 4.1~km in the Urban channel at SF7 the mean sender time is 191~s with the 20~s minimum timeout (25~s with the tight timeout), against 11~s for Mode~3. We did not give \ac{LAMP} a 10-retry budget.
 
@@ -1247,6 +1247,24 @@ LoRaMesher ($R=10$) & 24 & 3919 & 10.0 & 4.13 & 14.69 & 10.27 \\ \hline
 LoRaMesher ($R=5$) & 24 & 3919 & 10.0 & 3.38 & 14.69 & 9.01 \\ \hline
 \end{tabular}
 \end{table}
+
+\subsubsection{Results: message size}
+Block~F repeats the static and the Urban experiments at SF7 with $N \in \{20, 50, 100, 255\}$ chunks of 244~B (4.9 to 62.2~kB, the largest message a session carries). The same message needs 21 to 261 frames of 239~B in MPLR, sent in batches of 40, and 24 to 295 frames of 211~B in LoRaMesher. Fig.~\ref{fig:ns3_size} shows the Urban range and the goodput at +5~dB.
+
+The range of \ac{LAMP} does not depend on $N$ (Mode~4 stays at 4.13~km; Mode~3 at 4.56~km up to 100 chunks and 4.13~km at 255), while the protocols that give each chunk its own retry budget lose range as the message grows, because every additional frame is another chance to exhaust it: Stop-and-Wait falls from 3.4 to 2.3~km and LoRaMesher with 10 retries from 4.1 to 3.1~km. For MPLR the result depends on how its repair budget is read, which the article does not specify. If $R_{\mathrm{max}}$ is shared by the whole transfer, as in \ac{LAMP}, its range falls with $N$ (3.7~km at 50 chunks, 2.8~km at 100) and at 255 chunks, which need seven batches, it does not reach 90\% at any distance. If $R_{\mathrm{max}}$ applies to each batch it keeps 4.13~km, equal to Mode~4. With that favourable reading \ac{LAMP} has therefore no range advantage over MPLR at any size; what remains is the shorter header and the absence of a teardown: at +5~dB Mode~3 delivers 4.82~kbit/s against 4.68 for MPLR (+3\%) at $N=255$, in 103 against 106~s. The static-channel threshold does not change with $N$ for any protocol, within one 1~dB grid step.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{img/ns3_range_goodput_vs_n.png}
+\caption{Urban range (largest distance with mean $PDR_{\mathrm{app}} \ge 90\%$) and goodput at +5~dB (static channel) versus the number of 244-byte chunks per message, SF7, 50 seeds. MPLR is shown with $R_{\mathrm{max}}$ shared by the transfer and applied to each batch of new frames; at 255 chunks the former never reaches 90\%.}
+\label{fig:ns3_size}
+\end{figure*}
+
+\subsubsection{Results: loss of acknowledgments}
+Eq.~(\ref{eq:burst_fail}) and the bench of Section~\ref{sec:hw_validation} assume lossless acknowledgments. Block~G additionally drops SACK, ACK and SYN-ACK frames on their way to the transmitter with probability $p_{\mathrm{ack}}$, on top of the loss of data frames (SF7, $N=20$). A lost SACK is recovered by the timeout poll, so the cost is time more than completion: at $p=20\%$ and $p_{\mathrm{ack}}=20\%$ Mode~3 still completes 98\% of the transfers (98\% without acknowledgment loss) in 11.7~s instead of 11.1~s; at $p_{\mathrm{ack}}=40\%$ it completes 92\% in 13.1~s. Mode~4 also loses SYN-ACK frames, so its time grows faster (15.8~s at $p=20\%$ and $p_{\mathrm{ack}}=40\%$) and its completion at $p=30\%$ drops from 96\% to 66\%.
+
+Stop-and-Wait behaves differently, because its budget is per chunk: with lossless acknowledgments it completes every transfer up to $p=30\%$ (Mode~3: 92\%), at the price of 22~s against 13~s, but its completion falls steeply with $p_{\mathrm{ack}}$: at $p=30\%$ it completes 84\% at $p_{\mathrm{ack}}=20\%$ and 46\% at 40\%, against 90\% and 76\% for Mode~3. The global budget of \ac{LAMP} is thus what limits completion at high loss of data frames, and acknowledgment loss is what limits Stop-and-Wait. Block~H shows the effect of the timeout rule: without the poll on the last repaired chunk, Mode~3 completes 80\% (not 92\%) at $p=30\%$ and 40\% (not 56\%) at $p=40\%$.
+
 
 \subsection{Functional Validation on Hardware with Emulated Frame Loss}
 \label{sec:hw_validation}
