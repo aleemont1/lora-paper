@@ -1095,18 +1095,18 @@ LAMP does not implement channel access: listen-before-talk and duty-cycle manage
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{img/ns3_pdr_snr.png}
-\caption{Application payload delivery ratio ($PDR_{\mathrm{app}}$, distinct chunks received over $N=20$) versus nominal received SNR in the static channel (SF7, SF9, SF10). Lines are means over 50 seeds with 95\% confidence bands. The reception threshold is a property of the ns-3 reception model, about 5~dB more optimistic than the SX1262 datasheet sensitivity.}
+\caption{Application payload delivery ratio ($PDR_{\mathrm{app}}$, distinct chunks received over $N=20$) versus nominal received SNR in the static channel (SF7, SF9, SF10). Lines are means over 50 seeds with 95\% confidence bands; the SNR axis is cropped to the transition (PDR is 0 below and 100\% above). The reception threshold is a property of the ns-3 reception model, about 5~dB more optimistic than the SX1262 datasheet sensitivity.}
 \label{fig:ns3_pdr}
 \vspace{4pt}
 \includegraphics[width=\textwidth]{img/ns3_goodput_snr.png}
-\caption{Goodput (delivered application bits over transfer time) versus nominal received SNR for a 20-chunk transfer (4.88~kB) in the static channel. Mean over 50 seeds with 95\% confidence bands.}
+\caption{Goodput (delivered application bits over transfer time) versus nominal received SNR for a 20-chunk transfer (4.88~kB) in the static channel. Mean over 50 seeds with 95\% confidence bands; the SNR axis starts just below the reception threshold.}
 \label{fig:ns3_goodput}
 \end{figure*}
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{img/ns3_pdr_distance_urban.png}
-\caption{$PDR_{\mathrm{app}}$ versus distance in the Urban channel (Table~\ref{tab:channel}: $n=2.32$, 128.95~dB at 1~km, log-normal shadowing $\sigma=7.8$~dB, Nakagami $m=1$). Mean over 50 seeds (each with its own shadowing draw, identical across modes, so that modes are compared on paired seeds); bands are 95\% confidence intervals.}
+\caption{$PDR_{\mathrm{app}}$ versus distance in the Urban channel (Table~\ref{tab:channel}: $n=2.32$, 128.95~dB at 1~km, log-normal shadowing $\sigma=7.8$~dB, Nakagami $m=1$). Mean over 50 seeds (each with its own shadowing draw, identical across modes, so that modes are compared on paired seeds); bands are 95\% confidence intervals; the dotted line marks the 90\% level that defines the range of Table~\ref{tab:range}.}
 \label{fig:ns3_urban}
 \vspace{4pt}
 \includegraphics[width=\textwidth]{img/hw_vs_sim_sf7.png}
@@ -1117,14 +1117,14 @@ LAMP does not implement channel access: listen-before-talk and duty-cycle manage
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{img/ns3_pdr_distance_urban_related.png}
-\caption{$PDR_{\mathrm{app}}$ versus distance in the Urban channel for \ac{LAMP} and the related protocols (same channel and seeds as Fig.~\ref{fig:ns3_urban}). Mode~4, MPLR and LoRaMesher with 10 retries nearly coincide; with 5 retries LoRaMesher falls to the level of Stop-and-Wait. Bands are 95\% confidence intervals over 50 seeds.}
+\caption{$PDR_{\mathrm{app}}$ versus distance in the Urban channel for \ac{LAMP} and the related protocols (same channel and seeds as Fig.~\ref{fig:ns3_urban}). Mode~4, MPLR and LoRaMesher with 10 retries nearly coincide; with 5 retries LoRaMesher falls to the level of Stop-and-Wait. Means over 50 seeds (confidence bands omitted for legibility, see Fig.~\ref{fig:ns3_urban}); the dotted line marks 90\%.}
 \label{fig:ns3_urban_related}
 \end{figure*}
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{img/ns3_pdr_snr_related.png}
-\caption{$PDR_{\mathrm{app}}$ versus nominal SNR in the static channel for \ac{LAMP} and the related protocols.}
+\caption{$PDR_{\mathrm{app}}$ versus nominal SNR in the static channel for \ac{LAMP} and the related protocols (means over 50 seeds, axis cropped to the transition).}
 \label{fig:ns3_pdr_related}
 \vspace{4pt}
 \includegraphics[width=\textwidth]{img/ns3_goodput_snr_related.png}
@@ -1135,11 +1135,11 @@ LAMP does not implement channel access: listen-before-talk and duty-cycle manage
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{img/ns3_pdr_distance_rural_related.png}
-\caption{$PDR_{\mathrm{app}}$ versus distance in the Rural channel for \ac{LAMP} and the related protocols (50 seeds, 95\% confidence bands).}
+\caption{$PDR_{\mathrm{app}}$ versus distance in the Rural channel for \ac{LAMP} and the related protocols (means over 50 seeds; the dotted line marks 90\%).}
 \label{fig:ns3_rural_related}
 \vspace{4pt}
 \includegraphics[width=\textwidth]{img/ns3_pdr_distance_water_related.png}
-\caption{$PDR_{\mathrm{app}}$ versus distance in the Water channel for \ac{LAMP} and the related protocols (50 seeds, 95\% confidence bands).}
+\caption{$PDR_{\mathrm{app}}$ versus distance in the Water channel for \ac{LAMP} and the related protocols (means over 50 seeds; the dotted line marks 90\%).}
 \label{fig:ns3_water_related}
 \end{figure*}
 
