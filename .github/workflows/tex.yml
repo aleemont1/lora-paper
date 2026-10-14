@@ -66,6 +66,7 @@ jobs:
           [ -f supplementary.html ] && cp supplementary.html site/supplementary.html
           [ -f supplementary.css ] && cp supplementary.css site/supplementary.css
           [ -d img ] && cp -r img/ site/
+          cp *.svg site/ 2>/dev/null || true
           [ -f site/paper.css ] && echo "img {max-width: 100%; height: auto;}" >> site/paper.css
           [ -f site/paper.css ] && echo "table { display: block; overflow-x: auto; overflow-y: hidden; white-space: nowrap; max-width: 100%; box-sizing: border-box; }" >> site/paper.css
 

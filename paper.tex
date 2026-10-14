@@ -415,8 +415,9 @@
 % was not built to handle multiple paragraphs
 %
 
-% TODO(finale): affiliazione, e-mail (\thanks) e nota IEEE sul preprint -- placeholder per ora
-\author{Alessandro Monticelli}
+\author{Alessandro~Monticelli%
+\thanks{A.~Monticelli is with the Department of Computer Science and Engineering (DISI), University of Bologna, 40126 Bologna, Italy (e-mail: alessandr.monticell4@studio.unibo.it).}%
+}
 
 % note the % following the last \IEEEmembership and also \thanks - 
 % these prevent an unwanted space from occurring between the last author name
@@ -511,7 +512,7 @@ Long Range (LoRa), SACK, packet fragmentation, transport protocol, IoT, embedded
 % 
 % Here we have the typical use of a "T" for an initial drop letter
 % and "HIS" in caps to complete the first word.
-\IEEEPARstart{L}{ow-power}, long-range wireless communication is central to data-intensive Internet of Things (\ac{IoT}) workloads, including firmware updates over the air (\ac{FUOTA}), robotic map exchange, and bulk environmental telemetry~\cite{10807074, multimedia-lora-survey, dare-lorawan}. While \ac{LoRa} modulation provides robust link budgets, conventional \ac{LoRaWAN} stacks are strictly optimized for infrequent uplink datagrams and incur severe duty-cycle saturation under large payloads~\cite{croce2020demystified, etsi300220}. Early trials with commercial UART-based LoRa modules (Ebyte E220 series) demonstrated the viability of packet fragmentation, but exposed prohibitive limitations: opaque vendor firmware, lack of fine-grained symbol and interrupt timing, and heavy encapsulation overhead without selective feedback mechanisms.
+\IEEEPARstart{L}{ow-power}, long-range wireless communication is central to data-intensive \ac{IoT} workloads, including \ac{FUOTA}, robotic map exchange, and bulk environmental telemetry~\cite{10807074, multimedia-lora-survey, dare-lorawan}. While \ac{LoRa} modulation provides robust link budgets, conventional \ac{LoRaWAN} stacks are strictly optimized for infrequent uplink datagrams and incur severe duty-cycle saturation under large payloads~\cite{croce2020demystified, etsi300220}. Early trials with commercial UART-based LoRa modules (Ebyte E220 series) demonstrated the viability of packet fragmentation, but exposed prohibitive limitations: opaque vendor firmware, lack of fine-grained symbol and interrupt timing, and heavy encapsulation overhead without selective feedback mechanisms.
 
 To overcome these barriers, this paper presents \ac{LAMP}, a lightweight, reliable transport protocol operating directly over raw \ac{LoRa} transceivers (such as the Semtech SX1262). LAMP supports multi-packet payloads up to 62.2~kB per session through four configurable operational modes. The core contributions of this work are: (i)~\textbf{Compact Addressed Framing}: A 9-byte Logical Header (11~bytes over the air including CRC-16) supporting 8-bit unicast/broadcast addressing and implicit frame boundary derivation, saving up to 31\% overhead over windowed LoRa transports; (ii)~\textbf{Single-Bitmap SACK-ARQ}: Efficient selective retransmission requesting lost chunks via a single uncompressed cumulative bitmask (covering up to 255 chunks per burst) without requiring complex rule contexts or IP headers; (iii)~\textbf{Modular C++17 Core with HAL Abstraction}: Decoupled protocol state machine validated via 72 native host unit tests in PlatformIO and deployed on physical ESP32-S3/SX1262 hardware; and (iv)~\textbf{Systematic ns-3 and Hardware Bench Evaluation}: Comprehensive evaluation across 295,800 ns-3 simulation runs in standardized channels, validated by dual-node hardware-bench measurements with emulated frame loss.
 
@@ -545,18 +546,18 @@ To mitigate Stop-and-Wait overhead, Chen et al.~\cite{mplr-chen2019} proposed \a
 \scriptsize
 \begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{2.4cm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
 \hline
-\textbf{Architectural Dimension} & \textbf{Stop-and-Wait ARQ (RadioHead~\cite{radiohead}, LoRaMesher~\cite{sole2026largetransfer})} & \textbf{\ac{SCHC}~\cite{rfc8724}} & \textbf{LoRaWAN \ac{TS004}~\cite{ts004}} & \textbf{\ac{MPLR}~\cite{mplr-chen2019}} & \textbf{Proposed (\ac{LAMP})} \\ \hline
+\textbf{Architectural Dimension} & \textbf{Stop-and-Wait ARQ (RadioHead~\cite{radiohead}, LoRaMesher~\cite{sole2026largetransfer})} & \textbf{\acs{SCHC}~\cite{rfc8724}} & \textbf{LoRaWAN \acs{TS004}~\cite{ts004}} & \textbf{\acs{MPLR}~\cite{mplr-chen2019}} & \textbf{Proposed (\acs{LAMP})} \\ \hline
 \textbf{Stack Dependency} & Raw \ac{LoRa} PHY & Generic Adaptation (often LoRaWAN/IP) & LoRaWAN App Layer & Raw \ac{LoRa} PHY & Raw \ac{LoRa} PHY (Standalone) \\ \hline
-\textbf{ACK Mechanism} & Per-Packet ACK & Compressed bitmap (ACK-on-Error) / ACK-Always & None (Open-Loop Redundancy) & Bit-Vector \ac{SACK} & Bit-Vector \ac{SACK} \\ \hline
+\textbf{ACK Mechanism} & Per-Packet ACK & Compressed bitmap (ACK-on-Error) / ACK-Always & None (Open-Loop Redundancy) & Bit-Vector \acs{SACK} & Bit-Vector \acs{SACK} \\ \hline
 \textbf{Header Overhead} & 4 Bytes (RadioHead), 11 Bytes (LoRaMesher) & 1--2 Bytes (Compressed RuleID/Residue) & 2 Bytes & 16 Bytes & 9 Bytes (11B total w/ CRC) \\ \hline
 \textbf{Max Frame Payload} & 251 Bytes (RadioHead), 211 Bytes (LoRaMesher) & Variable & Variable & 239 Bytes & 244 Bytes (255B PHY limit) \\ \hline
 \textbf{Max Session Payload} & Unbounded (Sequential) & Variable (IPv6 Packet) & Unlimited (Block Session) & Multi-MB Image (65k Packets) & 62.2~kB (255 Chunks / Session) \\ \hline
-\textbf{Operational Modes} & 1 (Reliable S\&W) & 3 (No-ACK, ACK-Always, ACK-on-Error) & 1 (Open-Loop \ac{FEC}) & 1 (Reliable Batch) & 4 Configurable Modes \\ \hline
+\textbf{Operational Modes} & 1 (Reliable S\&W) & 3 (No-ACK, ACK-Always, ACK-on-Error) & 1 (Open-Loop \acs{FEC}) & 1 (Reliable Batch) & 4 Configurable Modes \\ \hline
 \textbf{Node Addressing} & None / Application & IPv6 128-bit (Compressed) & DevAddr (32-bit) & EUI (32-bit) & 8-bit Unicast + Broadcast \\ \hline
 \textbf{Multi-Node Suitability} & Single P2P Link & Star (Gateway-Centric) & Star Broadcast (Downlink) & Node--GW uplink (star, 5--20 nodes tested) & P2P \& Multi-Node Ready \\ \hline
-\textbf{Parameter Negotiation} & None (Static) & Static (Pre-shared Rules) & Static / Out-of-Band & Static Batch / 4WHS & Dynamic \ac{3WHS} Metadata \\ \hline
-\textbf{Key Strengths} & Minimal header size, trivial implementation & Header compression (1--2~B) for IP traffic & No feedback channel required (pure \ac{FEC}) & High-volume image uplink batching & 4 flexible modes, dynamic \ac{3WHS} buffer safety, raw \ac{LoRa} autonomy \\ \hline
-\textbf{Key Limitations \& Trade-offs} & Prohibitive airtime latency, duty-cycle saturation; 20~s minimum timeout (LoRaMesher) & Requires shared rule context \& IP infrastructure & High \ac{FEC} compute cost, constant airtime overhead & 16B header overhead, single mode, 4WHS teardown & 9B header (11B w/ CRC), 62.2~kB session limit, RAM/timer state \\ \hline
+\textbf{Parameter Negotiation} & None (Static) & Static (Pre-shared Rules) & Static / Out-of-Band & Static Batch / 4WHS & Dynamic \acs{3WHS} Metadata \\ \hline
+\textbf{Key Strengths} & Minimal header size, trivial implementation & Header compression (1--2~B) for IP traffic & No feedback channel required (pure \acs{FEC}) & High-volume image uplink batching & 4 flexible modes, dynamic \acs{3WHS} buffer safety, raw \ac{LoRa} autonomy \\ \hline
+\textbf{Key Limitations \& Trade-offs} & Prohibitive airtime latency, duty-cycle saturation; 20~s minimum timeout (LoRaMesher) & Requires shared rule context \& IP infrastructure & High \acs{FEC} compute cost, constant airtime overhead & 16B header overhead, single mode, 4WHS teardown & 9B header (11B w/ CRC), 62.2~kB session limit, RAM/timer state \\ \hline
 \end{tabularx}
 \end{table*}
 
@@ -583,7 +584,7 @@ To accommodate diverse \ac{IoT} workloads, \ac{LAMP} defines four operational mo
 \textbf{Mode 1} & Connectionless / Best-Effort & Periodic telemetry, broadcast bursts \\ \hline
 \textbf{Mode 2} & Stateful / Best-Effort & Session-tracked real-time streams \\ \hline
 \textbf{Mode 3} & Connectionless / SACK & High-priority isolated bursts \\ \hline
-\textbf{Mode 4} & Stateful / SACK & Bulk payloads (\ac{FUOTA}, maps) \\ \hline
+\textbf{Mode 4} & Stateful / SACK & Bulk payloads (\acs{FUOTA}, maps) \\ \hline
 \end{tabularx}
 \end{table}
 
@@ -642,52 +643,139 @@ where $T_{\min} = 1000$~ms, $\alpha = 1.5$, $\widehat{T}_{\mathrm{oA, DATA}}$ an
 \subsection{Memory Bounding and RAM Footprint Analysis}
 To ensure memory safety on embedded targets, receiver memory for an incomplete session is bounded by $M_{\mathrm{session}} = N\,(S_{\mathrm{pkt}} + S_{\mathrm{node}})$, where $S_{\mathrm{pkt}} = 255$~B (chunk buffer) and $S_{\mathrm{node}} \approx 32$~B (container overhead); metadata ($\approx 48$~B) and bitmask ($\lceil N/8 \rceil$~B) are below 1\%. Reconstruction allocates the $N\,S_{\max}$ output buffer ($S_{\max} = 244$~B), peaking at $N\,(S_{\mathrm{pkt}} + S_{\mathrm{node}} + S_{\max})$. For $N=20$ (4.88~kB), $M_{\mathrm{session}} = 5.74$~kB during transfer and 10.6~kB at reconstruction. With $\texttt{MAX\_CONCURRENT\_SESSIONS} = 10$, ten active sessions plus one reconstruction hold $\approx 62$~kB ($\approx 12\%$ of ESP32-S3 SRAM). Admission control rejects incoming sessions if slots saturate or free heap drops below a 16~kB margin.
 
-\subsection{Protocol Algorithms}
-The transmission pipeline splits payloads of length $L$ into $N = \lceil L / S_{\max} \rceil$ fragments, streaming them with \texttt{FLAG\_ACK\_REQ} on chunk $N-1$ in reliable modes. Missing chunks identified via reverse SACK bitmaps are selectively retransmitted across up to $R_{\mathrm{max}} = 5$ repair rounds; lost SACK frames trigger timeout-driven polling of the last chunk carrying \texttt{FLAG\_ACK\_REQ} (detailed formally in Algorithm~S-1 of the companion Supplementary Material).
+\begin{figure*}[htpb]
+\centering
+\subfloat[Connection Session Lifecycle FSM (Stateful vs. Stateless)]{%
+  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, transform shape, every node/.style={align=center}]
+    \node[draw, circle, fill=gray!10, minimum size=1.7cm, text width=1.7cm] (closed) at (0,0) {CLOSED};
+    \node[draw, circle, fill=blue!10, minimum size=1.7cm, text width=1.7cm] (synsent) at (3.8,0) {SYN\_SENT};
+    \node[draw, circle, fill=red!10, minimum size=1.7cm, text width=1.7cm] (synrcvd) at (0,-3.8) {SYN\_RCVD};
+    \node[draw, circle, fill=green!15, minimum size=1.7cm, text width=1.7cm] (established) at (3.8,-3.8) {ESTABLISHED};
 
-At the receiver, Algorithm~\ref{alg:reassembly} governs out-of-order reassembly, CRC validation, duplicate suppression, heap-aware session admission control, and SACK bitmap generation.
+    \path
+      (closed) edge node[above, font=\tiny] {Send SYN} (synsent)
+      (closed) edge[bend left=25] node[left, font=\tiny] {Recv SYN} (synrcvd)
+      (synsent) edge node[right, font=\tiny] {Recv SYN-ACK} (established)
+      (synrcvd) edge node[below, font=\tiny] {Send ACK} (established)
+      (synsent) edge[bend right=35] node[above, sloped, font=\tiny] {NACK/Timeout} (closed)
+      (synrcvd) edge[bend left=25] node[left, font=\tiny] {Reject/Timeout} (closed)
+      (established) edge node[right, font=\tiny] {Idle Timeout} (closed);
+  \end{tikzpicture}%
+  \label{fig:fsm_connection}%
+}\hfill
+\subfloat[Data Transfer \& SACK-ARQ FSM (Reliable vs. Unreliable)]{%
+  \begin{tikzpicture}[->, >=stealth, thick, auto, font=\scriptsize, transform shape, every node/.style={align=center}]
+    \node[draw, circle, fill=gray!10, minimum size=1.7cm, text width=1.7cm] (idle) at (0,0) {IDLE};
+    \node[draw, circle, fill=blue!10, minimum size=1.7cm, text width=1.7cm] (send) at (3.2,0) {TX\_CHUNKS};
+    \node[draw, circle, fill=orange!10, minimum size=1.7cm, text width=1.7cm] (wait) at (6.4,0) {WAIT\_SACK};
+    \node[draw, circle, fill=red!10, minimum size=1.7cm, text width=1.7cm] (retransmit) at (6.4,-3.8) {RETX};
+    \node[draw, circle, fill=green!15, minimum size=1.7cm, text width=1.7cm] (completed) at (3.2,-3.8) {DONE};
 
-\begin{algorithm}[htpb]
-\caption{Out-of-Order Reassembly and SACK Generation}
-\label{alg:reassembly}
-\scriptsize
-\begin{algorithmic}[1]
-\Require Received Frame $F$, Stride $S_{\max}$, Heap Margin $M$ (16~kB)
-\Ensure Reassembled Payload $P$ or Drop Status
-\State $(hdr, payload, crc) \gets \text{ParseFrame}(F)$
-\If{$\text{ValidateCRC}(hdr, payload, crc) == \text{FAIL}$ \textbf{or} $hdr.dstAddr \notin \{myAddr, \texttt{0xFF}\}$} \State \text{Drop}($F$); \Return \EndIf
-\If{$hdr.dstAddr == \texttt{0xFF} \textbf{ and } (hdr.flags \ \& \ \texttt{FLAG\_ACK\_REQ})$} \State \text{Drop}($F$); \Return \EndIf
-\If{$hdr.totalChunks == 0 \textbf{ or } hdr.chunkIndex \ge hdr.totalChunks$} \State \text{Drop}($F$); \Return \EndIf
-\If{$\text{IsCompleted}(hdr.srcAddr, hdr.msgId)$}
-    \If{$hdr.flags \ \& \ \texttt{FLAG\_ACK\_REQ}$} \State $\text{SendTerminalSack}(hdr.srcAddr, hdr.msgId)$ \EndIf
-    \State \text{Drop}($F$); \Return
-\EndIf
-\State $session \gets \text{FindSession}(hdr.srcAddr, hdr.msgId)$
-\If{$session \neq \text{NULL} \textbf{ and } hdr.totalChunks \neq session.total$} \State \text{Drop}($F$); \Return \EndIf
-\If{$session == \text{NULL}$}
-    \If{$\text{FreeSlots}() == 0 \textbf{ or } \text{AvailMem}() < hdr.totalChunks \cdot (S_{\mathrm{pkt}} + S_{\mathrm{node}} + S_{\max}) + M$}
-        \State \text{Drop}($F$); \Return \Comment{Sender exhausts $R_{\max}$}
-    \EndIf
-    \State $session \gets \text{AllocBuf}(hdr.totalChunks, S_{\max})$
-\EndIf
-\State $idx \gets hdr.chunkIndex$
-\If{$\text{IsBitSet}(session.bitmap, idx)$} \State \text{SkipWrite}($F$) \Comment{Duplicate chunk}
-\Else
-    \State $\text{WriteChunk}(session.buffer, idx \cdot S_{\max}, payload)$
-    \State $\text{SetBit}(session.bitmap, idx)$; $session.count \gets session.count + 1$
-\EndIf
-\If{$hdr.flags \ \& \ \texttt{FLAG\_ACK\_REQ}$} \State $\text{SendSack}(hdr.srcAddr, hdr.msgId, session.bitmap)$ \EndIf
-\If{$session.count == session.total$}
-    \State $P \gets \text{ExtractPayload}(session.buffer)$
-    \State $\text{DeliverToApp}(P)$; $\text{MarkCompleted}(hdr.srcAddr, hdr.msgId)$; $\text{FreeSession}(session)$
-\EndIf
-\end{algorithmic}
-\end{algorithm}
+    \path
+      (idle) edge node[above, font=\tiny] {Tx Req} (send)
+      (send) edge node[above, font=\tiny] {ACK\_REQ} (wait)
+      (send) edge node[left, font=\tiny] {Best-Effort} (completed)
+      (wait) edge[bend left=25] node[right, font=\tiny] {Timeout} (retransmit)
+      (retransmit) edge[bend left=25] node[left, font=\tiny] {Retry} (wait)
+      (wait) edge node[left, font=\tiny] {SACK} (completed)
+      (wait) edge[bend right=40] node[above, sloped, font=\tiny] {Max Retries} (idle)
+      (completed) edge node[left, font=\tiny] {Reset} (idle);
+  \end{tikzpicture}%
+  \label{fig:fsm_datatransfer}%
+}
+\caption{Finite State Machine (FSM) specifications for connection session lifecycle and data transfer modes.}
+\label{fig:state_machines}
+\end{figure*}
 
-\subsection{Session Control, Concurrency, and Fault Handling}
-To support stateful stream negotiation and protect resource-constrained receivers from buffer overflows, \ac{LAMP} introduces a \ac{3WHS} mechanism. The initiator sends a \texttt{SYN} frame (\texttt{FLAG\_CONN\_REQ}) with 4-byte \texttt{SynMetadata} (\texttt{requestedPayloadSize}, \texttt{windowSize}, \texttt{timeoutMs}, default 15~s; local wait 3~s). The peer responds with \texttt{SYN-ACK} (\texttt{FLAG\_CONN\_REQ | FLAG\_CONN\_ACK}), clamping \texttt{acceptedPayloadSize} to transceiver capabilities ($\le 244$~B). The initiator confirms via an empty \texttt{ACK} (\texttt{FLAG\_CONN\_ACK}), establishing the connection. Stale connections clear automatically upon inactivity.
+\subsection{Session Control and Handshake Protocol}
+To support stateful stream negotiation and protect resource-constrained receivers from buffer overflows, \ac{LAMP} introduces a \ac{3WHS} mechanism. Fig.~\ref{fig:state_machines} summarizes the session and data-transfer state machines, while Fig.~\ref{fig:3whs_sequence} illustrates the corresponding sequence flows.
 
-Five deterministic fault-handling rules ensure multi-node stability: (i)~\textit{Simultaneous Connection Resolution}: The node with the higher numerical \texttt{NodeAddress} yields to the peer, while the lower ID responds with \texttt{CONN\_NACK(BUSY)} and proceeds; (ii)~\textit{Implicit Promotion}: If the final \texttt{ACK} is lost, the responder transitions to \texttt{ESTABLISHED} upon receiving the peer's first data frame; (iii)~\textit{Admission Limits}: Receivers reject \texttt{SYN} requests with \texttt{CONN\_NACK(BUSY)} if session tables saturate, free heap drops below 16~kB, or a stateful link is already active; unannounced bursts exceeding heap are dropped silently; (iv)~\textit{Address Filtering}: Frames from unexpected nodes are discarded; and (v)~\textit{Handshake Timeout}: Lost handshakes abort to \texttt{CLOSED}. State machines and message flows are detailed in Section~S-III of the Supplementary Material.
+The connection lifecycle follows a three-step exchange (Fig.~\ref{fig:3whs_sequence}(a)):
+\begin{enumerate}
+  \item \textbf{SYN}: The initiator sends a \texttt{SYN} frame (\texttt{FLAG\_CONN\_REQ}) addressed to \texttt{dstAddr}, carrying a 4-byte \texttt{SynMetadata} payload (\texttt{requestedPayloadSize}, \texttt{windowSize}, \texttt{timeoutMs}, default 15~s; local wait 3~s). The responder bounds \texttt{timeoutMs} to 3--30~s.
+  \item \textbf{SYN-ACK}: If resources permit, the responder returns a \texttt{SYN-ACK} frame (\texttt{FLAG\_CONN\_REQ | FLAG\_CONN\_ACK}), clamping \texttt{acceptedPayloadSize} to transceiver capabilities ($\le 244$~B).
+  \item \textbf{ACK}: The initiator parses the \texttt{SYN-ACK}, adopts the negotiated payload size, and transmits an empty \texttt{ACK} (\texttt{FLAG\_CONN\_ACK}), transitioning both peers to \texttt{ESTABLISHED}.
+\end{enumerate}
+Once established, data streaming proceeds as in Fig.~\ref{fig:data_transfer_sequence}. Five deterministic fault-handling rules ensure multi-node stability: (i)~\textit{Simultaneous Connection Resolution}: The node with the higher numerical address yields and treats the incoming \texttt{SYN} as an inbound request, while the lower address responds with \texttt{CONN\_NACK(BUSY)} (Fig.~\ref{fig:3whs_sequence}(b)); (ii)~\textit{Implicit Promotion}: If the final \texttt{ACK} is lost, the responder transitions to \texttt{ESTABLISHED} upon receiving the peer's first data frame; (iii)~\textit{Admission Limits}: Receivers reject \texttt{SYN} requests with \texttt{CONN\_NACK(BUSY)} when session tables saturate, free heap drops below 16~kB, or a stateful link is already active; (iv)~\textit{Address Filtering}: Frames from unexpected nodes are discarded; and (v)~\textit{Handshake Timeout}: Lost handshakes abort to \texttt{CLOSED}. Formal algorithmic pseudo-code for receiver reassembly and transmitter SACK-ARQ streaming is provided in Algorithms~S-1 and~S-2 of the Supplementary Material.
+
+\begin{figure*}[htpb]
+\centering
+\subfloat[Successful 3-Way Handshake (3WHS) with Metadata Negotiation]{%
+  \begin{tikzpicture}[>=stealth, thick, font=\footnotesize]
+    \draw[very thick] (0,0) -- (0,-4.5) node[below, font=\scriptsize\bfseries] {ESTABLISHED};
+    \draw[very thick] (6.5,0) -- (6.5,-4.5) node[below, font=\scriptsize\bfseries] {ESTABLISHED};
+
+    \node[draw, rectangle, fill=gray!15, minimum width=2.2cm, minimum height=0.5cm] at (0,0.4) {\textbf{Initiator (TX 0x01)}};
+    \node[draw, rectangle, fill=gray!15, minimum width=2.2cm, minimum height=0.5cm] at (6.5,0.4) {\textbf{Peer (RX 0x02)}};
+
+    \node[left, font=\scriptsize\itshape] at (0,-0.3) {CLOSED};
+    \node[right, font=\scriptsize\itshape] at (6.5,-0.3) {CLOSED};
+    \node[left, font=\scriptsize\itshape] at (0,-0.9) {SYN\_SENT};
+    \node[right, font=\scriptsize\itshape] at (6.5,-1.4) {SYN\_RCVD};
+
+    \draw[->, color=blue!80!black] (0,-0.8) -- (6.5,-1.3) node[midway, above, sloped, font=\scriptsize] {1. \texttt{SYN} (\texttt{FLAG\_CONN\_REQ}, \texttt{SynMetadata})};
+    \draw[<-, color=red!80!black] (0,-2.3) -- (6.5,-1.8) node[midway, above, sloped, font=\scriptsize] {2. \texttt{SYN-ACK} (\texttt{FLAG\_CONN\_REQ|ACK}, \texttt{SynAckMetadata})};
+    \draw[->, color=green!50!black] (0,-3.0) -- (6.5,-3.5) node[midway, above, sloped, font=\scriptsize] {3. \texttt{ACK} (\texttt{FLAG\_CONN\_ACK})};
+  \end{tikzpicture}%
+  \label{fig:seq_success}%
+}\hfill
+\subfloat[Connection Rejection (\texttt{CONN\_NACK}) Failure Mode]{%
+  \begin{tikzpicture}[>=stealth, thick, font=\footnotesize]
+    \draw[very thick] (0,0) -- (0,-4.5) node[below, font=\scriptsize\bfseries] {CLOSED};
+    \draw[very thick] (5.5,0) -- (5.5,-4.5) node[below, font=\scriptsize\bfseries] {CLOSED};
+
+    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.5cm] at (0,0.4) {\textbf{Initiator (TX 0x01)}};
+    \node[draw, rectangle, fill=gray!15, minimum width=2.0cm, minimum height=0.5cm] at (5.5,0.4) {\textbf{Peer (RX 0x02)}};
+
+    \node[left, font=\scriptsize\itshape] at (0,-0.3) {CLOSED};
+    \node[right, font=\scriptsize\itshape] at (5.5,-0.3) {CLOSED};
+    \node[left, font=\scriptsize\itshape] at (0,-0.9) {SYN\_SENT};
+    \node[right, font=\scriptsize\itshape] at (5.5,-1.4) {REJECTING};
+
+    \draw[->, color=blue!80!black] (0,-0.8) -- (5.5,-1.3) node[midway, above, sloped, font=\scriptsize] {1. \texttt{SYN} (\texttt{FLAG\_CONN\_REQ}, \texttt{SynMetadata})};
+    \draw[<-, color=purple!80!black, double] (0,-2.3) -- (5.5,-1.8) node[midway, above, sloped, font=\scriptsize] {2. \texttt{CONN\_NACK} (\texttt{BUSY / REJECTED})};
+
+    \node[left, font=\scriptsize\color{red!80!black}] at (0,-2.6) {Aborted};
+    \node[right, font=\scriptsize\color{red!80!black}] at (5.5,-2.1) {Dropped};
+  \end{tikzpicture}%
+  \label{fig:seq_nack}%
+}
+\caption{Sequence interaction flows for 3-Way Handshake (3WHS) connection setup with dynamic metadata negotiation and rejection handling.}
+\label{fig:3whs_sequence}
+\end{figure*}
+
+\begin{figure}[htpb]
+\centering
+\begin{tikzpicture}[>=stealth, thick, font=\footnotesize, scale=0.88, transform shape]
+  \draw[very thick] (0,0) -- (0,-5.8) node[below, font=\scriptsize\bfseries] {TX COMPLETE};
+  \draw[very thick] (6.5,0) -- (6.5,-5.8) node[below, font=\scriptsize\bfseries] {REASSEMBLED};
+
+  \node[draw, rectangle, fill=gray!15, minimum width=2.2cm, minimum height=0.5cm] at (0,0.4) {\textbf{Transmitter (0x01)}};
+  \node[draw, rectangle, fill=gray!15, minimum width=2.2cm, minimum height=0.5cm] at (6.5,0.4) {\textbf{Receiver (0x02)}};
+
+  % Initial Burst
+  \draw[->, color=blue!80!black] (0,-0.5) -- (6.5,-0.9) node[midway, above, sloped, font=\scriptsize] {\texttt{Chunk \#0} (\texttt{flags=0x00})};
+  \draw[->, color=blue!80!black] (0,-1.1) -- (6.5,-1.5) node[midway, above, sloped, font=\scriptsize] {\texttt{Chunk \#1} (\texttt{flags=0x00})};
+  
+  % Lost chunk #2
+  \draw[->, color=red!80!black, dashed] (0,-1.7) -- (4.2,-1.98) node[near end, above, sloped, font=\scriptsize\bfseries] {\textbf{Chunk \#2 (LOST $\times$)}};
+  \node[color=red!80!black, font=\large] at (4.4,-2.0) {$\mathbf{\times}$};
+
+  % Chunk #3 with ACK_REQ
+  \draw[->, color=blue!80!black] (0,-2.3) -- (6.5,-2.7) node[midway, above, sloped, font=\scriptsize] {\texttt{Chunk \#3} (\texttt{FLAG\_ACK\_REQ})};
+
+  % SACK feedback (Bitmap 0b1011 = Chunks 0,1,3 received, 2 missing)
+  \draw[<-, color=orange!90!black, thick] (0,-3.5) -- (6.5,-3.0) node[midway, above, sloped, font=\scriptsize\bfseries] {\texttt{SACK} (\texttt{Bitmap: 0b1011} $\rightarrow$ Missing \#2)};
+
+  % Selective Retransmission of Chunk #2
+  \draw[->, color=purple!80!black, thick] (0,-3.9) -- (6.5,-4.3) node[midway, above, sloped, font=\scriptsize\bfseries] {Selective Retx: \texttt{Chunk \#2} (\texttt{FLAG\_ACK\_REQ})};
+
+  % Final SACK ACK
+  \draw[<-, color=green!60!black, thick] (0,-5.3) -- (6.5,-4.8) node[midway, above, sloped, font=\scriptsize\bfseries] {\texttt{SACK} (\texttt{Bitmap: 0b1111} $\rightarrow$ All ACKed)};
+\end{tikzpicture}
+\caption{End-to-end data streaming flow, frame loss detection, and SACK-driven selective retransmission interaction.}
+\label{fig:data_transfer_sequence}
+\end{figure}
 
 \subsection{C++17 Implementation and Hardware Testbed Setup}
 \label{sec:implementation}
