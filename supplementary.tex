@@ -47,7 +47,7 @@
 \title{Supplementary Material for LAMP: A Selective-ACK Transport Protocol for Reliable Bulk Data Transmission over LoRa Networks}
 
 \author{Alessandro~Monticelli,~\IEEEmembership{Student~Member,~IEEE}%
-\thanks{A. Monticelli is with the Department of Information Engineering, University of Pisa, Italy (e-mail: alessandro.monticelli@ing.unipi.it).}}
+\thanks{A.~Monticelli is with the Department of Computer Science and Engineering (DISI), University of Bologna, 40126 Bologna, Italy (e-mail: alessandr.monticell4@studio.unibo.it).}}
 
 \maketitle
 
@@ -84,7 +84,7 @@ To eliminate hardcoded constants and enable deterministic tuning across heteroge
   \item \textbf{Session Lifecycle Thresholds}: Defines handshake initiation timeouts (\texttt{DEFAULT\_SYN\_TIMEOUT\_MS} = 3000~ms), connection inactivity teardown periods (\texttt{DEFAULT\_CONN\_INACTIVITY\_TIMEOUT\_MS} = 15000~ms), and the reassembly inactivity limit, measured from the last chunk received: the larger of \texttt{PRUNE\_TIMEOUT\_MS} = 15000~ms and $(R_{\mathrm{max}}+1)$ SACK timeouts.
 \end{itemize}
 
-\subsection{Hardware Abstraction Layer (\ac{HAL}) Interface}
+\subsection{Hardware Abstraction Layer (\acs{HAL}) Interface}
 The core transport logic communicates exclusively through abstract interfaces (\texttt{IRadio} and \texttt{IPlatform}). On physical nodes, \texttt{EspHal} wraps ESP32-S3 hardware resources:
 \begin{itemize}
   \item \textbf{SPI Bus Access}: High-speed SPI transfers (up to 16~MHz) for register configuration and FIFO packet buffering to the Semtech SX1262.
@@ -233,8 +233,45 @@ Fig.~\ref{fig:supp_3whs_sequence} and Fig.~\ref{fig:supp_data_transfer_sequence}
 \label{fig:supp_data_transfer_sequence}
 \end{figure}
 
-\subsection{Transmitter Segmentation and SACK-ARQ Pipeline}
-Algorithm~\ref{alg:supp_segmentation} details the formal transmission and selective retransmission logic executed by a LAMP transmitter across all operational modes.
+\subsection{Algorithmic Specifications: Receiver Reassembly and Transmitter SACK-ARQ}
+Algorithm~\ref{alg:supp_reassembly} details the receiver-side out-of-order reassembly, CRC verification, and SACK bitmap generation logic, while Algorithm~\ref{alg:supp_segmentation} formalizes the transmitter-side segmentation, burst dispatch, and selective repair loop.
+
+\begin{algorithm}[htpb]
+\caption{Out-of-Order Reassembly and SACK Generation (Receiver)}
+\label{alg:supp_reassembly}
+\footnotesize
+\begin{algorithmic}[1]
+\Require Received Frame $F$, Stride $S_{\max}$, Heap Margin $M$ (16~kB)
+\Ensure Reassembled Payload $P$ or Drop Status
+\State $(hdr, payload, crc) \gets \text{ParseFrame}(F)$
+\If{$\text{ValidateCRC}(hdr, payload, crc) == \text{FAIL}$ \textbf{or} $hdr.dstAddr \notin \{myAddr, \texttt{0xFF}\}$} \State \text{Drop}($F$); \Return \EndIf
+\If{$hdr.dstAddr == \texttt{0xFF} \textbf{ and } (hdr.flags \ \& \ \texttt{FLAG\_ACK\_REQ})$} \State \text{Drop}($F$); \Return \EndIf
+\If{$hdr.totalChunks == 0 \textbf{ or } hdr.chunkIndex \ge hdr.totalChunks$} \State \text{Drop}($F$); \Return \EndIf
+\If{$\text{IsCompleted}(hdr.srcAddr, hdr.msgId)$}
+    \If{$hdr.flags \ \& \ \texttt{FLAG\_ACK\_REQ}$} \State $\text{SendTerminalSack}(hdr.srcAddr, hdr.msgId)$ \EndIf
+    \State \text{Drop}($F$); \Return
+\EndIf
+\State $session \gets \text{FindSession}(hdr.srcAddr, hdr.msgId)$
+\If{$session \neq \text{NULL} \textbf{ and } hdr.totalChunks \neq session.total$} \State \text{Drop}($F$); \Return \EndIf
+\If{$session == \text{NULL}$}
+    \If{$\text{FreeSlots}() == 0 \textbf{ or } \text{AvailMem}() < hdr.totalChunks \cdot (S_{\mathrm{pkt}} + S_{\mathrm{node}} + S_{\max}) + M$}
+        \State \text{Drop}($F$); \Return \Comment{Sender exhausts $R_{\max}$}
+    \EndIf
+    \State $session \gets \text{AllocBuf}(hdr.totalChunks, S_{\max})$
+\EndIf
+\State $idx \gets hdr.chunkIndex$
+\If{$\text{IsBitSet}(session.bitmap, idx)$} \State \text{SkipWrite}($F$) \Comment{Duplicate chunk}
+\Else
+    \State $\text{WriteChunk}(session.buffer, idx \cdot S_{\max}, payload)$
+    \State $\text{SetBit}(session.bitmap, idx)$; $session.count \gets session.count + 1$
+\EndIf
+\If{$hdr.flags \ \& \ \texttt{FLAG\_ACK\_REQ}$} \State $\text{SendSack}(hdr.srcAddr, hdr.msgId, session.bitmap)$ \EndIf
+\If{$session.count == session.total$}
+    \State $P \gets \text{ExtractPayload}(session.buffer)$
+    \State $\text{DeliverToApp}(P)$; $\text{MarkCompleted}(hdr.srcAddr, hdr.msgId)$; $\text{FreeSession}(session)$
+\EndIf
+\end{algorithmic}
+\end{algorithm}
 
 \begin{algorithm}[htpb]
 \caption{LAMP Payload Transmission and SACK-ARQ (Transmitter)}
