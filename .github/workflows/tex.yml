@@ -75,6 +75,9 @@ jobs:
             [ -f "site/$doc.html" ] || continue
             [ -f "site/$doc.css" ] && cat web/aleemont-doc.css >> "site/$doc.css"
             perl -0pi -e 's#</head>#<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>#; s#<body\s*>#<body>\n<nav class="aleemont-bar"><a href="https://aleemont.dev/">Alessandro Monticelli</a><a href="./">LAMP paper</a><a href="pdf/'"$doc"'.pdf">PDF</a></nav>#' "site/$doc.html"
+            # perl does not fail when a pattern doesn't match: check the result.
+            grep -q 'class="aleemont-bar"' "site/$doc.html" && grep -q 'favicon.svg' "site/$doc.html" \
+              || { echo "::error::site/$doc.html: aleemont.dev bar or favicon not injected"; exit 1; }
           done
 
       - name: Generate build artifact (HTML)
