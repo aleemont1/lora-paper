@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LAMP: A Selective-ACK Transport Protocol for Reliable Bulk Data Transmission over LoRa Networks</title>
+  <meta name="description" content="LAMP, a transport protocol for bulk data over LoRa with one selective acknowledgment per burst. Paper and supplementary material, by Alessandro Monticelli.">
+  <meta name="author" content="Alessandro Monticelli">
+  <meta name="color-scheme" content="light dark">
+  <link rel="canonical" href="https://aleemont.dev/lora-paper/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Alessandro Monticelli">
+  <meta property="og:title" content="LAMP: A Selective-ACK Transport Protocol for Reliable Bulk Data Transmission over LoRa Networks">
+  <meta property="og:description" content="A transport protocol for bulk data over LoRa with one selective acknowledgment per burst instead of one per packet.">
+  <meta property="og:url" content="https://aleemont.dev/lora-paper/">
+  <meta property="og:image" content="https://aleemont.dev/assets/og/lamp.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "ScholarlyArticle", "headline": "LAMP: A Selective-ACK Transport Protocol for Reliable Bulk Data Transmission over LoRa Networks", "name": "LAMP: A Selective-ACK Transport Protocol for Reliable Bulk Data Transmission over LoRa Networks", "abstract": "This paper presents LAMP (LoRa Adaptive Multipacket Protocol), a lightweight transport architecture that enables the continuous transfer of large data blocks over point-to-point Long-Range (LoRa®) networks. To overcome the prohibitive Time-on-Air overhead and duty-cycle saturation typical of existing Stop-and-Wait solutions, the proposed architecture segments payloads into up to 255 chunks per transmission window. Each chunk is protected by a 9-byte Logical Header with compact 8-bit node addressing (supporting downstream IPv6 link-local prefix mapping) and a 2-byte CRC-16 checksum suffix. The protocol provides four distinct operational modes combining connection state (Connectionless / Stateful) and reliability (Best-effort / SACK-ARQ feedback). By requiring receiver feedback only at sequence boundaries rather than per-packet, the SACK mechanism significantly reduces acknowledgment overhead without incurring the constant over-the-air encoding overhead of pure FEC.", "keywords": "Long Range (LoRa), SACK, packet fragmentation, transport protocol, IoT, embedded systems, 3-way handshake, point-to-point", "inLanguage": "en", "url": "https://aleemont.dev/lora-paper/", "author": {"@type": "Person", "@id": "https://aleemont.dev/#person", "name": "Alessandro Monticelli", "url": "https://aleemont.dev/", "affiliation": {"@type": "CollegeOrUniversity", "name": "University of Bologna"}}, "isBasedOn": "https://github.com/aleemont1/LAMP", "creativeWorkStatus": "In preparation"}</script>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="aleemont.css">
+  <script>try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="https://aleemont.dev/">Alessandro Monticelli</a>
+  <nav class="nav">
+    <a href="https://aleemont.dev/">Projects</a>
+    <a href="https://blog.aleemont.dev/">Blog</a>
+  </nav>
+  <div class="actions">
+    <button class="icon-btn theme-toggle" type="button" aria-label="Toggle theme" title="Toggle theme"><svg class="ic-sun" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></svg><svg class="ic-moon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"/></svg></button>
+  </div>
+</header>
+
+<main>
+  <h1>LAMP: A Selective-ACK Transport Protocol for Reliable Bulk Data Transmission over LoRa Networks</h1>
+  <p class="role">Alessandro Monticelli · University of Bologna · in preparation</p>
+  <p class="links">
+    <a href="paper.html">Read online</a>
+    <a href="pdf/paper.pdf">PDF</a>
+    <a href="https://github.com/aleemont1/LAMP">Code</a>
+    <a href="https://aleemont.dev/work/lamp/">Project page</a>
+  </p>
+
+  <h2>Abstract</h2>
+  <div class="abstract">
+    <p>This paper presents LAMP (LoRa Adaptive Multipacket Protocol), a lightweight transport architecture that enables the continuous transfer of large data blocks over point-to-point Long-Range (LoRa®) networks. To overcome the prohibitive Time-on-Air overhead and duty-cycle saturation typical of existing Stop-and-Wait solutions, the proposed architecture segments payloads into up to 255 chunks per transmission window. Each chunk is protected by a 9-byte Logical Header with compact 8-bit node addressing (supporting downstream IPv6 link-local prefix mapping) and a 2-byte CRC-16 checksum suffix. The protocol provides four distinct operational modes combining connection state (Connectionless / Stateful) and reliability (Best-effort / SACK-ARQ feedback). By requiring receiver feedback only at sequence boundaries rather than per-packet, the SACK mechanism significantly reduces acknowledgment overhead without incurring the constant over-the-air encoding overhead of pure FEC.</p>
+  </div>
+  <p class="mono" style="margin-top:1rem">Long Range (LoRa), SACK, packet fragmentation, transport protocol, IoT, embedded systems, 3-way handshake, point-to-point</p>
+
+  <h2>Documents</h2>
+  <ul class="rows">
+    <li>
+      <span class="when">Paper</span>
+      <div>
+        <p class="row-head">Main manuscript</p>
+        <p class="row-text">Architecture, the four operational modes, SACK-ARQ mechanics, ns-3 results in the urban channel and hardware validation.</p>
+        <p class="links"><a href="paper.html">Read online</a><a href="pdf/paper.pdf">PDF</a></p>
+      </div>
+    </li>
+    <li>
+      <span class="when">Supplement</span>
+      <div>
+        <p class="row-head">Supplementary material</p>
+        <p class="row-text">Hardware abstraction layer, ESP32-S3 driver integration, secondary parameter sweeps (blocks F, G, H) and the proof-of-concept history.</p>
+        <p class="links"><a href="supplementary.html">Read online</a><a href="pdf/supplementary.pdf">PDF</a></p>
+      </div>
+    </li>
+  </ul>
+</main>
+
+<footer class="site-footer">
+  <p>Source code, simulation scripts and datasets: <a href="https://github.com/aleemont1/LAMP">github.com/aleemont1/LAMP</a></p>
+  <p>© Alessandro Monticelli · <a href="https://aleemont.dev/">aleemont.dev</a></p>
+</footer>
+<script src="theme.js"></script>
+</body>
+</html>

@@ -6,3 +6,6 @@
 !img/
 !img/**
 !.github/
+# Landing page and shared aleemont.dev assets
+!web/
+!web/**
